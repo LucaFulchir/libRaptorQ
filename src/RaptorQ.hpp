@@ -49,153 +49,149 @@
 
 namespace RaptorQ {
 
-template <typename T, typename OutputIterator>
+template <typename T>
 class RAPTORQ_API Encoder;
 
-/////////////
-///
-/// Just a couple of iterators, for blocks and symbols
-///
-/////////////
-
-template <class OutputIterator, typename T>
-class RAPTORQ_API Symbol_Iterator :
-				public std::iterator<std::input_iterator_tag, std::vector<T>>
+template <typename T>
+class RAPTORQ_API Symbol
 {
 public:
-	Symbol_Iterator (const Encoder<T, OutputIterator> *enc, const uint32_t esi,
-														const uint32_t symbols,
-														const uint8_t sbn)
-		:_enc(enc), _esi(esi), _end (symbols), _sbn(sbn)
-	{}
-	uint64_t operator() (std::vector<T> &output)
-	{
-		// true if all good
-		return _enc->encode (output.begin(), output.end(), _sbn, _esi);
-	}
-	uint64_t operator() (const OutputIterator start, const OutputIterator end)
-	{
-		// true if all good
-		return _enc->encode (start, end, _sbn, _esi);
-	}
-	uint32_t id()
-	{
-		union {
-			uint32_t raw;
-			struct {
-				uint8_t sbn;
-				uint32_t esi:24;
-			};
-		} combined;
+	Symbol (Encoder<T> *enc, const uint32_t esi, const uint8_t sbn)
+		: _enc (enc), _esi (esi), _sbn (sbn) {}
 
-		combined.sbn = _sbn;
-		combined.esi = _esi;
-
-		return combined.raw;
-	}
-	std::vector<T> operator*()
+	std::vector<T> operator()()
 	{
 		std::vector<T> ret;
-		ret.reserve (_enc->symbol_size);
-		_enc->encode (ret.begin(), ret.end(), _sbn, _esi);
+		(*this) (ret, 0);
 		return ret;
 	}
-	Symbol_Iterator<OutputIterator, T> operator++(const int i)
+	bool operator() (std::vector<T> &output, const size_t offset = 0)
 	{
-		if (_esi + i <= _end) {
-			return Symbol_Iterator<OutputIterator, T> (_enc, _esi + i,_sbn);
-		} else {
-			return Symbol_Iterator<OutputIterator, T> (_enc, _end, _sbn);
-		}
+		return _enc->encode (output, _esi, _sbn);
 	}
-	Symbol_Iterator<OutputIterator, T>& operator++()
-	{
-		if (_esi < _end)
-			++_esi;
-		return *this;
-	}
-	bool operator!= (const Symbol_Iterator<OutputIterator, T> &s_it)
-	{
-		return !(this == s_it);
-	}
-	bool operator== (const Symbol_Iterator<OutputIterator, T> &s_it)
-	{
-		return _enc == s_it._enc && _esi == s_it._esi;
-	}
+	bool operator() (T *output);
+
 private:
-	const Encoder<T, OutputIterator> *_enc;
-	uint32_t _esi;
-	const uint32_t _end;
+	Encoder<T> *_enc;
+	const uint32_t _esi;
 	const uint8_t _sbn;
 };
 
-template <typename OutputIterator, typename T>
-class RAPTORQ_API Block_Iterator
+template <typename T>
+class RAPTORQ_API Symbol_Iterator :
+		public std::iterator<std::input_iterator_tag, Symbol<T>>
 {
 public:
-	Block_Iterator (const Encoder<T, OutputIterator> *enc, const uint8_t start,
-															const uint8_t end)
-		:_enc(enc), _sbn(start), _end(end)
-	{}
-	Symbol_Iterator<OutputIterator, T> begin () const
+	Symbol_Iterator (Encoder<T> *enc, const uint32_t esi, const uint8_t sbn)
+		: _enc (enc), _esi (esi), _sbn (sbn) {}
+	Symbol<T> operator*()
 	{
-		return Symbol_Iterator<OutputIterator, T> (_enc, 0, _enc->symbols(),
-																		_sbn);
+		return Symbol<T> (_enc, _esi, _sbn);
 	}
-	Symbol_Iterator<OutputIterator, T> end () const;
-	Block_Iterator<OutputIterator, T> operator++(int i) const
+	Symbol_Iterator<T>& operator++()
 	{
-		if (i + _sbn < _end) {
-			return Block_Iterator<OutputIterator, T> (_enc, _sbn + i, _end);
-		} else {
-			return Block_Iterator<OutputIterator, T> (_enc, _end, _end);
-		}
+		++_esi;
+		return *this;
 	}
-	Block_Iterator<OutputIterator, T>& operator++();
-	bool operator!= (const Block_Iterator<OutputIterator, T> &e_it) const
+	Symbol_Iterator operator++ (const int i) const
 	{
-		return !(this == e_it);
+		Symbol_Iterator<T> ret (_esi + i, _sbn);
+		return ret;
 	}
-	bool operator== (const Block_Iterator<OutputIterator, T> &e_it) const
+	bool operator== (const Symbol_Iterator<T> it) const
 	{
-		return _enc == e_it._enc && _sbn == e_it._sbn;
+		return it._esi == _esi && it._sbn == _sbn;
+	}
+	bool operator!= (const Symbol_Iterator<T> it) const
+	{
+		return it._esi != _esi || it._sbn != _sbn;
 	}
 private:
-	const Encoder<T, OutputIterator> *_enc;
+	Encoder<T> *_enc;
+	uint32_t _esi;
+	const uint8_t _sbn;
+};
+
+template <typename T>
+class RAPTORQ_API Block
+{
+public:
+	Block (Encoder<T> *enc, const uint16_t symbols, const uint8_t sbn)
+		: _enc (enc), _symbols (symbols), _sbn (sbn) {}
+
+	Symbol_Iterator<T> begin_source() const
+	{
+		return Symbol_Iterator<T> (_enc, 0, _sbn);
+	}
+	Symbol_Iterator<T> end_source() const
+	{
+		return Symbol_Iterator<T> (_enc, _symbols, _sbn);
+	}
+	Symbol_Iterator<T> begin_repair() const
+	{
+		return Symbol_Iterator<T> (_enc, _symbols, _sbn);
+	}
+	Symbol_Iterator<T> end_repair (const uint32_t max_repair) const
+	{
+		uint32_t max_r = max_repair;
+		if (max_repair >= std::pow (2, 20) - _symbols)
+			max_r = std::pow (2, 20) - _symbols;
+		return Symbol_Iterator<T> (_enc, _symbols + max_r, _sbn);
+	}
+
+private:
+	Encoder<T> * _enc;
+	const uint16_t _symbols;
+	const uint8_t _sbn;
+};
+
+template <typename T>
+class RAPTORQ_API Block_Iterator :
+		public std::iterator<std::input_iterator_tag, Block<T>>
+{
+public:
+	Block_Iterator (Encoder<T> *enc, const Impl::Partition part, uint8_t sbn)
+		:_enc (enc), _part (part), _sbn (sbn) {}
+	Block<T> operator*()
+	{
+		if (_sbn > _part.num (0))
+			return Block<T> (_enc, _part.size (0), _sbn);
+		return Block<T> (_enc, _part.size (1), _sbn);
+	}
+	Block_Iterator& operator++()
+	{
+		++_sbn;
+		return *this;
+	}
+	Block_Iterator operator++ (const int i) const
+	{
+		Block_Iterator ret = *this;
+		ret._sbn += i;
+		return ret;
+	}
+	bool operator== (const Block_Iterator it) const
+	{
+		return it._sbn == _sbn;
+	}
+	bool operator!= (const Block_Iterator it) const
+	{
+		return it._sbn != _sbn;
+	}
+private:
+	Encoder<T> *_enc;
+	const Impl::Partition _part;
 	uint8_t _sbn;
-	const uint8_t _end;
 };
-
-
-
-
-
-// rfc 6330, pg 6
-union OTI_Common_Data {
-	uint64_t raw;
-	struct {
-		uint64_t size:40;
-		uint8_t reserved:8;
-		uint16_t symbol_size:16;
-	};
-};
-
-union OTI_Scheme_Specific_Data {
-	uint32_t raw;
-	struct {
-		uint8_t source_blocks;
-		uint16_t sub_blocks;
-		uint8_t	alignment;
-	};
-};
-
 
 
 
 
 static const uint64_t max_data = 946270874880;
 
-template <typename T, typename OutputIterator>
+typedef uint64_t OTI_Common_Data;
+typedef uint32_t OTI_Scheme_Specific_Data;
+
+template <typename T>
 class RAPTORQ_API Encoder
 {
 public:
@@ -213,43 +209,52 @@ public:
 		// max size: between 2^39 and 2^40
 		if (data == nullptr || data->size() *sizeof(T) > max_data)
 			return;
-		interleave = std::unique_ptr<Impl::Interleaver<T>> (data.get(),
+		interleave = std::unique_ptr<Impl::Interleaver<T>> (
+										new Impl::Interleaver<T> (data.get(),
 														_min_subsymbol, _mem,
-																_symbol_size);
+																_symbol_size));
 	}
 
-	Block_Iterator<OutputIterator, T> begin () const
+	Block_Iterator<T> begin ()
 	{
-		return Block_Iterator<OutputIterator, T> (this, 0,interleave->blocks());
+		return Block_Iterator<T> (this, interleave->get_partition(), 0);
 	}
-	Block_Iterator<OutputIterator, T> end () const
+	Block_Iterator<T> end ()
 	{
-		return Block_Iterator<OutputIterator, T> (this, interleave->blocks(),
-														interleave->blocks());
+		auto part = interleave->get_partition();
+		return Block_Iterator<T> (this, part, part.num(0) + part.num(1));
 	}
+
 	bool operator()() const { return interleave != nullptr; }
 	OTI_Common_Data OTI_Common() const;
 	OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
-	void precompute_all (const uint8_t threads);
+	void precompute (const uint8_t threads, const bool background);
 	size_t precompute_max_memory ();
-	uint32_t encode (OutputIterator &start, const OutputIterator end,
-													uint32_t esi, uint8_t sbn);
+	bool encode (std::vector<T> &output, uint32_t esi, uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
-	uint32_t encode (OutputIterator &start, const OutputIterator end,
-																uint32_t &id);
+	bool encode (std::vector<T> &output, uint32_t &id);
+	void free (const uint8_t sbn);
 private:
+	class RAPTORQ_LOCAL Locked_Encoder
+	{
+	public:
+		Locked_Encoder (const Impl::Interleaver<T> &symbols, const uint8_t SBN)
+			:_enc (symbols, SBN)
+		{}
+		std::mutex _mtx;
+		Impl::Encoder<T> _enc;
+	};
 	std::shared_ptr<std::vector<T>> _data;
 	std::unique_ptr<Impl::Interleaver<T>> interleave = nullptr;
-	std::map<uint8_t, std::shared_ptr<
-									std::pair<std::mutex, Impl::Encoder<T>>
-									>
-						> encoders;
+	std::map<uint8_t, std::shared_ptr<Locked_Encoder>> encoders;
 	const size_t _mem;
 	std::mutex _mtx;
 	const uint16_t _min_subsymbol;
 
-	static void precompute (Encoder<T, OutputIterator> &obj, uint8_t *sbn);
+	static void precompute_block_all (Encoder<T> *obj, const uint8_t threads);
+	static void precompute_thread (Encoder<T> *obj, uint8_t *sbn,
+													const uint8_t single_sbn);
 };
 
 
@@ -261,23 +266,51 @@ public:
 	// worrying about deleting used stuff.
 	using Dec_ptr = std::shared_ptr<RaptorQ::Impl::Decoder<T>>;
 
-	Decoder (OTI_Common_Data common, OTI_Scheme_Specific_Data scheme)
-		:_symbol_size (common.symbol_size), _sub_blocks (scheme.sub_blocks),
-												_blocks (scheme.source_blocks)
+	// rfc 6330, pg 6
+	// easy explanation for OTI_* comes next.
+	// we do NOT use bitfields as compilators are not actually forced to put
+	// them in any particular order. meaning tey're useless.
+	//
+	//union OTI_Common_Data {
+	//	uint64_t raw;
+	//	struct {
+	//		uint64_t size:40;
+	//		uint8_t reserved:8;
+	//		uint16_t symbol_size:16;
+	//	};
+	//};
+
+	//union OTI_Scheme_Specific_Data {
+	//	uint32_t raw;
+	//	struct {
+	//		uint8_t source_blocks;
+	//		uint16_t sub_blocks;
+	//		uint8_t	alignment;
+	//	};
+	//};
+	Decoder (const OTI_Common_Data common,const OTI_Scheme_Specific_Data scheme)
 	{
-		assert (scheme.alignment <= sizeof(T) &&
+		// see the above commented bitfields for quick reference
+		_symbol_size = static_cast<uint16_t> (common);
+		_sub_blocks = static_cast<uint16_t> (scheme >> 8);
+		_blocks = static_cast<uint8_t> (common >> 24);
+		assert (static_cast<uint8_t> (scheme) <= sizeof(T) &&
 							"RaptorQ::Decoder: sizeof(T) must be <= alignment");
-		if (common.size > max_data)
+		//	(common >> 24) == total file size
+		const uint64_t size = common >> 24;
+		if (size > max_data)
 			return;
 
 		const uint64_t total_symbols = static_cast<uint64_t> (ceil (
-								static_cast<double> (common.size * sizeof(T)) /
+									static_cast<double> (size * sizeof(T)) /
 										static_cast<double> (_symbol_size)));
 
-		part = Impl::Partition (total_symbols, scheme.source_blocks);
+		part = Impl::Partition (total_symbols,
+										static_cast<uint8_t> (scheme >> 24));
+		//FIXME: check that the OSI and "part" agree on the data.
 	}
 
-	Decoder (uint16_t symbol_size,uint16_t sub_blocks, uint8_t blocks)
+	Decoder (uint16_t symbol_size, uint16_t sub_blocks, uint8_t blocks)
 		:_symbol_size (symbol_size), _sub_blocks (sub_blocks), _blocks (blocks)
 	{}
 
@@ -291,12 +324,11 @@ public:
 	void free (const uint8_t sbn);
 private:
 	Impl::Partition part;
-	const uint16_t _symbol_size, _sub_blocks;
-	const uint8_t _blocks;
+	uint16_t _symbol_size, _sub_blocks;
+	uint8_t _blocks;
 	std::map<uint8_t, Dec_ptr> decoders;
 	std::mutex _mtx;
 };
-
 
 
 
@@ -308,36 +340,35 @@ private:
 //
 /////////////////
 
-template <typename T, typename OutputIterator>
-OTI_Common_Data Encoder<T, OutputIterator>::OTI_Common() const
+template <typename T>
+OTI_Common_Data Encoder<T>::OTI_Common() const
 {
 	OTI_Common_Data ret;
 	// first 40 bits: data length.
-	ret.size = _data.size();
+	ret = _data->size() << 24;
 	// 8 bits: reserved
-	ret.reserved = 0;
 	// last 16 bits: symbol size
-	ret.symbol_size = _symbol_size;
+	ret += _symbol_size;
 
 	return ret;
 }
 
-template <typename T, typename OutputIterator>
-OTI_Scheme_Specific_Data Encoder<T, OutputIterator>::OTI_Scheme_Specific() const
+template <typename T>
+OTI_Scheme_Specific_Data Encoder<T>::OTI_Scheme_Specific() const
 {
 	OTI_Scheme_Specific_Data ret;
 	// 8 bit: source blocks
-	ret.source_blocks = interleave->blocks();
+	ret = interleave->blocks() << 24;
 	// 16 bit: sub-blocks number (N)
-	ret.sub_blocks = interleave->sub_blocks();
+	ret += interleave->sub_blocks() << 8;
 	// 8 bit: alignment
-	ret.alignment = sizeof(T);
+	ret += sizeof(T);
 
 	return ret;
 }
 
-template <typename T, typename OutputIterator>
-size_t Encoder<T, OutputIterator>::precompute_max_memory ()
+template <typename T>
+size_t Encoder<T>::precompute_max_memory ()
 {
 	// give a good estimate on the amount of memory neede for the precomputation
 	// of one block;
@@ -361,41 +392,70 @@ size_t Encoder<T, OutputIterator>::precompute_max_memory ()
 	uint16_t matrix_cols = Impl::K_padded[K_idx] + std::get<0> (S_H) +
 															std::get<1> (S_H);
 
-	// Rough estimate: Matrix A, matrix X (=> *2), matrix D and symbols.
-	return matrix_cols * matrix_cols * 2 + _symbol_size * matrix_cols * 2;
+	// Rough memory estimate: Matrix A, matrix X (=> *2) and matrix D.
+	return matrix_cols * matrix_cols * 2 + _symbol_size * matrix_cols;
 }
 
-
-template <typename T, typename OutputIterator>
-void Encoder<T, OutputIterator>::precompute (Encoder<T, OutputIterator> &obj,
-																uint8_t *sbn)
+template <typename T>
+void Encoder<T>::precompute_thread (Encoder<T> *obj, uint8_t *sbn,
+													const uint8_t single_sbn)
 {
+	// if "sbn" pointer is NOT nullptr, than we are a thread from
+	// from a precompute_block_all. This means that we need to update
+	// the value of sbn as soon as we get our work.
+	//
+	// if sbn == nullptr, then we have been called to work on a single
+	// sbn, and not from "precompute_block_all".
+	// This means we work on "single_sbn", and do not touch "sbn"
+
+	uint8_t *sbn_ptr = sbn;
+	if (sbn_ptr == nullptr)
+		sbn_ptr = const_cast<uint8_t*> (&single_sbn);
 	// call this from a thread, precomput all block symbols
-	while (*sbn < obj.interleave->blocks()) {
-		obj._mtx.lock();
-		auto it = obj.encoders.find (*sbn);
-		if (it == obj.encoders.end()) {
+	while (*sbn_ptr < obj->interleave->blocks()) {
+		obj->_mtx.lock();
+		if (*sbn_ptr >= obj->interleave->blocks()) {
+			obj->_mtx.unlock();
+			return;
+		}
+		auto it = obj->encoders.find (*sbn_ptr);
+		if (it == obj->encoders.end()) {
 			bool success;
-			std::tie (it, success) = obj.encoders.insert ({*sbn,
-									Impl::Encoder<T> (obj.interleave, *sbn)});
+			std::tie (it, success) = obj->encoders.insert ({*sbn_ptr,
+					std::make_shared<Locked_Encoder> (*obj->interleave, *sbn_ptr)
+														});
 		}
 		auto enc_ptr = it->second;
-		bool locked = enc_ptr->first.try_lock();
-		++(*sbn);
-		obj._mtx.unlock();
+		bool locked = enc_ptr->_mtx.try_lock();
+		if (sbn != nullptr)
+			++(*sbn);
+		obj->_mtx.unlock();
 		if (locked) {	// if not locked, someone else is already waiting
 						// on this. so don't do the same work twice.
-			enc_ptr->second.generate_symbols();
-			enc_ptr->first.unlock();
+			enc_ptr->_enc.generate_symbols();
+			enc_ptr->_mtx.unlock();
 		}
+		if (sbn == nullptr)
+			return;
 	}
 }
 
-template <typename T, typename OutputIterator>
-void Encoder<T, OutputIterator>::precompute_all (const uint8_t threads)
+template <typename T>
+void Encoder<T>::precompute (const uint8_t threads, const bool background)
+{
+	if (background) {
+		std::thread t (precompute_block_all, this, threads);
+		t.detach();
+	} else {
+		return precompute_block_all (this, threads);
+	}
+}
+
+template <typename T>
+void Encoder<T>::precompute_block_all (Encoder<T> *obj, const uint8_t threads)
 {
 	// precompute all intermediate symbols, do it with more threads.
-	if (interleave == nullptr)
+	if (obj->interleave == nullptr)
 		return;
 	std::vector<std::thread> t;
 	uint8_t spawned = threads - 1;
@@ -408,54 +468,61 @@ void Encoder<T, OutputIterator>::precompute_all (const uint8_t threads)
 
 	// spawn n-1 threads
 	for (uint8_t id = 0; id < spawned; ++id)
-		t.push_back (precompute, &sbn);
+		t.emplace_back (precompute_thread, obj, &sbn, 0);
 
-	// do the work by ourselves
-	precompute (&sbn);
+	// do the work ourselves
+	precompute_thread (obj, &sbn, 0);
 
 	// join other threads
 	for (uint8_t id = 0; id < spawned; ++id)
 		t[id].join();
 }
 
-template <typename T, typename OutputIterator>
-uint32_t Encoder<T, OutputIterator>::encode (OutputIterator &start,
-										const OutputIterator end, uint32_t &id)
+template <typename T>
+bool Encoder<T>::encode (std::vector<T> &output, uint32_t &id)
 {
-	union {
-		uint32_t raw;
-		struct {
-			uint8_t sbn;
-			uint32_t esi:24;
-		};
-	} extracted;
+	const uint32_t mask_8 = static_cast<uint32_t> (std::pow (2, 8)) - 1;
+	const uint32_t mask = ~(mask_8 << 24);
 
-	extracted.raw = id;
-
-	return encode (start, end, extracted.esi, extracted.sbn);
+	return encode (output, id & mask, static_cast<uint8_t> (id & mask_8));
 }
 
-template <typename T, typename OutputIterator>
-uint32_t Encoder<T, OutputIterator>::encode (OutputIterator &start,
-							const OutputIterator end, uint32_t esi, uint8_t sbn)
+template <typename T>
+bool Encoder<T>::encode (std::vector<T> &output, uint32_t esi, uint8_t sbn)
 {
+	if (sbn >= interleave->blocks())
+		return false;
 	_mtx.lock();
 	auto it = encoders.find (sbn);
 	if (it == encoders.end()) {
 		bool success;
-		std::tie (it, success) = encoders.insert ({sbn,
-										Impl::Encoder<T> (interleave, sbn)});
+		std::tie (it, success) = encoders.emplace (sbn,
+						std::make_shared<Locked_Encoder> (*interleave, sbn));
+		std::thread background (precompute_thread, this, nullptr, sbn);
+		background.detach();
 	}
 	auto enc_ptr = it->second;
 	_mtx.unlock();
-	enc_ptr->first.lock();
-	enc_ptr->second.generate_symbols();
-	enc_ptr->first.unlock();
+	if (esi >= interleave->source_symbols (sbn)) {
+		// make sure we generated the intermediate symbols
+		enc_ptr->_mtx.lock();
+		enc_ptr->_enc.generate_symbols();
+		enc_ptr->_mtx.unlock();
+	}
 
-
+	return enc_ptr->_enc.Enc (esi, output, 0);
 }
 
 
+template <typename T>
+void Encoder<T>::free (const uint8_t sbn)
+{
+	_mtx.lock();
+	auto it = encoders.find (sbn);
+	if (it != encoders.end())
+		encoders.erase (it);
+	_mtx.unlock();
+}
 
 /////////////////
 //

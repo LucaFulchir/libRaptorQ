@@ -23,6 +23,8 @@
 #include "Precode_Matrix.hpp"
 #include "Rand.hpp"
 
+#include <iostream>
+
 ///////////////////
 //
 // Precode_Matrix
@@ -38,6 +40,22 @@ namespace RaptorQ {
 namespace Impl {
 
 // used in encoding, and by decoding
+DenseMtx Precode_Matrix::intermediate_eigen (DenseMtx &D)
+{
+	// rfc says this should work.
+	// this seems to be twice as fast as our method, but it doesn't work.
+	//... with this we can not rebuild correctly any missing symbols.
+	// ...with our method everything seems to be fine,
+	// EXCEPT for size 256, 3422 (and possible more after?)
+	//
+	// Soo... are we doing something stupid, yet making things work,
+	// OR is the rfc wrong ? note that the rfc is *really* badly written...
+	// we also seem to work with the same matrix as OpenRQ, so... wut?
+
+	DenseMtx encoded_symbols = A.partialPivLu().solve (D);
+	return encoded_symbols;
+}
+
 DenseMtx Precode_Matrix::intermediate (DenseMtx &D)
 {
 	// rfc 6330, pg 32
@@ -70,16 +88,15 @@ DenseMtx Precode_Matrix::intermediate (DenseMtx &D)
 	decode_phase4 (D, i, u);
 	decode_phase5 (D, i);
 	// A now must be an LxL identity matrix: check it.
-	/* CHECK DISABLED: phase4, phase5 do not modify A, as it's never readed
-	 * again. So the Matrix is *not* an identity anymore.
-	auto id_A = A.block (0, 0, _params.L, _params.L);
-	for (uint16_t row = 0; row < id_A.rows(); ++row) {
-		for (uint16_t col = 0; col < id_A.cols(); ++col) {
-			if (static_cast<uint8_t> (id_A (row, col)) != (row == col ? 1 : 0))
-				return C;
-		}
-	}
-	*/
+	// CHECK DISABLED: phase4  does not modify A, as it's never readed
+	// again. So the Matrix is *not* an identity anymore.
+	//auto id_A = A.block (0, 0, _params.L, _params.L);
+	//for (uint16_t row = 0; row < id_A.rows(); ++row) {
+	//	for (uint16_t col = 0; col < id_A.cols(); ++col) {
+	//		if (static_cast<uint8_t> (id_A (row, col)) != (row == col ? 1 : 0))
+	//			return C;
+	//	}
+	//}
 
 	C = DenseMtx (D.rows(), D.cols());
 	for (i = 0; i < _params.L; ++i)
@@ -182,9 +199,9 @@ std::tuple<bool, uint16_t, uint16_t>
 	std::vector<std::pair<bool, size_t>> tracking;	// is_hdpc, row_degree
 
 	// optimization: r_rows tracks the rows that can be chosen, and if the row
-	// is added to the graph, track also the id of one of the nodes,
-	// so that it will be easy to verify it the row represents an edge
-	// between nodes of a maximum component (see rfc 6330, pg 33-34)
+	// is added to the graph, track also the id of one of the nodes with "1",
+	// so that it will be easy to verify it. The row represents an edge
+	// between nodes (1) of a maximum component (see rfc 6330, pg 33-34)
 	std::vector<std::pair<uint16_t, uint16_t>> r_rows;
 
 	tracking.reserve (static_cast<size_t> (A.rows()));
@@ -285,13 +302,13 @@ std::tuple<bool, uint16_t, uint16_t>
 				if (tracking[row + i].first) {
 					// HDPC
 					if (tracking[row + i].second < min_degree_hdpc) {
-						min_degree_hdpc = tracking[row].second;
-						min_row_hdpc = row - i;
+						min_degree_hdpc = tracking[row + i].second;
+						min_row_hdpc = row;
 					}
 				} else {
 					// NON-HDPC
 					if (tracking[row + i].second < min_degree) {
-						min_degree = tracking[row].second;
+						min_degree = tracking[row + i].second;
 						min_row = row;
 					}
 				}

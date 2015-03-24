@@ -50,7 +50,7 @@ public:
 				precode (Parameters(symbols)), mask (_symbols)
 	{
 		static_assert(std::is_unsigned<T>::value,
-				"RaptorQ: Decoder can only be used with unsigned types");
+					"RaptorQ: Decoder can only be used with unsigned types");
 
 		// symbol size is in octets, but we save it in "T" sizes.
 		// so be aware that "symbol_size" != "_symbol_size" for now

@@ -43,7 +43,8 @@ public:
 	{
 		precode.gen(0);
 	}
-	std::vector<T> Enc (const uint32_t ESI) const;
+	bool Enc (const uint32_t ESI, std::vector<T> &output,
+												const size_t offset = 0) const;
 
 	bool generate_symbols ();
 	uint16_t padded() const;
@@ -52,7 +53,6 @@ private:
 	const Interleaver<T> _symbols;
 	const uint8_t _SBN;
 
-	DenseMtx A;
 	DenseMtx encoded_symbols;
 };
 
@@ -71,6 +71,9 @@ uint16_t Encoder<T>::padded () const
 template <typename T>
 bool Encoder<T>::generate_symbols ()
 {
+	// do not obther checing for multithread. that is done in RaptorQ.hpp
+	if (encoded_symbols.cols() != 0)
+		return true;
 	DenseMtx D = DenseMtx (precode._params.K_padded + precode._params.S +
 															precode._params.H,
 											sizeof(T) * _symbols.symbol_size());
@@ -106,28 +109,32 @@ bool Encoder<T>::generate_symbols ()
 }
 
 template <typename T>
-std::vector<T> Encoder<T>::Enc (const uint32_t ESI) const
+bool Encoder<T>::Enc (const uint32_t ESI, std::vector<T> &output,
+													const size_t offset) const
 {
 	// ESI means that the first _symbols.source_symbols() are the
 	// original symbols, and the next ones are repair symbols.
 
-	std::vector<T> ret;
-	ret.reserve (_symbols.symbol_size ());
+	if (output.capacity() < offset + _symbols.symbol_size())
+		output.reserve (offset + _symbols.symbol_size ());
 
 	auto non_repair = _symbols.source_symbols (_SBN);
+
+	auto position = output.begin() + offset;
 
 	if (ESI < non_repair) {
 		// just return the source symbol.
 		auto block = _symbols[_SBN];
 		auto requested_symbol = block[ESI];
+
 		for (auto al = requested_symbol.begin(); al != requested_symbol.end();
 																		++al) {
-			ret.push_back(*al);
+			output.insert (position++, *al);
 		}
 	} else {
 		// repair symbol requested.
 		if (encoded_symbols.cols() == 0)
-			return ret;
+			return false;
 		auto ISI = ESI + (precode._params.K_padded -
 												_symbols.source_symbols (_SBN));
 		DenseMtx tmp = precode.encode (encoded_symbols, ISI);
@@ -142,10 +149,10 @@ std::vector<T> Encoder<T>::Enc (const uint32_t ESI) const
 				*p = static_cast<uint8_t> (tmp (0, i));
 			}
 			--i;
-			ret.push_back (al);
+			output.insert (position++, al);
 		}
 	}
-	return ret;
+	return true;
 }
 
 }	// namespace Impl

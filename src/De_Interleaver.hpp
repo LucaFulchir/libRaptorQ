@@ -53,7 +53,9 @@ uint32_t De_Interleaver<T, InputIterator>::operator() (InputIterator &start,
 	uint8_t offset_al = 0;
 	T al = 0;
 	while (start != end && sub_symbol < max_esi * _sub_blocks) {
-		al += static_cast<T> ((*interleaved) (esi, byte)) << offset_al * 8;
+		al += static_cast<uint32_t> (static_cast<uint8_t> (
+													(*interleaved) (esi, byte)))
+									<< offset_al * 8;
 		++offset_al;
 		if (offset_al >= sizeof(T)) {
 			*start = al;

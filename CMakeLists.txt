@@ -26,7 +26,7 @@ SET(CMAKE_CXX_COMPILER "clang++" CACHE STRING "Compiler") # default compiler
 SET_PROPERTY(CACHE CMAKE_CXX_COMPILER PROPERTY STRINGS clang++ c++ g++)
 
 SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build mode") # default build type
-SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebugInfo)
+SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel)
 
 SET(STDLIB "libc++" CACHE STRING "Standard library to use")
 SET_PROPERTY(CACHE STDLIB PROPERTY STRINGS libc++ stdlib)
@@ -68,8 +68,7 @@ IF(${CMAKE_CXX_COMPILER} MATCHES ".*clang.*")
 	SET(CMAKE_CXX_FLAGS                "${STDLIB} ${DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
 	SET(CMAKE_CXX_FLAGS_DEBUG          "${STDLIB} ${DETERMINISTIC} -std=c++11 -g -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
 	SET(CMAKE_CXX_FLAGS_MINSIZEREL     "${STDLIB} ${DETERMINISTIC} -std=c++11 -Os -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_CXX_FLAGS_RELEASE        "${STDLIB} ${DETERMINISTIC} -std=c++11 -flto -O3 -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
-	SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${STDLIB} ${DETERMINISTIC} -std=c++11 -flto -O3 -g -fvisibility=hidden -fvisibility-inlines-hidden -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
+	SET(CMAKE_CXX_FLAGS_RELEASE        "${STDLIB} ${DETERMINISTIC} -std=c++11 -O3 -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
 	ADD_DEFINITIONS(-DUSING_CLANG)
 ELSE()
     # warn: clang+ and g++ get the same *g++ regexp, keep the "else" above or match the "/" in the regexp
@@ -81,7 +80,6 @@ ELSE()
 	SET(CMAKE_CXX_FLAGS_DEBUG          "-std=c++11 ${DETERMINISTIC} -g -Wall -pedantic -Wno-padded -fstack-protector-all -Wno-aggressive-loop-optimizations -fstrict-aliasing -ftrapv -fwrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute ")
 	SET(CMAKE_CXX_FLAGS_MINSIZEREL     "-std=c++11 ${DETERMINISTIC} -Os -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing ")
 	SET(CMAKE_CXX_FLAGS_RELEASE        "-std=c++11 ${DETERMINISTIC} -flto -O3 -fvisibility=hidden -fvisibility-inlines-hidden -O4 -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
-	SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-std=c++11 ${DETERMINISTIC} -flto -O3 -g -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
     ENDIF()
     # else I do not know your compiler options :)
 ENDIF()
@@ -108,6 +106,7 @@ SET(SOURCES	src/Precode_Matrix_solver.cpp
 		src/Rand.cpp
 		src/Parameters.cpp
 		src/Graph.cpp
+		src/cRaptorQ.c
 		${SOURCES_PLATFORM})
 
 SET(HEADERS	src/Interleaver.hpp
@@ -123,6 +122,7 @@ SET(HEADERS	src/Interleaver.hpp
 		src/Graph.hpp
 		src/De_Interleaver.hpp
 		src/RaptorQ.hpp
+		src/cRaptorQ.h
 		${HEADERS_PLATFORM})
 
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)

@@ -142,6 +142,8 @@ private:
 	uint8_t data;
 };
 
+inline uint8_t abs (Octet x) { return static_cast<uint8_t> (x); }
+
 }	// namespace Impl
 }	// namespace RaptorQ
 

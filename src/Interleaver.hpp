@@ -305,7 +305,7 @@ private:
 
 
 //
-// Phase0
+// Interleaver
 //		Take an object file, and handle the source block, sub block, sub symbol
 //		and symbol division and interleaving, and padding.
 //
@@ -324,6 +324,7 @@ public:
 	Interleaver<T>& operator++();
 	Source_Block<T> operator*() const;
 	Source_Block<T> operator[] (uint8_t source_block_id) const;
+	Partition get_partition() const;
 	uint16_t source_symbols(const uint8_t SBN) const;
 	uint8_t blocks () const;
 	uint16_t sub_blocks () const;
@@ -446,7 +447,7 @@ Source_Block<T> Interleaver<T>::operator[] (uint8_t source_block_id) const
 		auto sb_end = (source_block_id + 1) * _source_part.size(0) *
 																al_symbol_size;
 
-		return Source_Block<T> (_raw.get(), sb_start, sb_end, 0, _sub_part,
+		return Source_Block<T> (_raw, sb_start, sb_end, 0, _sub_part,
 																al_symbol_size);
 	} else if (source_block_id - _source_part.num(0) < _source_part.num(1)) {
 		// start == all the previous partition
@@ -456,11 +457,11 @@ Source_Block<T> Interleaver<T>::operator[] (uint8_t source_block_id) const
 										_source_part.size(1) * al_symbol_size;
 		auto sb_end =  sb_start + _source_part.size(1) * al_symbol_size;
 
-		return Source_Block<T> (_raw.get(), sb_start, sb_end, 0, _sub_part,
+		return Source_Block<T> (_raw, sb_start, sb_end, 0, _sub_part,
 																al_symbol_size);
 	} else  {
 		assert(false && "RaptorQ: source_block_id out of range");
-		return Source_Block<T> (_raw.get(), 0, 0, 0, _sub_part, al_symbol_size);
+		return Source_Block<T> (_raw, 0, 0, 0, _sub_part, al_symbol_size);
 	}
 }
 
@@ -470,6 +471,13 @@ uint16_t Interleaver<T>::symbol_size() const
 	// return the number of alignments, to make things easier
 	return _symbol_size / sizeof(T);
 }
+
+template <typename T>
+Partition Interleaver<T>::get_partition() const
+{
+	return _source_part;
+}
+
 
 template <typename T>
 uint16_t Interleaver<T>::source_symbols (const uint8_t SBN) const

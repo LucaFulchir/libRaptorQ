@@ -59,8 +59,9 @@ public:
 		:_params (params)
 	{}
 
-	DenseMtx gen (const uint16_t repair_overhead);
+	void gen (const uint16_t repair_overhead);
 
+	DenseMtx intermediate_eigen (DenseMtx &D);
 	DenseMtx intermediate (DenseMtx &D);
 	void intermediate (DenseMtx &D, const Bitmask &mask,
 									const std::vector<uint32_t> &repair_esi);
