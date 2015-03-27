@@ -49,20 +49,23 @@ namespace RaptorQ {
 namespace Impl {
 
 Bitmask::Bitmask (const uint16_t symbols)
-	: _max (symbols)
+	: _max_nonrepair (symbols)
 {
-	holes = _max;
-	mask.reserve (_max);
-	for (size_t i = 0; i < div_ceil (_max, sizeof(size_t)); ++i)
+	holes = _max_nonrepair;
+	size_t max_element = static_cast<size_t> (div_ceil (_max_nonrepair,
+															sizeof(size_t)));
+	mask.reserve (max_element + 1);
+	for (size_t i = 0; i <= max_element; ++i)
 		mask.push_back (0);
 }
 
 void Bitmask::add (const size_t id)
 {
-	if (id >= _max || exists (id))
-		return;
 	size_t element = static_cast<size_t> (div_floor (id, sizeof(size_t)));
-
+	while (element >= mask.size())
+		mask.push_back(0);
+	if (exists(id))
+		return;
 
 	size_t add_mask = 1 << (id - element);
 	mask[element] |= add_mask;
@@ -71,8 +74,6 @@ void Bitmask::add (const size_t id)
 
 bool Bitmask::exists (const size_t id ) const
 {
-	if (id >= _max)
-		return false;
 	size_t element = static_cast<size_t> (div_floor (id, sizeof(size_t)));
 
 	size_t check_mask = 1 << (id - element);

@@ -93,9 +93,9 @@ bool Decoder<T>::add_symbol (const uint32_t esi, const std::vector<T> &symbol)
 
 	if (mask.get_holes() == 0)
 		return false;	// not even needed;
+	if (mask.exists(esi))
+		return false;	// already present.
 	if (esi < _symbols) {
-		if (mask.exists(esi))
-			return false;	// already present.
 		uint16_t col = 0;
 		for (T al : symbol) {
 			for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
@@ -103,11 +103,10 @@ bool Decoder<T>::add_symbol (const uint32_t esi, const std::vector<T> &symbol)
 				source_symbols (esi, col++) = *p;
 			}
 		}
-		mask.add (esi);
 	} else {
-		// FIXME: do *NOT* ad it twice, even if asked.
 		received_repair.emplace_back (esi, symbol);
 	}
+	mask.add (esi);
 
 	return true;
 }
@@ -206,7 +205,7 @@ bool Decoder<T>::decode ()
 	// put missing symbols into "source_symbols".
 	// remember: we might have received other symbols while decoding.
 	uint16_t D_row = 0;
-	for (uint16_t row = 0; row < mask._max; ++row) {
+	for (uint16_t row = 0; row < mask._max_nonrepair; ++row) {
 		if (mask_safe.exists (row))
 			continue;
 		++D_row;

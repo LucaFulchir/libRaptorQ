@@ -35,7 +35,7 @@ namespace Impl {
 class RAPTORQ_API Bitmask
 {
 public:
-	const uint16_t _max;
+	const uint16_t _max_nonrepair;
 
 	Bitmask (const uint16_t symbols);
 

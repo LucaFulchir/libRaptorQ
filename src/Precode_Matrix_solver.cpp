@@ -122,7 +122,7 @@ void Precode_Matrix::intermediate (DenseMtx &D, const Bitmask &mask,
 	DenseMtx missing = DenseMtx (mask.get_holes(), D.cols());
 	uint16_t holes = mask.get_holes();
 	uint16_t row = 0;
-	for (uint16_t hole = 0; hole < mask._max && holes > 0; ++hole) {
+	for (uint16_t hole = 0; hole < mask._max_nonrepair && holes > 0; ++hole) {
 		if (mask.exists (hole))
 			continue;
 		DenseMtx ret = encode (C, hole);
@@ -147,7 +147,7 @@ void Precode_Matrix::decode_phase0 (const Bitmask &mask,
 	// so we need to fix the corresponding rows in A, to say that a
 	// repair symbol comes from a set of other symbols.
 
-	const size_t padding = _params.K_padded - mask._max;
+	const size_t padding = _params.K_padded - mask._max_nonrepair;
 
 	uint16_t holes = mask.get_holes();
 	auto r_esi = repair_esi.begin();

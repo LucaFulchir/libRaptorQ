@@ -86,7 +86,7 @@ RaptorQ::Impl::Tuple RaptorQ::Impl::Parameters::tuple (const uint32_t ISI) const
 	// taken straight from RFC6330, pg 30
 	// so thank them for the *beautiful* names
 	// also, don't get confused with "B": this one is different,
-	// and thus names "B1"
+	// and thus named "B1"
 
 	size_t A = 53591 + J * 997;
 
