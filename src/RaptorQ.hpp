@@ -290,6 +290,11 @@ public:
 	//};
 	Decoder (const OTI_Common_Data common,const OTI_Scheme_Specific_Data scheme)
 	{
+		static_assert(std::is_same<std::input_iterator_tag,
+								typename std::iterator_traits<InputIterator>::
+													iterator_category>::value,
+								"RaptorQ::Decoder needs an Input Iterator!\n");
+
 		// see the above commented bitfields for quick reference
 		_symbol_size = static_cast<uint16_t> (common);
 		_sub_blocks = static_cast<uint16_t> (scheme >> 8);
