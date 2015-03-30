@@ -25,7 +25,6 @@
 #include "Parameters.hpp"
 #include "Precode_Matrix.hpp"
 #include "Graph.hpp"
-#include <cassert>
 #include <memory>
 #include <mutex>
 #include <tuple>
@@ -33,34 +32,31 @@
 #include <vector>
 #include <Eigen/Dense>
 
-#include <iostream>
-
 namespace RaptorQ {
 namespace Impl {
 
-template <typename T>
-using Symbol = std::vector<T>;
-
-template <typename T>
+template <typename In_It>
 class RAPTORQ_LOCAL Decoder
 {
+	using Vect = Eigen::Matrix<Octet, 1, Eigen::Dynamic, Eigen::RowMajor>;
+	using T_in = typename std::iterator_traits<In_It>::value_type;
 public:
 	Decoder (const uint16_t symbols, const uint16_t symbol_size)
-		:_symbols (symbols), _symbol_size (symbol_size / sizeof(T)),
+		:_symbols (symbols), _symbol_size (symbol_size / sizeof(T_in)),
 				precode (Parameters(symbols)), mask (_symbols)
 	{
-		static_assert(std::is_unsigned<T>::value,
-					"RaptorQ: Decoder can only be used with unsigned types");
+
+		IS_INPUT(In_It, "RaptorQ::Impl::Decoder");
 
 		// symbol size is in octets, but we save it in "T" sizes.
 		// so be aware that "symbol_size" != "_symbol_size" for now
-		source_symbols = DenseMtx (_symbols, _symbol_size * sizeof(T));
+		source_symbols = DenseMtx (_symbols, _symbol_size * sizeof(T_in));
 	}
 
-	bool add_symbol (const uint32_t esi, const std::vector<T> &symbol);
+	bool add_symbol (In_It &start, const In_It end, const uint32_t esi);
 	bool decode ();
 	DenseMtx* get_symbols();
-	std::vector<T> get (const uint16_t symbol) const;
+	//std::vector<T> get (const uint16_t symbol) const;
 
 private:
 	std::mutex lock;
@@ -68,7 +64,8 @@ private:
 	Precode_Matrix precode;
 	Bitmask mask;
 	DenseMtx source_symbols;
-	std::vector<std::pair<uint32_t, std::vector<T>>> received_repair;
+
+	std::vector<std::pair<uint32_t, Vect>> received_repair;
 };
 
 
@@ -79,14 +76,14 @@ private:
 ///////////////////////////////////
 
 
-template <typename T>
-bool Decoder<T>::add_symbol (const uint32_t esi, const std::vector<T> &symbol)
+template <typename In_It>
+bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
+															const uint32_t esi)
 {
 	// true if added succesfully
 
-	if (symbol.size() != _symbol_size || esi >= std::pow (2, 20))
+	if (esi >= std::pow (2, 20))
 		return false;
-
 
 	std::lock_guard<std::mutex> guard (lock);
 	UNUSED(guard);
@@ -95,24 +92,40 @@ bool Decoder<T>::add_symbol (const uint32_t esi, const std::vector<T> &symbol)
 		return false;	// not even needed;
 	if (mask.exists(esi))
 		return false;	// already present.
+
+	uint16_t col = 0;
 	if (esi < _symbols) {
-		uint16_t col = 0;
-		for (T al : symbol) {
+		for (; start != end && col != source_symbols.cols(); ++start) {
+			T_in al = *start;
 			for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
-					p != reinterpret_cast<uint8_t *> (&al) + sizeof(T); ++p) {
+						p != reinterpret_cast<uint8_t *> (&al) + sizeof(T_in);
+																		++p) {
 				source_symbols (esi, col++) = *p;
 			}
 		}
+		if (col != source_symbols.cols())
+			return false;
 	} else {
-		received_repair.emplace_back (esi, symbol);
+		Vect v = Vect (source_symbols.cols());
+		for (; start != end && col != source_symbols.cols(); ++start) {
+			T_in al = *start;
+			for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
+						p != reinterpret_cast<uint8_t *> (&al) + sizeof(T_in);
+																		++p) {
+				v (col++) = *p;
+			}
+		}
+		if (col != v.cols())
+			return false;
+		received_repair.emplace_back (esi, std::move(v));
 	}
 	mask.add (esi);
 
 	return true;
 }
 
-template <typename T>
-bool Decoder<T>::decode ()
+template <typename In_It>
+bool Decoder<In_It>::decode ()
 {
 	// rfc 6330: can decode when received >= K_padded
 	// actually: (K_padded - K) are padding and thus constant and NOT
@@ -157,15 +170,8 @@ bool Decoder<T>::decode ()
 																	++hole) {
 		if (mask_safe.exists (hole))
 			continue;
-		uint8_t col = 0;
 		const int16_t row = precode._params.S + precode._params.H + hole;
-		for (T al : symbol->second) {
-			for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
-							p != reinterpret_cast<uint8_t *> (&al) + sizeof(T);
-																++p, ++col) {
-				D (row, col) = *p;
-			}
-		}
+		D.row (row) = symbol->second;
 		++symbol;
 	}
 	// fill the padding symbols (always zero)
@@ -179,22 +185,16 @@ bool Decoder<T>::decode ()
 	for (uint16_t row =
 			precode._params.S + precode._params.H + precode._params.K_padded;
 							symbol != received_repair.end(); ++symbol, ++row) {
-		uint8_t col = 0;
-		for (T al : symbol->second) {
-			for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
-							p != reinterpret_cast<uint8_t *> (&al) + sizeof(T);
-																++p, ++col) {
-				D (row, col) = *p;
-			}
-		}
+		D.row (row) = symbol->second;
 	}
 	lock.unlock();
 
 	// do not lock this part, as it's the expensive part
-	precode.intermediate (D, mask_safe, repair_esi);
+	DenseMtx missing = precode.intermediate (D, mask_safe, repair_esi);
+	D = DenseMtx();	// free some memory;
 
-	if (D.rows() == 0)
-		return mask.get_holes() == 0; // other threads did something?
+	if (missing.rows() == 0)
+		return mask.get_holes() == 0; // did other threads do something?
 
 	std::lock_guard<std::mutex> guard (lock);
 	UNUSED(guard);
@@ -204,47 +204,25 @@ bool Decoder<T>::decode ()
 
 	// put missing symbols into "source_symbols".
 	// remember: we might have received other symbols while decoding.
-	uint16_t D_row = 0;
+	uint16_t S_row = 0;
 	for (uint16_t row = 0; row < mask._max_nonrepair; ++row) {
 		if (mask_safe.exists (row))
 			continue;
-		++D_row;
+		++S_row;
 		if (mask.exists (row))
 			continue;
-		source_symbols.row (row) = D.row (D_row - 1);
+		source_symbols.row (row) = missing.row (S_row - 1);
 		mask.add (row);
 	}
 
-	if (received_repair.capacity() != 0) {
-		// free some memory, we don't need recover symbols anymore
-		received_repair = std::vector<std::pair<uint32_t, std::vector<T>>>();
-	}
+	// free some memory, we don't need recover symbols anymore
+	received_repair = std::vector<std::pair<uint32_t, Vect>>();
 
 	return true;
 }
 
-template <typename T>
-std::vector<T> Decoder<T>::get (const uint16_t symbol) const
-{
-	std::vector<T> ret;
-	if (mask.get_holes() != 0 || symbol >= source_symbols.rows())
-		return ret;
-
-	for (uint16_t col = 0; col < source_symbols.cols(); ++col) {
-		T al;
-		for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
-					p != reinterpret_cast<uint8_t *> (&al) + sizeof(T); ++p) {
-			*p = static_cast<uint8_t> (source_symbols (symbol, col));
-			++col;
-		}
-		--col;
-		ret.push_back (al);
-	}
-	return ret;
-}
-
-template <typename T>
-DenseMtx* Decoder<T>::get_symbols()
+template <typename In_It>
+DenseMtx* Decoder<In_It>::get_symbols()
 {
 	return &source_symbols;
 }

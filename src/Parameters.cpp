@@ -21,7 +21,6 @@
 #include "degree.hpp"
 #include "Parameters.hpp"
 #include "Rand.hpp"
-#include <cassert>
 
 RaptorQ::Impl::Parameters::Parameters(const uint16_t symbols)
 {

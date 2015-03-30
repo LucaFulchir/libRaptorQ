@@ -21,7 +21,9 @@
 #ifndef RAPTORQ_H
 #define RAPTORQ_H
 
+#include <cassert>
 #include <cstdint>
+#include <iterator>
 
 // These macros were taken from http://gcc.gnu.org/wiki/Visibility
 // Generic helper definitions for shared library support
@@ -61,6 +63,35 @@
 #endif // RAPTORQ_DLL
 
 #define UNUSED(x)	((void)x)
+
+#define IS_RANDOM(IT, CLASS) \
+	static_assert ( \
+			std::is_same<typename std::iterator_traits<IT>::iterator_category,\
+								std::random_access_iterator_tag>::value, \
+			CLASS " is supposed to get a RANDOM ACCESS iterator\n");
+#define IS_INPUT(IT, CLASS) \
+		static_assert ( \
+			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
+									std::input_iterator_tag>::value || \
+			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
+									std::forward_iterator_tag>::value || \
+			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
+									std::bidirectional_iterator_tag>::value || \
+			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
+									std::random_access_iterator_tag>::value, \
+			CLASS " is supposed to get an INPUT iterator\n");
+#define IS_OUTPUT(IT, CLASS) \
+		static_assert ( \
+			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
+									std::output_iterator_tag>::value || \
+			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
+									std::forward_iterator_tag>::value || \
+			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
+									std::bidirectional_iterator_tag>::value || \
+			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
+									std::random_access_iterator_tag>::value, \
+			CLASS " is supposed to get an INPUT iterator\n");
+
 
 #endif
 

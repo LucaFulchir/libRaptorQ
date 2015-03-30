@@ -24,7 +24,6 @@
 #include "common.hpp"
 #include "multiplication.hpp"
 #include "table2.hpp"
-#include <cassert>
 #include <cmath>
 #include <memory>
 #include <tuple>
@@ -160,33 +159,35 @@ private:
 //		see RFC 6330 for details
 //		Padding is included here
 //
-template <typename T>
+template <typename Rnd_It>
 class RAPTORQ_LOCAL Symbol_it
 {
 public:
 	Symbol_it ();
-	Symbol_it (const std::vector<T> *raw, const size_t start,
+	Symbol_it (const Rnd_It data_from, const Rnd_It data_to, const size_t start,
 										const size_t end, const size_t idx,
 										const Partition sub_blocks,
 										const uint16_t symbol_size,
 										const uint16_t symbol_id,
 										const uint16_t k)
-			:_raw (raw), _start (start), _end (end), _idx(idx),
-				_sub_blocks (sub_blocks), _symbol_size (symbol_size),
-				_symbol_id (symbol_id), _k(k)
+			:_data_from (data_from), _data_to (data_to), _start (start),
+								_end (end), _idx(idx), _sub_blocks (sub_blocks),
+								_symbol_size (symbol_size),
+								_symbol_id (symbol_id), _k(k)
 	{}
 
-	constexpr Symbol_it<T> begin() const
+	constexpr Symbol_it<Rnd_It> begin() const
 	{
-		return Symbol_it<T> (_raw, _start, _end, 0, _sub_blocks, _symbol_size,
-																_symbol_id, _k);
+		return Symbol_it<Rnd_It> (_data_from, _data_to, _start, _end, 0,
+									_sub_blocks, _symbol_size, _symbol_id, _k);
 	}
-	constexpr Symbol_it<T> end() const
+	constexpr Symbol_it<Rnd_It> end() const
 	{
-		return Symbol_it<T> (_raw, _start, _end,
+		return Symbol_it<Rnd_It> (_data_from, _data_to, _start, _end,
 									 _sub_blocks.tot (0) + _sub_blocks.tot (1),
 									_sub_blocks, _symbol_size, _symbol_id, _k);
 	}
+	using T = typename std::iterator_traits<Rnd_It>::value_type;
 	T operator[] (const size_t pos) const
 	{
 		size_t i;
@@ -204,38 +205,43 @@ public:
 					_symbol_id * _sub_blocks.size (1) +	// get right subsymbol
 					pos_part2 % _sub_blocks.size (1);	// get right alignment
 		}
-		if (i >= _raw->size())
-			return 0;	// PADDING.
-		return (*_raw)[i];
+		auto data = _data_from + i;
+		if (data >= _data_to) {
+			// Padding. remember to cast it to the same time as the iterator
+			// value
+			return static_cast<
+						typename std::iterator_traits<Rnd_It>::value_type> (0);
+		}
+		return *data;
 	}
 	T operator* () const
 	{
 		return (*this)[_idx];
 	}
-	Symbol_it<T> operator++ (int i) const
+	Symbol_it<Rnd_It> operator++ (int i) const
 	{
 		if (_idx + i >=  _sub_blocks.tot (0) + _sub_blocks.tot (1))
 			return end();
-		return Symbol_it<T> (_raw, _start, _end, _idx + i, _sub_blocks,
-												_symbol_size, _symbol_id, _k);
+		return Symbol_it<Rnd_It> (_data_from, _data_to, _start, _end, _idx + i,
+									_sub_blocks, _symbol_size, _symbol_id, _k);
 	}
-	Symbol_it<T>& operator++()
+	Symbol_it<Rnd_It>& operator++()
 	{
 		if (_idx <  _sub_blocks.tot (0) + _sub_blocks.tot (1))
 			++_idx;
 		return *this;
 	}
-	bool operator== (const Symbol_it<T> &s) const
+	bool operator== (const Symbol_it<Rnd_It> &s) const
 	{
 		return _idx == s._idx;
 	}
-	bool operator!= (const Symbol_it<T> &s) const
+	bool operator!= (const Symbol_it<Rnd_It> &s) const
 	{
 		return _idx != s._idx;
 	}
 
 private:
-	const std::vector<T> *_raw;
+	const Rnd_It _data_from, _data_to;
 	const size_t _start, _end;
 	size_t _idx;
 	const Partition _sub_blocks;
@@ -246,57 +252,61 @@ private:
 // Source_Block:
 //		First unit of partitioning for the object to be transferred.
 //
-template <typename T>
+template <typename Rnd_It>
 class RAPTORQ_LOCAL Source_Block
 {
 public:
-	Source_Block (const std::vector<T> *raw, const size_t start,
+	Source_Block (const Rnd_It data_from, const Rnd_It data_to,
+										const size_t start,
 										const size_t end, const size_t idx,
 										const Partition sub_blocks,
 										const uint16_t symbol_size)
-			:_raw (raw), _start (start), _end (end), _idx(idx),
-			  _sub_blocks(sub_blocks), _symbol_size (symbol_size),
-			  _symbols ((end - start) / symbol_size)
+			:_data_from (data_from), _data_to (data_to), _start (start),
+								_end (end), _idx(idx), _sub_blocks(sub_blocks),
+								_symbol_size (symbol_size),
+								_symbols ((end - start) / symbol_size)
 	{}
 
-	constexpr Source_Block<T> begin() const
+	constexpr Source_Block<Rnd_It> begin() const
 	{
-		return Source_Block (_raw, _start, _end, 0, _sub_blocks, _symbol_size);
+		return Source_Block (_data_from, _data_to, _start, _end, 0, _sub_blocks,
+																_symbol_size);
 	}
-	constexpr Source_Block<T> end() const
+	constexpr Source_Block<Rnd_It> end() const
 	{
-		return Source_Block<T> (_raw, _start, _end, _end,
+		return Source_Block<Rnd_It> (_data_from, _data_to, _start, _end, _end,
 													_sub_blocks, _symbol_size);
 	}
-	const Symbol_it<T> operator[] (const size_t symbol_id) const
+	const Symbol_it<Rnd_It> operator[] (const size_t symbol_id) const
 	{
 		if (symbol_id <  _symbols) {
-			return Symbol_it<T> (_raw, _start, _end, 0,
+			return Symbol_it<Rnd_It> (_data_from, _data_to, _start, _end, 0,
 										_sub_blocks, _symbol_size, symbol_id,
 																	_symbols);
 		}
 		// out of range.
-		return Symbol_it<T> (_raw, 0, 0, 0, _sub_blocks, _symbol_size, 0, 0);
+		return Symbol_it<Rnd_It> (_data_from, _data_to, 0, 0, 0, _sub_blocks,
+															_symbol_size, 0, 0);
 	}
-	const Symbol_it<T> operator* () const
+	const Symbol_it<Rnd_It> operator* () const
 	{
 		return (*this)[_idx];
 	}
-	const Source_Block<T> operator++ (int i) const
+	const Source_Block<Rnd_It> operator++ (int i) const
 	{
 		if (_idx + i >= _symbols)
 			return end();
-		return Source_Block<T> (_raw, _start, _end, _idx + i,
-													_sub_blocks, _symbol_size);
+		return Source_Block<Rnd_It> (_data_from, _data_to, _start, _end,
+										_idx + i, _sub_blocks, _symbol_size);
 	}
-	const Source_Block<T>& operator++ ()
+	const Source_Block<Rnd_It>& operator++ ()
 	{
 		if (_idx < _symbols)
 			++_idx;
 		return *this;
 	}
 private:
-	const std::vector<T> *_raw;
+	const Rnd_It _data_from, _data_to;
 	const size_t _start, _end;
 	size_t _idx;
 	const Partition _sub_blocks;
@@ -309,21 +319,22 @@ private:
 //		Take an object file, and handle the source block, sub block, sub symbol
 //		and symbol division and interleaving, and padding.
 //
-template <typename T>
+template <typename Rnd_It>
 class RAPTORQ_API Interleaver
 {
 public:
 	operator bool() const;	// true => all ok
 
-	Interleaver (const std::vector<T> *raw, const uint16_t min_subsymbol_size,
+	Interleaver (const Rnd_It data_from, const Rnd_It data_to,
+											const uint16_t min_subsymbol_size,
 											const size_t max_block_decodable,
 											const uint16_t symbol_syze);
 
-	Source_Block<T>& begin() const;
-	Source_Block<T>& end() const;
-	Interleaver<T>& operator++();
-	Source_Block<T> operator*() const;
-	Source_Block<T> operator[] (uint8_t source_block_id) const;
+	Source_Block<Rnd_It>& begin() const;
+	Source_Block<Rnd_It>& end() const;
+	Interleaver<Rnd_It>& operator++();
+	Source_Block<Rnd_It> operator*() const;
+	Source_Block<Rnd_It> operator[] (uint8_t source_block_id) const;
 	Partition get_partition() const;
 	uint16_t source_symbols(const uint8_t SBN) const;
 	uint8_t blocks () const;
@@ -331,9 +342,9 @@ public:
 	uint16_t symbol_size() const;
 protected:
 private:
-	const std::vector<T> *_raw;
-	uint16_t _sub_blocks, _source_symbols, iterator_idx = 0;
+	const Rnd_It _data_from, _data_to;
 	const uint16_t _symbol_size;
+	uint16_t _sub_blocks, _source_symbols, iterator_idx = 0;
 	uint8_t _alignment, _source_blocks;
 
 	// Please everyone take a moment to tank the RFC6330 guys for
@@ -343,8 +354,7 @@ private:
 	Partition _source_part, _sub_part;
 };
 
-
-//TODO: constexpr K'_max = 56403 in some .hpp
+const uint16_t K_max = K_padded[K_padded.size() - 1];
 
 ///////////////////////////////////
 //
@@ -352,16 +362,17 @@ private:
 //
 ///////////////////////////////////
 
-template <typename T>
-Interleaver<T>::Interleaver (const std::vector<T> *raw,
+template <typename Rnd_It>
+Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
+											const Rnd_It data_to,
 											const uint16_t min_subsymbol_size,
 											const size_t max_block_decodable,
 											const uint16_t symbol_size)
-	:_raw (raw), _symbol_size (symbol_size), _alignment (sizeof(T))
+	:_data_from (data_from), _data_to (data_to), _symbol_size (symbol_size),
+		_alignment (sizeof(typename std::iterator_traits<Rnd_It>::value_type))
 {
+	IS_RANDOM(Rnd_It, "RaptorQ::Impl::Interleaver");
 	// all parameters are in octets
-	static_assert(std::is_unsigned<T>::value,
-					"RaptorQ:Interleaver can only be used with unsigned types");
 	assert(_symbol_size >= _alignment &&
 					"RaptorQ: symbol_size must be >= alignment");
 	assert((_symbol_size % _alignment) == 0 &&
@@ -372,7 +383,10 @@ Interleaver<T>::Interleaver (const std::vector<T> *raw,
 				"RaptorQ: minimum subsymbol must be multiple of alignment");
 	// derive number of source blocks and sub blocks. seed RFC 6330, pg 8
 	std::vector<uint16_t> sizes;
-	const double Kt = div_ceil(raw->size() * sizeof(T), symbol_size);
+	const auto input_size = _data_to - data_from;
+	const double Kt = div_ceil(input_size *
+					sizeof(typename std::iterator_traits<Rnd_It>::value_type),
+																symbol_size);
 	const size_t N_max = static_cast<size_t> (div_floor (_symbol_size,
 														min_subsymbol_size));
 
@@ -409,13 +423,13 @@ Interleaver<T>::Interleaver (const std::vector<T> *raw,
 			break;
 		}
 	}
-	assert(div_ceil (div_ceil (_raw->size(), _symbol_size),
-													_source_blocks) <= 56403 &&
+	assert(div_ceil (div_ceil (input_size, _symbol_size),
+													_source_blocks) <= K_max &&
 						"RaptorQ: RFC: ceil(ceil(F/T)/Z must be <= K'_max");
 	if (_source_blocks == 0 || _sub_blocks == 0 ||
 					symbol_size < _alignment || symbol_size % _alignment != 0 ||
-							div_ceil (div_ceil ( _raw->size(), _symbol_size),
-													_source_blocks) > 56403) {
+							div_ceil (div_ceil ( input_size, _symbol_size),
+													_source_blocks) > K_max) {
 		_alignment = 0;
 		return;
 	}
@@ -428,27 +442,29 @@ Interleaver<T>::Interleaver (const std::vector<T> *raw,
 	_sub_part = Partition (_symbol_size / _alignment, _sub_blocks);
 }
 
-template <typename T>
-Interleaver<T>::operator bool() const
+template <typename Rnd_It>
+Interleaver<Rnd_It>::operator bool() const
 {
 	// true => all ok
 	return _alignment != 0;
 }
 
-template <typename T>
-Source_Block<T> Interleaver<T>::operator[] (uint8_t source_block_id) const
+template <typename Rnd_It>
+Source_Block<Rnd_It> Interleaver<Rnd_It>::operator[] (
+												uint8_t source_block_id) const
 {
 	// now we start working with multiples of T.
 	// identify the start and end of the requested block.
-	auto al_symbol_size = _symbol_size / sizeof(T);
+	auto al_symbol_size = _symbol_size /
+					sizeof(typename std::iterator_traits<Rnd_It>::value_type);
 
 	if (source_block_id < _source_part.num(0)) {
 		auto sb_start = source_block_id * _source_part.size(0) * al_symbol_size;
 		auto sb_end = (source_block_id + 1) * _source_part.size(0) *
 																al_symbol_size;
 
-		return Source_Block<T> (_raw, sb_start, sb_end, 0, _sub_part,
-																al_symbol_size);
+		return Source_Block<Rnd_It> (_data_from, _data_to, sb_start, sb_end, 0,
+													_sub_part, al_symbol_size);
 	} else if (source_block_id - _source_part.num(0) < _source_part.num(1)) {
 		// start == all the previous partition
 		auto sb_start = _source_part.tot(0) * al_symbol_size +
@@ -457,30 +473,32 @@ Source_Block<T> Interleaver<T>::operator[] (uint8_t source_block_id) const
 										_source_part.size(1) * al_symbol_size;
 		auto sb_end =  sb_start + _source_part.size(1) * al_symbol_size;
 
-		return Source_Block<T> (_raw, sb_start, sb_end, 0, _sub_part,
-																al_symbol_size);
+		return Source_Block<Rnd_It> (_data_from, _data_to, sb_start, sb_end, 0,
+													_sub_part, al_symbol_size);
 	} else  {
 		assert(false && "RaptorQ: source_block_id out of range");
-		return Source_Block<T> (_raw, 0, 0, 0, _sub_part, al_symbol_size);
+		return Source_Block<Rnd_It> (_data_from, _data_to, 0, 0, 0, _sub_part,
+																al_symbol_size);
 	}
 }
 
-template <typename T>
-uint16_t Interleaver<T>::symbol_size() const
+template <typename Rnd_It>
+uint16_t Interleaver<Rnd_It>::symbol_size() const
 {
 	// return the number of alignments, to make things easier
-	return _symbol_size / sizeof(T);
+	return _symbol_size / sizeof(
+							typename std::iterator_traits<Rnd_It>::value_type);
 }
 
-template <typename T>
-Partition Interleaver<T>::get_partition() const
+template <typename Rnd_It>
+Partition Interleaver<Rnd_It>::get_partition() const
 {
 	return _source_part;
 }
 
 
-template <typename T>
-uint16_t Interleaver<T>::source_symbols (const uint8_t SBN) const
+template <typename Rnd_It>
+uint16_t Interleaver<Rnd_It>::source_symbols (const uint8_t SBN) const
 {
 	if (SBN < _source_part.num (0))
 		return _source_part.size (0);
@@ -489,39 +507,39 @@ uint16_t Interleaver<T>::source_symbols (const uint8_t SBN) const
 	return 0;
 }
 
-template <typename T>
-uint8_t Interleaver<T>::blocks () const
+template <typename Rnd_It>
+uint8_t Interleaver<Rnd_It>::blocks () const
 {
 	return _source_part.num (0) + _source_part.num (1);
 }
 
-template <typename T>
-uint16_t Interleaver<T>::sub_blocks () const
+template <typename Rnd_It>
+uint16_t Interleaver<Rnd_It>::sub_blocks () const
 {
 	return _sub_part.num (0) + _sub_part.num (1);
 }
 
-template <typename T>
-Source_Block<T>& Interleaver<T>::begin() const
+template <typename Rnd_It>
+Source_Block<Rnd_It>& Interleaver<Rnd_It>::begin() const
 {
 	return this[0];
 }
 
-template <typename T>
-Source_Block<T>& Interleaver<T>::end() const
+template <typename Rnd_It>
+Source_Block<Rnd_It>& Interleaver<Rnd_It>::end() const
 {
 	return this[_source_blocks + 1];
 }
 
-template <typename T>
-Interleaver<T>& Interleaver<T>::operator++()
+template <typename Rnd_It>
+Interleaver<Rnd_It>& Interleaver<Rnd_It>::operator++()
 {
 	++iterator_idx;
 	return *this;
 }
 
-template <typename T>
-Source_Block<T> Interleaver<T>::operator*() const
+template <typename Rnd_It>
+Source_Block<Rnd_It> Interleaver<Rnd_It>::operator*() const
 {
 	return this[iterator_idx];
 }

@@ -63,7 +63,7 @@ public:
 
 	DenseMtx intermediate_eigen (DenseMtx &D);
 	DenseMtx intermediate (DenseMtx &D);
-	void intermediate (DenseMtx &D, const Bitmask &mask,
+	DenseMtx intermediate (DenseMtx &D, const Bitmask &mask,
 									const std::vector<uint32_t> &repair_esi);
 	DenseMtx encode (const DenseMtx &C, const uint32_t iSI) const;
 

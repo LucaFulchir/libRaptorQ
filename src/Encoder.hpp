@@ -33,24 +33,26 @@
 namespace RaptorQ {
 namespace Impl {
 
-template <typename T>
+template <typename Rnd_It, typename Out_It>
 class RAPTORQ_API Encoder
 {
 public:
-	Encoder (const Interleaver<T> &symbols, const uint8_t SBN)
+	Encoder (const Interleaver<Rnd_It> &symbols, const uint8_t SBN)
 		:_symbols(symbols), precode (Parameters (symbols.source_symbols(SBN))),
 		  _SBN(SBN)
 	{
+
+		IS_RANDOM(Rnd_It, "RaptorQ::Impl::Encoder");
+		IS_OUTPUT(Out_It, "RaptorQ::Impl::Encoder");
 		precode.gen(0);
 	}
-	bool Enc (const uint32_t ESI, std::vector<T> &output,
-												const size_t offset = 0) const;
+	uint64_t Enc (const uint32_t ESI, Out_It &output, const Out_It end) const;
 
 	bool generate_symbols ();
 	uint16_t padded() const;
 private:
 	Precode_Matrix precode;
-	const Interleaver<T> _symbols;
+	const Interleaver<Rnd_It> _symbols;
 	const uint8_t _SBN;
 
 	DenseMtx encoded_symbols;
@@ -62,15 +64,16 @@ private:
 //
 //
 
-template <typename T>
-uint16_t Encoder<T>::padded () const
+template <typename Rnd_It, typename Out_It>
+uint16_t Encoder<Rnd_It, Out_It>::padded () const
 {
 	return precode._params.K_padded;
 }
 
-template <typename T>
-bool Encoder<T>::generate_symbols ()
+template <typename Rnd_It, typename Out_It>
+bool Encoder<Rnd_It, Out_It>::generate_symbols ()
 {
+	using T = typename std::iterator_traits<Rnd_It>::value_type;
 	// do not obther checing for multithread. that is done in RaptorQ.hpp
 	if (encoded_symbols.cols() != 0)
 		return true;
@@ -108,28 +111,28 @@ bool Encoder<T>::generate_symbols ()
 	return encoded_symbols.cols() != 0;
 }
 
-template <typename T>
-bool Encoder<T>::Enc (const uint32_t ESI, std::vector<T> &output,
-													const size_t offset) const
+template <typename Rnd_It, typename Out_It>
+uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
+														const Out_It end) const
 {
 	// ESI means that the first _symbols.source_symbols() are the
 	// original symbols, and the next ones are repair symbols.
 
-	if (output.capacity() < offset + _symbols.symbol_size())
-		output.reserve (offset + _symbols.symbol_size ());
+	// The alignment of "Out_It" might *NOT* be the alignment of "Rnd_It"
 
+	uint64_t written = 0;
 	auto non_repair = _symbols.source_symbols (_SBN);
-
-	auto position = output.begin() + offset;
 
 	if (ESI < non_repair) {
 		// just return the source symbol.
 		auto block = _symbols[_SBN];
 		auto requested_symbol = block[ESI];
 
-		for (auto al = requested_symbol.begin(); al != requested_symbol.end();
-																		++al) {
-			output.insert (position++, *al);
+		for (auto al : requested_symbol) {
+			*(output++) = al;
+			++written;
+			if (output == end)
+				return written;
 		}
 	} else {
 		// repair symbol requested.
@@ -139,20 +142,25 @@ bool Encoder<T>::Enc (const uint32_t ESI, std::vector<T> &output,
 												_symbols.source_symbols (_SBN));
 		DenseMtx tmp = precode.encode (encoded_symbols, ISI);
 
-		// put "tmp" in "ret", but "tmp" is aligned to "uint8_t",
-		// while "ret" is aligned to "T"
+		// put "tmp" in output, but the alignment is different
+
+		using T = typename std::iterator_traits<Out_It>::value_type;
+		T al = static_cast<T> (0);
+		uint8_t *p = reinterpret_cast<uint8_t *>  (al);
 		for (size_t i = 0; i < tmp.cols(); ++i) {
-			T al;
-			for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
-							p != reinterpret_cast<uint8_t *> (&al) + sizeof(T);
-																	++p, ++i) {
-				*p = static_cast<uint8_t> (tmp (0, i));
+			*p = static_cast<uint8_t> (tmp (0, i));
+			++p;
+			if (p == reinterpret_cast<uint8_t *>  (al) + sizeof(T)) {
+				T al = static_cast<T> (0);
+				p = reinterpret_cast<uint8_t *>  (al);
+				*(output++) = al;
+				++written;
+				if (output == end)
+					return written;
 			}
-			--i;
-			output.insert (position++, al);
 		}
 	}
-	return true;
+	return written;
 }
 
 }	// namespace Impl

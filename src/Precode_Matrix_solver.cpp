@@ -97,6 +97,7 @@ DenseMtx Precode_Matrix::intermediate (DenseMtx &D)
 	//			return C;
 	//	}
 	//}
+	A = DenseMtx();	// free A memory.
 
 	C = DenseMtx (D.rows(), D.cols());
 	for (i = 0; i < _params.L; ++i)
@@ -106,8 +107,7 @@ DenseMtx Precode_Matrix::intermediate (DenseMtx &D)
 }
 
 // Used in decoding
-// result is stored in D.
-void Precode_Matrix::intermediate (DenseMtx &D, const Bitmask &mask,
+DenseMtx Precode_Matrix::intermediate (DenseMtx &D, const Bitmask &mask,
 										const std::vector<uint32_t> &repair_esi)
 {
 	decode_phase0 (mask, repair_esi);
@@ -115,8 +115,7 @@ void Precode_Matrix::intermediate (DenseMtx &D, const Bitmask &mask,
 
 	if (C.rows() == 0) {
 		// error somewhere
-		D = C;
-		return;
+		return DenseMtx();
 	}
 
 	DenseMtx missing = DenseMtx (mask.get_holes(), D.cols());
@@ -129,7 +128,7 @@ void Precode_Matrix::intermediate (DenseMtx &D, const Bitmask &mask,
 		missing.row (row) = ret.row(0);
 		++row;
 	}
-	D = missing;
+	return missing;
 }
 
 void Precode_Matrix::decode_phase0 (const Bitmask &mask,
