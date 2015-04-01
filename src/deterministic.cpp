@@ -18,6 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <array>
 #include <cstdio>
 #include <iostream>
 
@@ -38,12 +39,15 @@ int main (int argc, char **argv)
 	}
 	if (fseek (static_lib, 24, 0) != 0) {
 		std::cout << "Can not seek\n";
+		fclose(static_lib);
 		return 1;
 	}
 	if (10 != fwrite (date, sizeof(char), 10, static_lib)) {
 		std::cout << "Can not write all data\n";
+		fclose(static_lib);
 		return 1;
 	}
 	std::cout << "All ok\n";
+	fclose(static_lib);
 	return 0;
 }
