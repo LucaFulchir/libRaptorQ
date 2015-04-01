@@ -59,7 +59,7 @@ public:
 	uint16_t K_padded, S, H, W, L, P, P1, U, B; // RFC 6330, pg 22
 	uint16_t J;
 private:
-	bool is_prime (const uint16_t n) const;
+	static bool is_prime (const uint16_t n);
 };
 
 class RAPTORQ_API Octet

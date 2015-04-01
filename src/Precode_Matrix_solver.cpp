@@ -23,8 +23,6 @@
 #include "Precode_Matrix.hpp"
 #include "Rand.hpp"
 
-#include <iostream>
-
 ///////////////////
 //
 // Precode_Matrix

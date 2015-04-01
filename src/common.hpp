@@ -65,9 +65,9 @@
 #define UNUSED(x)	((void)x)
 
 #define IS_RANDOM(IT, CLASS) \
-	static_assert ( \
-			std::is_same<typename std::iterator_traits<IT>::iterator_category,\
-								std::random_access_iterator_tag>::value, \
+		static_assert ( \
+			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
+									std::random_access_iterator_tag>::value, \
 			CLASS " is supposed to get a RANDOM ACCESS iterator\n");
 #define IS_INPUT(IT, CLASS) \
 		static_assert ( \

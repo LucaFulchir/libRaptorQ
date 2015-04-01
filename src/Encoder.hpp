@@ -38,10 +38,9 @@ class RAPTORQ_API Encoder
 {
 public:
 	Encoder (const Interleaver<Rnd_It> &symbols, const uint8_t SBN)
-		:_symbols(symbols), precode (Parameters (symbols.source_symbols(SBN))),
+		:precode (Parameters (symbols.source_symbols(SBN))), _symbols(symbols),
 		  _SBN(SBN)
 	{
-
 		IS_RANDOM(Rnd_It, "RaptorQ::Impl::Encoder");
 		IS_OUTPUT(Out_It, "RaptorQ::Impl::Encoder");
 		precode.gen(0);

@@ -45,7 +45,7 @@ RaptorQ::Impl::Parameters::Parameters(const uint16_t symbols)
 		++P1;
 }
 
-bool RaptorQ::Impl::Parameters::is_prime (const uint16_t n) const
+bool RaptorQ::Impl::Parameters::is_prime (const uint16_t n)
 {
 	// 1 as prime, don't care. Not in our scope anyway.
 	// thank you stackexchange for the code

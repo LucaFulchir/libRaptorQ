@@ -85,18 +85,14 @@ ELSE()
 ENDIF()
 
 IF(APPLE)
-  MESSAGE(SEND_ERROR "Totally untested. Buy me a mac?")
+  MESSAGE(STATUS "MacOSX system found. WARN: not tested!")
   ADD_DEFINITIONS(-DUNIX)
-  SET(HEADERS_PLATFORM )
-  SET(SOURCES_PLATFORM )
 ENDIF(APPLE)
 IF(UNIX)
   MESSAGE(STATUS "UNIX system found")
   ADD_DEFINITIONS(-DUNIX)
-  SET(HEADERS_PLATFORM )
-  SET(SOURCES_PLATFORM )
 ELSEIF(WIN32)
-  MESSAGE(FATAL_ERROR "Win32 systems not supported yet!")
+  MESSAGE(STATUS "Wndows system found. WARN: not tested!")
   ADD_DEFINITION(-DWIN32)
 ENDIF()
 
@@ -106,8 +102,7 @@ SET(SOURCES	src/Precode_Matrix_solver.cpp
 		src/Rand.cpp
 		src/Parameters.cpp
 		src/Graph.cpp
-		#src/cRaptorQ.c
-		${SOURCES_PLATFORM})
+		src/cRaptorQ.cpp)
 
 SET(HEADERS	src/Interleaver.hpp
 		src/multiplication.hpp
@@ -122,8 +117,7 @@ SET(HEADERS	src/Interleaver.hpp
 		src/Graph.hpp
 		src/De_Interleaver.hpp
 		src/RaptorQ.hpp
-		#src/cRaptorQ.h
-		${HEADERS_PLATFORM})
+		src/cRaptorQ.h)
 
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 

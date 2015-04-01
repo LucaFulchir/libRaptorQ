@@ -124,7 +124,7 @@ public:
 																		const
 	{
 		uint32_t max_r = max_repair;
-		if (max_repair >= std::pow (2, 20) - _symbols)
+		if (max_repair > std::pow (2, 20) - _symbols)
 			max_r = std::pow (2, 20) - _symbols;
 		return Symbol_Iterator<Rnd_It, Out_It> (_enc, _symbols + max_r,_sbn);
 	}
@@ -184,7 +184,6 @@ template <typename Rnd_It, typename Out_It>
 class RAPTORQ_API Encoder
 {
 public:
-	const uint16_t _symbol_size;
 
 	Encoder (const Rnd_It data_from, const Rnd_It data_to,
 											const uint16_t min_subsymbol_size,
@@ -224,11 +223,16 @@ public:
 
 	void precompute (const uint8_t threads, const bool background);
 	size_t precompute_max_memory ();
-	uint64_t encode (Out_It &output, const Out_It end, uint32_t esi,
-																uint8_t sbn);
+	uint64_t encode (Out_It &output, const Out_It end, const uint32_t esi,
+															const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
-	uint64_t encode (Out_It &output, const Out_It end, uint32_t &id);
+	uint64_t encode (Out_It &output, const Out_It end, const uint32_t &id);
 	void free (const uint8_t sbn);
+	uint8_t blocks() const;
+	uint32_t block_size (const uint8_t sbn) const;
+	uint16_t symbol_size() const;
+	uint16_t symbols (const uint8_t sbn) const;
+	uint32_t max_repair (const uint8_t sbn) const;
 private:
 	class RAPTORQ_LOCAL Locked_Encoder
 	{
@@ -240,6 +244,7 @@ private:
 		std::mutex _mtx;
 		Impl::Encoder<Rnd_It, Out_It> _enc;
 	};
+	const uint16_t _symbol_size;
 	const Rnd_It _data_from, _data_to;
 	std::unique_ptr<Impl::Interleaver<Rnd_It>> interleave = nullptr;
 	std::map<uint8_t, std::shared_ptr<Locked_Encoder>> encoders;
@@ -319,6 +324,10 @@ public:
 	bool add_symbol (In_It &start, const In_It end, const uint32_t esi,
 															const uint8_t sbn);
 	void free (const uint8_t sbn);
+	uint8_t blocks() const;
+	uint32_t block_size (const uint8_t sbn) const;
+	uint16_t symbol_size() const;
+	uint16_t symbols (const uint8_t sbn) const;
 private:
 	Impl::Partition part;
 	uint16_t _symbol_size, _sub_blocks;
@@ -481,7 +490,7 @@ void Encoder<Rnd_It, Out_It>::precompute_block_all (
 
 template <typename Rnd_It, typename Out_It>
 uint64_t Encoder<Rnd_It, Out_It>::encode (Out_It &output, const Out_It end,
-																uint32_t &id)
+															const uint32_t &id)
 {
 	const uint32_t mask_8 = static_cast<uint32_t> (std::pow (2, 8)) - 1;
 	const uint32_t mask = ~(mask_8 << 24);
@@ -491,7 +500,8 @@ uint64_t Encoder<Rnd_It, Out_It>::encode (Out_It &output, const Out_It end,
 
 template <typename Rnd_It, typename Out_It>
 uint64_t Encoder<Rnd_It, Out_It>::encode (Out_It &output, const Out_It end,
-													uint32_t esi, uint8_t sbn)
+															const uint32_t esi,
+															const uint8_t sbn)
 {
 	if (sbn >= interleave->blocks())
 		return false;
@@ -527,6 +537,39 @@ void Encoder<Rnd_It, Out_It>::free (const uint8_t sbn)
 	_mtx.unlock();
 }
 
+template <typename Rnd_It, typename Out_It>
+uint8_t Encoder<Rnd_It, Out_It>::blocks() const
+{
+	return interleave->blocks();
+}
+
+template <typename Rnd_It, typename Out_It>
+uint32_t Encoder<Rnd_It, Out_It>::block_size (const uint8_t sbn) const
+{
+	return interleave->source_symbols (sbn) * interleave->symbol_size();
+}
+
+template <typename Rnd_It, typename Out_It>
+uint16_t Encoder<Rnd_It, Out_It>::symbol_size() const
+{
+	if (interleave == nullptr)
+		return 0;
+	return interleave->symbol_size();
+}
+
+template <typename Rnd_It, typename Out_It>
+uint16_t Encoder<Rnd_It, Out_It>::symbols (const uint8_t sbn) const
+{
+	if (interleave == nullptr)
+		return 0;
+	return interleave->source_symbols (sbn);
+}
+
+template <typename Rnd_It, typename Out_It>
+uint32_t Encoder<Rnd_It, Out_It>::max_repair (const uint8_t sbn) const
+{
+	return std::pow (2, 20) - interleave->source_symbols (sbn);
+}
 /////////////////
 //
 // Decoder
@@ -642,6 +685,38 @@ uint32_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end,
 	return de_interleaving (start, end);
 }
 
+template <typename In_It, typename Out_It>
+uint8_t Decoder<In_It, Out_It>::blocks() const
+{
+	return part.num (0) + part.num (1);
+}
+
+template <typename In_It, typename Out_It>
+uint32_t Decoder<In_It, Out_It>::block_size (const uint8_t sbn) const
+{
+	if (sbn < part.num (0)) {
+		return part.size (0) * _symbol_size;
+	} else if (sbn - part.num (0) < part.num (1)) {
+		return part.size (1) * _symbol_size;
+	}
+	return 0;
+}
+
+template <typename In_It, typename Out_It>
+uint16_t Decoder<In_It, Out_It>::symbol_size() const
+{
+	return _symbol_size;
+}
+template <typename In_It, typename Out_It>
+uint16_t Decoder<In_It, Out_It>::symbols (const uint8_t sbn) const
+{
+	if (sbn < part.num (0)) {
+		return part.size (0);
+	} else if (sbn - part.num (0) < part.num (1)) {
+		return part.size (1);
+	}
+	return 0;
+}
 
 }	//RaptorQ
 

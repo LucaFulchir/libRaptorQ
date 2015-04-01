@@ -69,7 +69,7 @@ public:
 
 private:
 	DenseMtx A;
-	uint16_t _repair_overhead;
+	uint16_t _repair_overhead = 0;
 
 	// indenting here prepresent which function needs which other.
 	// not standard, ask me if I care.
