@@ -189,15 +189,14 @@ public:
 											const uint16_t min_subsymbol_size,
 											const uint16_t symbol_size,
 											const size_t max_memory)
-		: _data_from (data_from), _data_to (data_to),
+		: _mem (max_memory), _data_from (data_from), _data_to (data_to),
 											_symbol_size (symbol_size),
-											_min_subsymbol (min_subsymbol_size),
-											_mem (max_memory)
+											_min_subsymbol (min_subsymbol_size)
 	{
 		IS_RANDOM(Rnd_It, "RaptorQ::Encoder");
 		IS_OUTPUT(Out_It, "RaptorQ::Encoder");
 		// max size: between 2^39 and 2^40
-		if (data_to - data_from > max_data)
+		if (static_cast<uint64_t> (data_to - data_from) > max_data)
 			return;
 		interleave = std::unique_ptr<Impl::Interleaver<Rnd_It>> (
 								new Impl::Interleaver<Rnd_It> (_data_from, _data_to,
@@ -244,12 +243,12 @@ private:
 		std::mutex _mtx;
 		Impl::Encoder<Rnd_It, Out_It> _enc;
 	};
-	const uint16_t _symbol_size;
-	const Rnd_It _data_from, _data_to;
 	std::unique_ptr<Impl::Interleaver<Rnd_It>> interleave = nullptr;
 	std::map<uint8_t, std::shared_ptr<Locked_Encoder>> encoders;
-	const size_t _mem;
 	std::mutex _mtx;
+	const size_t _mem;
+	const Rnd_It _data_from, _data_to;
+	const uint16_t _symbol_size;
 	const uint16_t _min_subsymbol;
 
 	static void precompute_block_all (Encoder<Rnd_It, Out_It> *obj,
@@ -351,7 +350,7 @@ OTI_Common_Data Encoder<Rnd_It, Out_It>::OTI_Common() const
 {
 	OTI_Common_Data ret;
 	// first 40 bits: data length.
-	ret = (_data_to - _data_from) << 24;
+	ret = static_cast<uint64_t> (_data_to - _data_from) << 24;
 	// 8 bits: reserved
 	// last 16 bits: symbol size
 	ret += _symbol_size;
@@ -364,9 +363,9 @@ OTI_Scheme_Specific_Data Encoder<Rnd_It, Out_It>::OTI_Scheme_Specific() const
 {
 	OTI_Scheme_Specific_Data ret;
 	// 8 bit: source blocks
-	ret = interleave->blocks() << 24;
+	ret = static_cast<uint32_t> (interleave->blocks()) << 24;
 	// 16 bit: sub-blocks number (N)
-	ret += interleave->sub_blocks() << 8;
+	ret += static_cast<uint32_t> (interleave->sub_blocks()) << 8;
 	// 8 bit: alignment
 	ret += sizeof(typename std::iterator_traits<Rnd_It>::value_type);
 
@@ -468,7 +467,7 @@ void Encoder<Rnd_It, Out_It>::precompute_block_all (
 	if (obj->interleave == nullptr)
 		return;
 	std::vector<std::thread> t;
-	uint8_t spawned = threads - 1;
+	size_t spawned = threads - 1;
 	if (spawned == 0)
 		spawned = std::thread::hardware_concurrency();
 
@@ -568,7 +567,8 @@ uint16_t Encoder<Rnd_It, Out_It>::symbols (const uint8_t sbn) const
 template <typename Rnd_It, typename Out_It>
 uint32_t Encoder<Rnd_It, Out_It>::max_repair (const uint8_t sbn) const
 {
-	return std::pow (2, 20) - interleave->source_symbols (sbn);
+	return static_cast<uint32_t> (std::pow (2, 20)) -
+											interleave->source_symbols (sbn);
 }
 /////////////////
 //
@@ -590,17 +590,10 @@ template <typename In_It, typename Out_It>
 bool Decoder<In_It, Out_It>::add_symbol (In_It &start, const In_It end,
 															const uint32_t id)
 {
-	union extract {
-		uint32_t raw;
-		struct {
-			uint8_t sbn;
-			uint32_t esi:24;
-		};
-	} extracted;
+	uint32_t esi = (id << 8 ) >> 8;
+	uint8_t sbn = id >> 24;
 
-	extracted.raw = id;
-
-	return add_symbol (start, end, extracted.esi, extracted.sbn);
+	return add_symbol (start, end, esi, sbn);
 }
 
 template <typename In_It, typename Out_It>
@@ -688,7 +681,7 @@ uint32_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end,
 template <typename In_It, typename Out_It>
 uint8_t Decoder<In_It, Out_It>::blocks() const
 {
-	return part.num (0) + part.num (1);
+	return static_cast<uint8_t> (part.num (0) + part.num (1));
 }
 
 template <typename In_It, typename Out_It>

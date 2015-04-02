@@ -49,8 +49,9 @@ uint32_t De_Interleaver<Out_It>::operator() (Out_It &start, const Out_It end)
 	uint32_t byte = 0;
 	uint16_t esi = 0;
 	uint16_t sub_symbol = 0;
-	const uint16_t max_esi = interleaved->rows();
-	const uint16_t sub_sym_size = interleaved->cols() / _sub_blocks;
+	const uint16_t max_esi = static_cast<uint16_t> (interleaved->rows());
+	const uint16_t sub_sym_size = static_cast<uint16_t> (interleaved->cols() /
+																_sub_blocks);
 	uint8_t offset_al = 0;
 	using T = typename std::iterator_traits<Out_It>::value_type;
 	T al = static_cast<T> (0);

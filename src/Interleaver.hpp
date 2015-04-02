@@ -61,13 +61,13 @@ public:
 	// partition something into "num1" partitions of "size1" and "num2"
 	// of "size2"
 	// still better than the TL, TS, NL, NL in RFC6330...
-	Partition (const uint64_t obj_size, const uint8_t partitions)
+	Partition (const uint64_t obj_size, const uint16_t partitions)
 	{
 		uint16_t size_1, size_2, blocks_1, blocks_2;
 
 		size_1 = static_cast<uint16_t> (div_ceil (obj_size, partitions));
 		size_2 = static_cast<uint16_t> (div_floor (obj_size, partitions));
-		blocks_1 = obj_size - size_2 * partitions;
+		blocks_1 = static_cast<uint16_t> (obj_size - size_2 * partitions);
 		blocks_2 = partitions - blocks_1;
 
 		if (blocks_1 == 0)
@@ -92,6 +92,7 @@ public:
 	}
 	uint16_t tot (const uint8_t part_number) const
 	{
+		assert(part_number < 2 && "partition: only two partitions exists");
 		// num * size
 		if (part_number == 0)
 			return std::get<0>(part1) * std::get<1>(part1);
@@ -262,9 +263,10 @@ public:
 										const Partition sub_blocks,
 										const uint16_t symbol_size)
 			:_data_from (data_from), _data_to (data_to), _start (start),
-								_end (end), _idx(idx), _sub_blocks(sub_blocks),
-								_symbol_size (symbol_size),
-								_symbols ((end - start) / symbol_size)
+					_end (end), _idx(idx), _sub_blocks(sub_blocks),
+					_symbol_size (symbol_size),
+					_symbols (
+						static_cast<uint16_t> ((end - start) / symbol_size))
 	{}
 
 	constexpr Source_Block<Rnd_It> begin() const
@@ -277,7 +279,7 @@ public:
 		return Source_Block<Rnd_It> (_data_from, _data_to, _start, _end, _end,
 													_sub_blocks, _symbol_size);
 	}
-	const Symbol_it<Rnd_It> operator[] (const size_t symbol_id) const
+	const Symbol_it<Rnd_It> operator[] (const uint16_t symbol_id) const
 	{
 		if (symbol_id <  _symbols) {
 			return Symbol_it<Rnd_It> (_data_from, _data_to, _start, _end, 0,
@@ -354,8 +356,6 @@ private:
 	Partition _source_part, _sub_part;
 };
 
-const uint16_t K_max = K_padded[K_padded.size() - 1];
-
 ///////////////////////////////////
 //
 // IMPLEMENTATION OF ABOVE TEMPLATE
@@ -383,8 +383,8 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 				"RaptorQ: minimum subsymbol must be multiple of alignment");
 	// derive number of source blocks and sub blocks. seed RFC 6330, pg 8
 	std::vector<uint16_t> sizes;
-	const auto input_size = _data_to - data_from;
-	const double Kt = div_ceil(input_size *
+	const float input_size = _data_to - data_from;
+	const float Kt = div_ceil(input_size *
 					sizeof(typename std::iterator_traits<Rnd_It>::value_type),
 																symbol_size);
 	const size_t N_max = static_cast<size_t> (div_floor (_symbol_size,
@@ -414,12 +414,12 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 		// NOTE: tmp starts from 1, but "sizes" stores from 0.
 		sizes.push_back (RaptorQ::Impl::K_padded[idx == 0 ? 0 : --idx]);
 	}
-	_source_blocks = static_cast<uint16_t> (div_ceil (Kt, sizes[N_max - 1]));
+	_source_blocks = static_cast<uint8_t> (div_ceil (Kt, sizes[N_max - 1]));
 	tmp = static_cast<size_t> (div_ceil (Kt, _source_blocks));
 	for (size_t i = 0; i < sizes.size(); ++i) {
 		// rfc: ceil (Kt / Z) <= KL(n)
 		if (tmp <= sizes[i]) {
-			_sub_blocks = i + 1;	// +1: see above note
+			_sub_blocks = static_cast<uint16_t> (i + 1); // +1: see above note
 			break;
 		}
 	}
@@ -455,23 +455,24 @@ Source_Block<Rnd_It> Interleaver<Rnd_It>::operator[] (
 {
 	// now we start working with multiples of T.
 	// identify the start and end of the requested block.
-	auto al_symbol_size = _symbol_size /
+	uint16_t al_symbol_size = _symbol_size /
 					sizeof(typename std::iterator_traits<Rnd_It>::value_type);
 
 	if (source_block_id < _source_part.num(0)) {
-		auto sb_start = source_block_id * _source_part.size(0) * al_symbol_size;
-		auto sb_end = (source_block_id + 1) * _source_part.size(0) *
+		size_t sb_start = source_block_id * _source_part.size(0) *
+																al_symbol_size;
+		size_t sb_end = (source_block_id + 1) * _source_part.size(0) *
 																al_symbol_size;
 
 		return Source_Block<Rnd_It> (_data_from, _data_to, sb_start, sb_end, 0,
 													_sub_part, al_symbol_size);
 	} else if (source_block_id - _source_part.num(0) < _source_part.num(1)) {
 		// start == all the previous partition
-		auto sb_start = _source_part.tot(0) * al_symbol_size +
+		size_t sb_start = _source_part.tot(0) * al_symbol_size +
 									// plus some blocks of the new partition
 									(source_block_id - _source_part.num(0)) *
 										_source_part.size(1) * al_symbol_size;
-		auto sb_end =  sb_start + _source_part.size(1) * al_symbol_size;
+		size_t sb_end =  sb_start + _source_part.size(1) * al_symbol_size;
 
 		return Source_Block<Rnd_It> (_data_from, _data_to, sb_start, sb_end, 0,
 													_sub_part, al_symbol_size);
@@ -510,7 +511,7 @@ uint16_t Interleaver<Rnd_It>::source_symbols (const uint8_t SBN) const
 template <typename Rnd_It>
 uint8_t Interleaver<Rnd_It>::blocks () const
 {
-	return _source_part.num (0) + _source_part.num (1);
+	return static_cast<uint8_t> (_source_part.num (0) + _source_part.num (1));
 }
 
 template <typename Rnd_It>

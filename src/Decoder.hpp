@@ -136,7 +136,8 @@ bool Decoder<In_It>::decode ()
 	if (received_repair.size() < mask.get_holes())
 		return false;
 
-	precode.gen (received_repair.size() - mask.get_holes());
+	precode.gen (static_cast<uint32_t> (received_repair.size() -
+															mask.get_holes()));
 
 
 	DenseMtx D = DenseMtx (precode._params.S + precode._params.H +
@@ -170,7 +171,7 @@ bool Decoder<In_It>::decode ()
 																	++hole) {
 		if (mask_safe.exists (hole))
 			continue;
-		const int16_t row = precode._params.S + precode._params.H + hole;
+		const uint16_t row = precode._params.S + precode._params.H + hole;
 		D.row (row) = symbol->second;
 		++symbol;
 	}

@@ -95,7 +95,7 @@ bool Encoder<Rnd_It, Out_It>::generate_symbols ()
 		for (uint16_t i = 0; i < _symbols.symbol_size(); ++i) {
 			T val = symbol[i];
 			uint8_t *octet = reinterpret_cast<uint8_t *> (&val);
-			for (uint8_t i = 0; i < sizeof(T); ++i)
+			for (uint8_t byte = 0; byte < sizeof(T); ++byte)
 				D (row, col++) = *(octet++);
 		}
 	}
@@ -125,7 +125,7 @@ uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
 	if (ESI < non_repair) {
 		// just return the source symbol.
 		auto block = _symbols[_SBN];
-		auto requested_symbol = block[ESI];
+		auto requested_symbol = block[static_cast<uint16_t> (ESI)];
 
 		for (auto al : requested_symbol) {
 			*(output++) = al;
@@ -146,11 +146,11 @@ uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
 		using T = typename std::iterator_traits<Out_It>::value_type;
 		T al = static_cast<T> (0);
 		uint8_t *p = reinterpret_cast<uint8_t *>  (al);
-		for (size_t i = 0; i < tmp.cols(); ++i) {
+		for (ssize_t i = 0; i < tmp.cols(); ++i) {
 			*p = static_cast<uint8_t> (tmp (0, i));
 			++p;
 			if (p == reinterpret_cast<uint8_t *>  (al) + sizeof(T)) {
-				T al = static_cast<T> (0);
+				al = static_cast<T> (0);
 				p = reinterpret_cast<uint8_t *>  (al);
 				*(output++) = al;
 				++written;

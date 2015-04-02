@@ -59,7 +59,7 @@ public:
 		:_params (params)
 	{}
 
-	void gen (const uint16_t repair_overhead);
+	void gen (const uint32_t repair_overhead);
 
 	DenseMtx intermediate_eigen (DenseMtx &D);
 	DenseMtx intermediate (DenseMtx &D);
@@ -69,7 +69,7 @@ public:
 
 private:
 	DenseMtx A;
-	uint16_t _repair_overhead = 0;
+	uint32_t _repair_overhead = 0;
 
 	// indenting here prepresent which function needs which other.
 	// not standard, ask me if I care.

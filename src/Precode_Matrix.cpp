@@ -95,7 +95,7 @@ uint16_t Bitmask::get_holes () const
 /// These methods are used to generate the precode matrix.
 ///
 
-void Precode_Matrix::gen (const uint16_t repair_overhead)
+void Precode_Matrix::gen (const uint32_t repair_overhead)
 {
 	_repair_overhead = repair_overhead;
 	A = DenseMtx (_params.L + repair_overhead, _params.L);
