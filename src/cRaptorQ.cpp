@@ -576,27 +576,35 @@ void RaptorQ_free (struct RaptorQ_ptr **ptr)
 	case RaptorQ_type::ENC_8:
 		delete reinterpret_cast<RaptorQ::Encoder<uint8_t*, uint8_t*>*> (
 																(*ptr)->ptr);
+		break;
 	case RaptorQ_type::ENC_16:
 		delete reinterpret_cast<RaptorQ::Encoder<uint16_t*, uint16_t*>*> (
 																(*ptr)->ptr);
+		break;
 	case RaptorQ_type::ENC_32:
 		delete reinterpret_cast<RaptorQ::Encoder<uint32_t*, uint32_t*>*> (
 																(*ptr)->ptr);
+		break;
 	case RaptorQ_type::ENC_64:
 		delete reinterpret_cast<RaptorQ::Encoder<uint64_t*, uint64_t*>*> (
 																(*ptr)->ptr);
+		break;
 	case RaptorQ_type::DEC_8:
 		delete reinterpret_cast<RaptorQ::Decoder<uint8_t*, uint8_t*>*> (
 																(*ptr)->ptr);
+		break;
 	case RaptorQ_type::DEC_16:
 		delete reinterpret_cast<RaptorQ::Decoder<uint16_t*, uint16_t*>*> (
 																(*ptr)->ptr);
+		break;
 	case RaptorQ_type::DEC_32:
 		delete reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
 																(*ptr)->ptr);
+		break;
 	case RaptorQ_type::DEC_64:
 		delete reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint32_t*>*> (
 																(*ptr)->ptr);
+		break;
 	case RaptorQ_type::NONE:
 		break;
 	}
