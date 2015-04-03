@@ -21,9 +21,6 @@
 #ifndef RAPTORQ_H
 #define RAPTORQ_H
 
-#include <cassert>
-#include <cstdint>
-#include <iterator>
 
 // These macros were taken from http://gcc.gnu.org/wiki/Visibility
 // Generic helper definitions for shared library support
@@ -62,6 +59,13 @@
 	#define RAPTORQ_LOCAL
 #endif // RAPTORQ_DLL
 
+
+#ifdef __cplusplus
+
+#include <cassert>
+#include <cstdint>
+#include <iterator>
+
 #define UNUSED(x)	((void)x)
 
 #define IS_RANDOM(IT, CLASS) \
@@ -91,7 +95,7 @@
 			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
 									std::random_access_iterator_tag>::value, \
 			CLASS " is supposed to get an INPUT iterator\n");
-
+#endif
 
 #endif
 

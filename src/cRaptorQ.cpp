@@ -18,7 +18,6 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "common.hpp"
 #include "cRaptorQ.h"
 #include "RaptorQ.hpp"
 #include <memory>

@@ -21,6 +21,7 @@
 #ifndef RAPTORQ_C_H
 #define RAPTORQ_C_H
 
+#include "common.hpp"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -36,21 +37,22 @@ extern "C"
 								DEC_8 = 5, DEC_16 = 6, DEC_32 = 7, DEC_64 = 8}
 				 RaptorQ_type;
 
-	struct RaptorQ_ptr
+	struct RAPTORQ_LOCAL RaptorQ_ptr
 	{
 #ifdef __cplusplus
 		RaptorQ_ptr (const RaptorQ_type _type) :type (_type) {}
 #endif
-		void *ptr;
+		void *ptr = nullptr;
 		const RaptorQ_type type;
 	};
 
-	struct RaptorQ_ptr *RaptorQ_Enc (const RaptorQ_type type, void *data,
+	struct RaptorQ_ptr* RAPTORQ_API RaptorQ_Enc (const RaptorQ_type type,
+											void *data,
 											const uint64_t size,
 											const uint16_t min_subsymbol_size,
 											const uint16_t symbol_size,
 											const size_t max_memory);
-	struct RaptorQ_ptr *RaptorQ_Dec (const RaptorQ_type type,
+	struct RaptorQ_ptr* RAPTORQ_API RaptorQ_Dec (const RaptorQ_type type,
 								const RaptorQ_OTI_Common_Data common,
 								const RaptorQ_OTI_Scheme_Specific_Data scheme);
 
@@ -58,23 +60,30 @@ extern "C"
 	// Encoding
 	///////////
 
-	RaptorQ_OTI_Common_Data RaptorQ_OTI_Common (struct RaptorQ_ptr *enc);
-	RaptorQ_OTI_Scheme_Specific_Data RaptorQ_OTI_Scheme (struct RaptorQ_ptr *enc);
+	RaptorQ_OTI_Common_Data RAPTORQ_API RaptorQ_OTI_Common (
+													struct RaptorQ_ptr *enc);
+	RaptorQ_OTI_Scheme_Specific_Data RAPTORQ_API RaptorQ_OTI_Scheme (
+													struct RaptorQ_ptr *enc);
 
-	uint16_t RaptorQ_symbol_size (struct RaptorQ_ptr *ptr);
-	uint8_t RaptorQ_blocks (struct RaptorQ_ptr *ptr);
-	uint32_t RaptorQ_block_size (struct RaptorQ_ptr *ptr, const uint8_t sbn);
-	uint16_t RaptorQ_symbols (struct RaptorQ_ptr *ptr, const uint8_t sbn);
-	uint32_t RaptorQ_max_repair (RaptorQ_ptr *enc, const uint8_t sbn);
-	size_t RaptorQ_precompute_max_memory (struct RaptorQ_ptr *enc);
+	uint16_t RAPTORQ_API RaptorQ_symbol_size (struct RaptorQ_ptr *ptr);
+	uint8_t RAPTORQ_API RaptorQ_blocks (struct RaptorQ_ptr *ptr);
+	uint32_t RAPTORQ_API RaptorQ_block_size (struct RaptorQ_ptr *ptr,
+															const uint8_t sbn);
+	uint16_t RAPTORQ_API RaptorQ_symbols (struct RaptorQ_ptr *ptr,
+															const uint8_t sbn);
+	uint32_t RAPTORQ_API RaptorQ_max_repair (RaptorQ_ptr *enc,
+															const uint8_t sbn);
+	size_t RAPTORQ_API RaptorQ_precompute_max_memory (struct RaptorQ_ptr *enc);
 
-	void RaptorQ_precompute (struct RaptorQ_ptr *enc, const uint8_t threads,
+	void RAPTORQ_API RaptorQ_precompute (struct RaptorQ_ptr *enc,
+														const uint8_t threads,
 														const bool background);
 
-	uint64_t RaptorQ_encode_id (struct RaptorQ_ptr *enc, void **data,
+	uint64_t RAPTORQ_API RaptorQ_encode_id (struct RaptorQ_ptr *enc,
+															void **data,
 															const uint64_t size,
 															const uint32_t id);
-	uint64_t RaptorQ_encode (struct RaptorQ_ptr *enc, void **data,
+	uint64_t RAPTORQ_API RaptorQ_encode (struct RaptorQ_ptr *enc, void **data,
 															const uint64_t size,
 															const uint32_t esi,
 															const uint8_t sbn);
@@ -83,16 +92,17 @@ extern "C"
 	// Decoding
 	///////////
 
-	uint32_t RaptorQ_decode (struct RaptorQ_ptr *dec, void **data,
+	uint32_t RAPTORQ_API RaptorQ_decode (struct RaptorQ_ptr *dec, void **data,
 															const size_t size);
-	uint32_t RaptorQ_decode_sbn (struct RaptorQ_ptr *dec, void **data,
+	uint32_t RAPTORQ_API RaptorQ_decode_sbn (struct RaptorQ_ptr *dec,
+															void **data,
 															const size_t size,
 															const uint8_t sbn);
 
-	bool RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec, void **data,
+	bool RAPTORQ_API RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec, void **data,
 														const uint32_t size,
 														const uint32_t id);
-	bool RaptorQ_add_symbol (struct RaptorQ_ptr *dec, void **data,
+	bool RAPTORQ_API RaptorQ_add_symbol (struct RaptorQ_ptr *dec, void **data,
 															const uint32_t size,
 															const uint32_t esi,
 															const uint8_t sbn);
@@ -101,8 +111,9 @@ extern "C"
 	// General: free memory
 	///////////////////////
 
-	void RaptorQ_free (struct RaptorQ_ptr **ptr);
-	void RaptorQ_free_block (struct RaptorQ_ptr *ptr, const uint8_t sbn);
+	void RAPTORQ_API RaptorQ_free (struct RaptorQ_ptr **ptr);
+	void RAPTORQ_API RaptorQ_free_block (struct RaptorQ_ptr *ptr,
+															const uint8_t sbn);
 
 #ifdef __cplusplus
 }	// extern "C"

@@ -86,11 +86,11 @@ public:
 		Symbol_Iterator<Rnd_It, Out_It> ret (_esi + i, _sbn);
 		return ret;
 	}
-	bool operator== (const Symbol_Iterator<Rnd_It, Out_It> it) const
+	bool operator== (const Symbol_Iterator<Rnd_It, Out_It> &it) const
 	{
 		return it._esi == _esi && it._sbn == _sbn;
 	}
-	bool operator!= (const Symbol_Iterator<Rnd_It, Out_It> it) const
+	bool operator!= (const Symbol_Iterator<Rnd_It, Out_It> &it) const
 	{
 		return it._esi != _esi || it._sbn != _sbn;
 	}
@@ -160,11 +160,11 @@ public:
 		ret._sbn += i;
 		return ret;
 	}
-	bool operator== (const Block_Iterator it) const
+	bool operator== (const Block_Iterator &it) const
 	{
 		return it._sbn == _sbn;
 	}
-	bool operator!= (const Block_Iterator it) const
+	bool operator!= (const Block_Iterator &it) const
 	{
 		return it._sbn != _sbn;
 	}
