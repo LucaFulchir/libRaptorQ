@@ -1,0 +1,1 @@
+cppcheck --enable=all --inconclusive --xml-version=2 --suppressions cppcheck.suppress src/

@@ -1,0 +1,127 @@
+
+RaptorQ is a Forward Error Correction algorithm designed to deliver your data
+efficiently and without retransmissions for lost packets.
+
+After sending K packets of your data as-is, RaptorQ generates as many repair
+symbols as you need. Once the receiver has at least K symbols, be it the source
+symbols, repair symbols or any combination of the two, it can reconstruct the
+whole input it was meant to receive.
+
+This is called a Fountain code, and RaptorQ is the latest and most efficient
+code in this category.
+
+
+libRaptorQ implements RFC6330, which specifies the RaptorQ algorithm.
+NOTE: heavy cluster testing is needed to claim compliance with the
+RFC. As we do not have the resources, we do not make such a claim.
+
+libRaptorQ is entirely written in C++11, and uses eigen to handle matrix
+manipulation.
+
+
+Currently it's only been tested under Linux, but should work well under
+*BSD and MacOSX, too.
+
+Windows *should* work too, provided you use a complier that understands C++11
+(hint: you might have some problems with VisualC++, but that's not a C++
+compiler anyway)
+
+
+
+##############
+#
+# The Source Code
+#
+##############
+
+Although things seems to work, no stable release has been released yet.
+
+This means you can only check this out with git.
+
+to check out the repository:
+
+$ git clone https://github.com/LucaFulchir/libRaptorQ.git
+
+you can also get it from our main server:
+
+$ git clone git://git.fenrirproject.org/libRaptorQ.git
+
+
+-- GPG source check --
+once you have cloned it, it's always a good thing to check the repository gpg
+signatures, so you can import my key with:
+
+$ gpg --keyserver pgp.mit.edu --recv-key D42DDF0A
+
+please check the full fingerprint, it should be like this:
+
+$ gpg2 --fingerprint D42DDF0A
+ pub   rsa3072/D42DDF0A 2015-01-01 [expires: 2016-01-01]
+       Key fingerprint = AB35 E45F 5CA5 E35B 8B55  818F 0157 D133 D42D DF0A
+ uid       [ unknown] Luca Fulchir (2015 key) <luker@fenrirproject.org>
+ 
+
+Now you have the source, and the key, it's enough to check the signature of the
+last commit:
+
+$ git log -n 1 --show-signature
+
+The important part is that you get something like this:
+
+ gpg: Signature made Fri 27 Mar 2015 20:59:59 CET using RSA key ID D42DDF0A
+ gpg: Good signature from "Luca Fulchir (2015 key) <luker@fenrirproject.org>"
+ [unknown]
+ gpg: WARNING: This key is not certified with a trusted signature!
+ gpg:          There is no indication that the signature belongs to the owner.
+ Primary key fingerprint: AB35 E45F 5CA5 E35B 8B55  818F 0157 D133 D42D DF0A
+ Author: Luca Fulchir <luker@fenrirproject.org>
+
+And as long as you got the right key, and you find the "gpg: Goog signature",
+you can be sure you have the right code.
+
+
+
+##############
+#
+# Install
+#
+##############
+
+Before building libRaptorQ, make sure your system has the eigen3 library
+headers, or it won't compile.
+
+Eigen3 is the only dependency of libRaptorQ
+
+
+The build system uses CMake. So enter the source directory and we'll create a
+directory and build everything there:
+
+$ mkdir build
+$ cd build
+
+$ cmake -DCMAKE_BUILD_TYPE=Release ../
+
+$ make -j 4
+
+$ make install
+
+
+And you are set. You can customize lots of things in the installation, all by
+telling CMake what you need.
+
+adding "-DCMAKE_CXX_COMPILER=clang++"
+will use clang as the compiler.
+
+adding "-DSTDLIB=libc++"
+will use clang libc++ library for the C++ standard library.
+
+The supported release types are:
+- Debug
+- MinSizeRel
+- Release
+The names should be self-explanatory.
+Use them with "-DCMAKE_BUILD_TYPE=release"
+
+
+
+
