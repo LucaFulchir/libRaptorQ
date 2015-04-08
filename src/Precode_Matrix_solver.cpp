@@ -125,6 +125,7 @@ DenseMtx Precode_Matrix::intermediate (DenseMtx &D, const Bitmask &mask,
 		DenseMtx ret = encode (C, hole);
 		missing.row (row) = ret.row(0);
 		++row;
+		--holes;
 	}
 	return missing;
 }

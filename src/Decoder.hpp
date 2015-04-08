@@ -36,7 +36,7 @@ namespace RaptorQ {
 namespace Impl {
 
 template <typename In_It>
-class RAPTORQ_LOCAL Decoder
+class RAPTORQ_API Decoder
 {
 	using Vect = Eigen::Matrix<Octet, 1, Eigen::Dynamic, Eigen::RowMajor>;
 	using T_in = typename std::iterator_traits<In_It>::value_type;
@@ -201,18 +201,19 @@ bool Decoder<In_It>::decode ()
 	UNUSED(guard);
 
 	if (mask.get_holes() == 0)
-		return true;			// other thread did something))
+		return true;			// other thread did something
 
 	// put missing symbols into "source_symbols".
 	// remember: we might have received other symbols while decoding.
-	uint16_t S_row = 0;
-	for (uint16_t row = 0; row < mask._max_nonrepair; ++row) {
+	uint16_t miss_row = 0;
+	for (uint16_t row = 0; row < mask_safe._max_nonrepair &&
+											miss_row < missing.rows(); ++row) {
 		if (mask_safe.exists (row))
 			continue;
-		++S_row;
+		++miss_row;
 		if (mask.exists (row))
 			continue;
-		source_symbols.row (row) = missing.row (S_row - 1);
+		source_symbols.row (row) = missing.row (miss_row - 1);
 		mask.add (row);
 	}
 

@@ -69,12 +69,15 @@ void Bitmask::add (const size_t id)
 
 	size_t add_mask = 1 << (id - element);
 	mask[element] |= add_mask;
-	--holes;
+	if (id < _max_nonrepair)
+		--holes;
 }
 
 bool Bitmask::exists (const size_t id ) const
 {
 	size_t element = static_cast<size_t> (div_floor (id, sizeof(size_t)));
+	if (element >= mask.size())
+		return false;
 
 	size_t check_mask = 1 << (id - element);
 	return (mask[element] & check_mask) != 0;

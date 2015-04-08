@@ -49,8 +49,7 @@ template <typename Rnd_It, typename Out_It>
 class RAPTORQ_API Symbol
 {
 public:
-	Symbol (Encoder<Rnd_It, Out_It> *enc, const uint32_t esi,
-															const uint8_t sbn)
+	Symbol (Encoder<Rnd_It, Out_It> *enc, const uint32_t esi, const uint8_t sbn)
 		: _enc (enc), _esi (esi), _sbn (sbn) {}
 
 	uint64_t operator() (Out_It &start, const Out_It end)
@@ -428,7 +427,7 @@ void Encoder<Rnd_It, Out_It>::precompute_thread (Encoder<Rnd_It, Out_It> *obj,
 		if (it == obj->encoders.end()) {
 			bool success;
 			std::tie (it, success) = obj->encoders.insert ({*sbn_ptr,
-					std::make_shared<Locked_Encoder> (*obj->interleave, *sbn_ptr)
+					std::make_shared<Locked_Encoder> (*obj->interleave,*sbn_ptr)
 														});
 		}
 		auto enc_ptr = it->second;
@@ -503,7 +502,7 @@ uint64_t Encoder<Rnd_It, Out_It>::encode (Out_It &output, const Out_It end,
 															const uint8_t sbn)
 {
 	if (sbn >= interleave->blocks())
-		return false;
+		return 0;
 	_mtx.lock();
 	auto it = encoders.find (sbn);
 	if (it == encoders.end()) {
@@ -621,15 +620,12 @@ bool Decoder<In_It, Out_It>::add_symbol (In_It &start, const In_It end,
 template <typename In_It, typename Out_It>
 uint32_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
 {
-	// TODO: incomplete decoding
-
-	bool missing = false;
 	for (uint8_t sbn = 0; sbn < _blocks; ++sbn) {
 		_mtx.lock();
 		auto it = decoders.find (sbn);
 		if (it == decoders.end()) {
-			missing = true;
-			continue;
+			_mtx.unlock();
+			return 0;
 		}
 		auto dec = it->second;
 		_mtx.unlock();
@@ -637,8 +633,6 @@ uint32_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
 		if (!dec->decode())
 			return 0;
 	}
-	if (missing)
-		return 0;
 	uint32_t written = 0;
 	for (uint8_t sbn = 0; sbn < _blocks; ++sbn) {
 		_mtx.lock();
