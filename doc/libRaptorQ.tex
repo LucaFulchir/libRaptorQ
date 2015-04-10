@@ -1,0 +1,399 @@
+\documentclass[11pt,a4paper]{refart}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{makeidx}
+\usepackage{verbatimbox}
+
+\title{Using libRaptorQ library}
+\author{Luca Fulchir -- \{luker\}@fenrirproject.org}
+\date{\today}
+\makeindex
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+
+\textbf{libRaptorQ} is a C++11 implementation of the RaptorQ Forward Error Correction, as described in the \href{https://tools.ietf.org/html/rfc6330}{RFC6330} .
+
+The implementation was started as a university laboratory project, and will be later used and included in \href{https://www.fenrirproject.org}{Fenrir}, the maintainer's master thesis.
+
+This implementation is quite short (the core is $\sim3k$ lines), thanks to the chosen language and the use of external libraries for matrix handling (eigen3).
+
+libRaptorQ is the only RaptorQ implementation in C++, include C hooks, and it is the only free (\textbf{LGPL3}) implementation of the rfc, except for the (apache2) java implementation, OpenRQ , which is much bigger ($\sim 46k$) and slower.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Build \& install}
+\subsection{Get the source code}
+Although things seems to work, no stable release has been released yet, as of \today.
+
+This means you can only check this out with git.
+
+To check out the repository:
+
+\begin{verbatim}
+$ git clone https://github.com/LucaFulchir/libRaptorQ.git
+\end{verbatim}
+
+You can also get it from our main server:
+
+\begin{verbatim}
+$ git clone git://git.fenrirproject.org/libRaptorQ.git
+\end{verbatim}
+
+\index{GPG}\marginlabel{GPG verification:}
+Once you have cloned it, it's always a good thing to check the repository gpg
+signatures, so you can import my key with:
+
+\begin{verbatim}
+$ gpg --keyserver pgp.mit.edu --recv-key D42DDF0A
+\end{verbatim}
+
+please check the full fingerprint, it should be this:
+
+\begin{verbbox}[\footnotesize]
+$ gpg2 --fingerprint D42DDF0A
+ pub   rsa3072/D42DDF0A 2015-01-01 [expires: 2016-01-01]
+       Key fingerprint = AB35 E45F 5CA5 E35B 8B55  818F 0157 D133 D42D DF0A
+ uid       [ unknown] Luca Fulchir (2015 key) <luker@fenrirproject.org>
+\end{verbbox}
+\theverbbox
+ 
+
+Now you have the source, and the key, it's enough to check the signature of the
+last commit:
+
+\begin{verbatim}
+$ git log -n 1 --show-signature
+\end{verbatim}
+
+The important part is that you get something like this:
+
+\begin{verbbox}[\footnotesize]
+ gpg: Signature made Fri 27 Mar 2015 20:59:59 CET using RSA key ID D42DDF0A
+ gpg: Good signature from "Luca Fulchir (2015 key) <luker@fenrirproject.org>"
+ [unknown]
+ gpg: WARNING: This key is not certified with a trusted signature!
+ gpg:          There is no indication that the signature belongs to the owner.
+ Primary key fingerprint: AB35 E45F 5CA5 E35B 8B55  818F 0157 D133 D42D DF0A
+ Author: Luca Fulchir <luker@fenrirproject.org>
+\end{verbbox}
+\theverbbox
+
+And as long as you got the right key, and you find the \textbf{"gpg: Good signature"} string,
+you can be sure you have the right code.
+
+\subsection{Dependencies}\index{dependencies}
+
+libRaptorQ has only 2 dependencies:
+\begin{description}
+\item[\textbf{Eigen}] This is used for matrix manipulation, which is a big part of RaptorQ.
+\item[\textbf{git}] This is used not only to get the source, but also by the build system. We get the last git commit id and feed it to clang or gcc as seed for their internal
+random number generator. This makes it possible to have reproducible builds.
+\end{description}
+
+\subsection{Build \& Install}
+
+libRaptorQ uses the cMake build system, so things are fairly standard:
+
+\begin{verbatim}
+$ cd libRaptorQ.git
+$ mkdir build
+$ cmake ../
+$ make -j 4
+\end{verbatim}
+
+\index{cMake}
+There are lots of options, you can use in cmake. As always, you can change them by adding ``\textbf{-Dcmake\_option=cmake\_value}'' when calling cmake.
+
+The ones we recognize are:
+
+\begin{description}
+\item[CMAKE\_CXX\_COMPILER] g++, clang++ are directly supported. other should work, too.
+\item[STDLIB] to change the c++ standard library. ``libstdc++'' for the (default) gcc one, ``libc++'' for the clang/llvm one. Note that it seems you can't use libc++ with gcc as of yet.
+\item[CMAKE\_CXX\_FLAGS] Additional compiler flags you might want to pass.
+\item[CMAKE\_BUILD\_TYPE] Type of build. you can choose between ``Debug'', ``Release'' or ``MinSizeRel''
+\item[CMAKE\_INSTALL\_PREFIX] Default to \textit{/usr/local}. Change it to fit your distribution guidelines.
+\end{description}
+
+Then you can build everything by running:
+\begin{verbatim}
+$ make -j 4
+\end{verbatim}
+
+Of course, you can configure the number of parallel jobs (the \textit{-j} parameter) to be what you need.
+
+~\\
+
+\index{Install}\marginlabel{\textbf{Install:}}
+The installation process is very simple:
+
+\begin{verbatim}
+$ make install DESTDIR=/usr
+\end{verbatim}
+
+You can change the \textit{DESTDIR} parameter to fit your distribution guidelines.
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Working with RaptorQ}
+\subsection{Theory (you really need this)}\index{Theory}
+
+To be able to work with liRaptorQ, you must first understand how the RaptorQ algorithms works. We won't go into the details, but just what you need
+to be able to tune the algorithm to your needs.
+
+
+\marginlabel{Fountain codes:}
+Fountain codes are a special \textit{Forward-Error-Correcting} code class, which characteristic is simple: if you want to send $K$ packets, you actually
+send $K+X$ packets, and the receiver only needs to get any $K$ packets to be able to reconstruct your data. The number $X$ of overhead packets can be as big
+as you need (theoretically infinite), so you can tune it to be slightly higher than the expected packet loss.
+
+\marginlabel{Systematic codes:} RaptorQ is also a systematic code. This means that those first $K$ packets are the input \textit{as-is} (\textbf{source symbols}), and the $X$ packets (\textbf{repair symbols}) have the information needed to recover any of the lost source packets. This has the big advantage of
+avoiding any kind of time and memory consuming decoding if there is no packet loss during the transmission.
+
+\marginlabel{Complexity:} The RaptorQ algorithm is presented as having a linear time encoder and decoder. This implementation does not seem to verify
+this property, and the algorithm itself for now is actually cubic on the number of symbols.\\
+It is still very quick. On a core i7, 2.4Ghz, you need to wait \textit{0.4ms} for $10$ symbols, \textit{280ms} for 1.000 symbols, but it can take an hour for $27.000$ symbols.
+RaptorQ handles up to $56.403$ symbols.
+
+\subsection{Blocks \& Symbols}
+
+To understand how to properly use and tune libRaptorQ, you first need to understand how RaptorQ handles its inputs, outputs, and what the time and memory
+constraints are.
+
+\index{Sequencing}\marginlabel{Input sequencing:}
+RaptorQ needs to have the whole input you want to send before it can start working.\\
+This means that it might be a little more difficult to use in live-streaming contexts, or where you need real-time data, but libRaptorQ will have options to
+facilitate usage even in those contexts.
+
+Once you have the whole input, RaptorQ divides it into \textbf{blocks}. Each block \textit{is encoded and decoded independently} and will be divided into \textbf{symbols}. Each symbol \textit{should}
+be transmitted separately in its own packet (if you are on the network).
+
+\index{Sequencing!Sizes}\marginlabel{Sizes:}Each input can have up to \textit{256 blocks}, each block can have up to \textit{$56.403$ symbols}, and each
+symbol can have up to \textit{$2^{16}-1$ bytes}long. This gives a maximum files size of almost $881$ GB (946270874880 bytes to be exact)
+
+\index{Interleaving}\marginlabel{Interleaving:}
+An other feature of RaptorQ is to automatically provide some interleaving of the input data before transmitting it. This means that one symbol will not
+represent one sequential chunk of your input data, but more likely it's the concatenation of different \textbf{sub-symbols}. The size of the subsymbol must thus
+be a fraction of the symbol size. This feature is not used if you set the size of the subsymbol to the size of symbol.
+
+
+\marginlabel{Memory and Time:}
+Memory and time requirements are to be considered, though, as RaptorQ needs to run a cubic algorithm on matrix of size $K*K$, where $K$ is the number of
+symbols in each block.\\
+The algorithm needs to keep in memory two of these matrices, although most of the work is done on only one.\\
+This is actually a lot. More benchmarks and optimizations will come later, for now remember that with 10 symbols it takes something like 0.4ms on a core i7 2.4GHZ, 280ms with 1000 symbols, and up to an hour with 27.000 symbols.
+
+
+\subsection{C++ interface}
+\index{Interface!C++}
+To use the C++ interface you only need to include the \textbf{RaptorQ.hpp} header.
+
+To provide grater flexibility, the whole library uses iterators to read your data, and to write the data onto your data structures.\\
+This means that a big part of the library is a template, which adapts to the alignment of the data in the data structures you use.
+
+\index{Iterators}\marginlabel{Templates}
+There are two main classes you will use:
+\begin{verbatim}
+template <typename Rnd_It, typename Out_It>
+class Encoder
+
+template <typename In_It, typename Out_It>
+class Decoder
+\end{verbatim}
+
+As you might guess, the classes for the encoder and decoder take two template parameters.\\
+For the \textbf{Encoder}, the first parameter \textit{MUST} be a \textit{random access iterator} to the input data, and the second parameter is an
+\textit{output iterator}. The random access iterator will be used to scan your input data, and perform an interleaving (if you did not set the same size the
+symbol and to the subsymbol). The output iterator will be used to write the data to your structure.\\
+The same is done for the \textbf{Decoder}, but we do not need to do any interleaving on the input, so the first iterator can be just an input iterator,
+and nothing more.
+
+~\\
+
+\subsection{The Encoder}
+\index{Encoder!C++}
+You can instantiate a decoder for example by doing:
+
+\begin{verbbox}[\small]
+ std::vector<uint32_t> input, output;
+ ...
+ using T_it = typename std::vector<uint32_t>::iterator;
+ RaptorQ::Encoder<T_it, T_it> enc (input.begin(), input.end(),
+         4, 1444, 10000)
+\end{verbbox}
+\theverbbox
+
+This will create an Encoder that works on vectors of unsigned 32 bit integers for both input and output, that will create symbols of size 1444 bytes, interleaving
+your input every 4 bytes, and try to work with big number of symbols per blocks (\textbf{TODO: explain memory requirements})
+
+The available methods for the encoder are the following:
+
+\begin{description}
+\item[bool operator()()] \textbf{return:bool}\\
+False if constructor parameters did not make sense. Else true.
+
+\item[OTI\_Common()] \textbf{return: OTI\_Common\_Data}, aka \textit{uint64\_t}.\\
+Keeps total \textbf{file size and symbol size}. You need to send this to the receiver, so that it will be able to properly decode the data.
+
+\item[OTI\_Scheme\_Specific\_Data()] \textbf{return: OTI\_Scheme\_Specific\_Data}, aka \textit{uint32\_t}.\\
+Keeps number of \textbf{source blocks, sub blocks, and alignment}. As for the OTI\_Common\_Data, you need to send this to the receiver to be able to
+properly decode the data.
+
+\item[encode] \textbf{Input: Out\_It \&output, const Out\_It end, const uint32\_t esi, const uint8\_t sbn}.\\
+\textbf{return:uint64\_t}.\\
+Take as input the iterators to the data structure into where we have to save the encoded data, the \textbf{Encoding Symbol Id} and the
+\textbf{Source Block Number}. As you are writing in C++, you probably want to use the iterators begin/end, though. Returns the number of written
+iterators (\textbf{NOT} the bytes)
+
+\item[encode] \textbf{Input: Out\_It \&output, const Out\_It end, const uint32\_t id}.\\
+\textbf{return:uint64\_t}.\\
+Exactly as before, but the \textbf{id} contains both the \textit{source block number} and the \textit{encoding symbol id}
+
+\item[begin()] \textbf{return: Block\_Iterator<Rnd\_It, Out\_It>}\\
+This returns an iterator to the blocks in which RaptorQ divided the input data. See later to understand how to use it.
+\item[end()] \textbf{return: const Block\_Iterator<Rnd\_It, Out\_It>}\\
+This returns an iterator to the end of the blocks in which RaptorQ divided the input data. See later to understand how to use it.
+
+\item[precompute] \textbf{Input:const uint8\_t threads, const bool background}\\
+\textbf{return: void}\\
+Do the work of computing all different blocks in multithread. If \textit{background} is true, then return immediately, else return only when the job is done.\\
+If \textit{threads} is $0$, try to guess the maximum threads from the number of available cpus.
+
+\item [precompute\_max\_memory] \textbf{return: size\_t}\\
+Each precomputation can take a lot of memory, depending on the configuration, so you might want to limit the number of precomputations run in parallel
+depending on the memory used. This method returns the amount of memory taken by \textbf{ONE} precomputation.
+
+\item [free] \textbf{Input: const uint8\_t sbn)}\\
+\textbf{return: void}\\
+Each block takes some memory, (a bit more than $symbols * symbol_size$), so once you are done sending source and repair symbols for one block,
+you might want to free the memory of that block.
+
+\item[blocks()] \textbf{return: uint8\_t} The number of blocks.
+
+\item[block\_size()] \textbf{Input: const uint8\_t sbn}\\
+\textbf{return: uint32\_t}\\
+The block size, in bytes. Each block can have different symbols and thus different size.
+
+\item[symbol\_size()] \textbf{return: uint16\_t} The size of a symbol.
+
+\item[symbols] \textbf{Input:uint8\_t sbn}\\
+\textbf{return: uint16\_t}\\
+The number of symbols in a specific block. different blocks can have different symbols.
+
+\item[max\_repair] \textbf{Input: const uint8\_t sbn)}\\
+\textbf{return: uint32\_t}\\
+The maximum amount of repair symbols that you can generate. Something less than $2^{24}$, but the exact number depends on the number of symbols
+in a block
+\end{description}
+\newpage
+
+
+
+\subsubsection{Blocks}
+\index{Blocks!C++}
+With the \textit{begin()/end()} calls you get \textit{Input iterators} to the blocks. a Block is has the following type:
+\begin{verbatim}
+template <typename Rnd_It, typename Out_It>
+class Block
+\end{verbatim}
+
+and exposes the 4 following methods:
+\begin{description}
+\item[begin\_source]\textbf{return: Symbol\_Iterator}
+\item[end\_source]\textbf{return: Symbol\_Iterator}
+\item[begin\_repair]\textbf{return: Symbol\_Iterator}
+\item[end\_repair]\textbf{Input: const uint32\_t max\_repair}\\
+\textbf{return: Symbol\_Iterator}
+\end{description}
+
+As the names explain, you will get an iterator to the symbols in the block. As the number of repair symbols can vary, for now you get two separate begin/ends,
+so that you can check when you sent the source symbols, and how many repair symbols you send.
+
+
+\subsubsection{Symbols}
+\index{Symbols!C++}
+Finally, through the \textit{Symbol\_Iterator} \textit{Input Iterator} we get the \textbf{Symbol} class:
+\begin{verbatim}
+template <typename Rnd_It, typename Out_It>
+class Symbol
+\end{verbatim}
+
+which exposes the 2 methods we need to get the symbol data:
+
+\begin{description}
+\item[operator*]\textbf{Input:Out\_It \&start, const Out\_It end}\\
+\textbf{return: uint64\_t}\\
+takes an output iterator, and fill it with the symbol data. returns the number of written iterators.
+\item[id()]\textbf{return: uint32\_t}\\
+return the id (\textit{$sbn + esi$}) of this symbol, that you need to include in every packet you send, before the symbols.
+\end{description}
+
+\subsection{The Decoder}
+\index{Decoder!C++}
+
+The decoder is a bit simpler than the encoder.
+
+Theere are two constructors for the Decoder:
+
+\begin{verbbox}[\small]
+ std::vector<uint32_t> input, output;
+ ...
+ using T_it = typename std::vector<uint32_t>::iterator;
+ RaptorQ::Decoder<T_it, T_it> dec (const OTI_Common_Data common,
+                          const OTI_Scheme_Specific_Data scheme)
+                              
+ RaptorQ::Decoder<T_it, T_it> dec (uint64_t size,
+              uint16_t symbol_size,  uint16_t sub_blocks,
+                                                   uint8_t blocks)
+\end{verbbox}
+\theverbbox
+
+Which should be pretty self-explanatory, once you understand how the encoder works.
+
+The remaining methods are:
+\begin{description}
+\item[decode]\textbf{Input: Out\_It \&start, const Out\_It end}\\
+\textbf{return:uint32\_t}\\
+Write \textbf{all} the blocks into the iterator. refuses to write if the input has not been completely received. Return the number of iterators written.
+
+\item[decode]\textbf{Input: Out\_It \&start, const Out\_It end, const uint8\_t sbn}\\
+\textbf{return:uint32\_t}\\
+Write a specific block into the iterator. Refuses to write if the input for that block has not been completely received.
+
+\item[add\_symbol]\textbf{In\_It \&start, const In\_It end, const uint32\_t esi, const uint8\_t sbn}\\
+\textbf{return: bool}\\
+Add one symbol, while explicitly specifying the symbol id and the block id.
+
+\item[add\_symbol]\textbf{In\_It \&start, const In\_It end, const uint32\_t id}\\
+\textbf{return: bool}\\
+Same as before, but extract the block id and the symbol id from the \textit{id} parameter
+
+\item[free]\textbf{Input: const uint8\_t sbn}\\
+\textbf{return: void}\\
+You might have stopped using a block, but the memory is still there. free it.
+
+\item[blocks()] \textbf{return: uint8\_t} The number of blocks.
+
+\item[block\_size()] \textbf{Input: const uint8\_t sbn}\\
+\textbf{return: uint32\_t}\\
+The block size, in bytes. Each block can have different symbols and thus different size.
+
+\item[symbol\_size()] \textbf{return: uint16\_t} The size of a symbol.
+
+\item[symbols] \textbf{Input:uint8\_t sbn}\\
+\textbf{return: uint16\_t}\\
+The number of symbols in a specific block. different blocks can have different symbols.
+\end{description}
+
+
+\printindex
+\end{document}
+

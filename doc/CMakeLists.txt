@@ -1,7 +1,7 @@
 #
 # Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
 #
-# This file is part of libRaptorQ.
+# This file is part of "libRaptorQ".
 #
 # libRaptorQ is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as
@@ -16,34 +16,18 @@
 # You should have received a copy of the GNU General Public License
 # and a copy of the GNU Lesser General Public License
 # along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
-#
 
-FIND_PATH(EIGEN3_INCLUDE_DIR
-  NAMES Eigen
-  PATH_SUFFIXES include/ include/eigen3/ eigen3/
-  PATHS "${PROJECT_SOURCE_DIR}"
-  ${EIGEN3_ROOT}
-  $ENV{EIGEN3_ROOT}
-  /usr/
-)
+PROJECT(libRaptorQ_Doc)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-message("Found eigen3 at: ${EIGEN3_INCLUDE_DIR}.")
+INCLUDE(../cmake/UseLATEX.cmake)
 
-IF(EIGEN3_INCLUDE_DIR)
-  SET(EIGEN3_FOUND TRUE)
-ELSE(EIGEN3_INCLUDE_DIR)
-  SET(EIGEN3_FOUND FALSE)
-ENDIF(EIGEN3_INCLUDE_DIR)
+ADD_LATEX_DOCUMENT(libRaptorQ.tex
+	USE_INDEX
+	MANGLE_TARGET_NAMES
+	NO_DEFAULT
+	)
+ADD_CUSTOM_TARGET(docs DEPENDS libRaptorQ_pdf)
 
-IF(EIGEN3_FOUND)
-  MESSAGE(STATUS "Found eigen3 in ${EIGEN3_INCLUDE_DIR}")
-ELSE(EIGEN3_FOUND)
-  IF(EIGEN3_FIND_REQUIRED)
-    MESSAGE(FATAL_ERROR "Could not find \"eigen3\" library")
-  ENDIF(EIGEN3_FIND_REQUIRED)
-ENDIF(EIGEN3_FOUND)
-
-MARK_AS_ADVANCED(
-  EIGEN3_INCLUDE_DIR
-)
+INSTALL(FILES ${CMAKE_BINARY_DIR}/doc/libRaptorQ.pdf DESTINATION share/doc/ OPTIONAL)
 

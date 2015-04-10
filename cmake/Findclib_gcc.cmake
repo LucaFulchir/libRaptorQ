@@ -1,3 +1,24 @@
+#
+# Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+#
+# This file is part of libRaptorQ.
+#
+# libRaptorQ is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as
+# published by the Free Software Foundation, either version 3
+# of the License, or (at your option) any later version.
+#
+# libRaptorQ is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# and a copy of the GNU Lesser General Public License
+# along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+
 # with a lot of thanks to the gcc guys for making the search of the path so easy and obvious.
 # path is like:
 #/usr/lib/gcc/x86_64-unknown-linux-gnu/4.9.0/include/stddef.h

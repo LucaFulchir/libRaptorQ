@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+# Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
 #
 # This file is part of "libRaptorQ".
 #
@@ -120,6 +120,9 @@ SET(HEADERS	src/Interleaver.hpp
 		src/cRaptorQ.h)
 
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
+
+# LATEX documentation
+add_subdirectory(${CMAKE_SOURCE_DIR}/doc)
 
 ADD_LIBRARY(RaptorQ_static STATIC ${SOURCES} ${HEADERS})
 # ar: add deterministic build
