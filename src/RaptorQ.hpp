@@ -56,7 +56,12 @@ public:
 	{
 		return _enc->encode (start, end, _esi, _sbn);
 	}
-
+	uint32_t id()
+	{
+		uint32_t ret = _sbn;
+		ret <<= 24;
+		return ret + _sbn;
+	}
 private:
 	Encoder<Rnd_It, Out_It> *_enc;
 	const uint32_t _esi;
@@ -203,12 +208,12 @@ public:
 														_symbol_size));
 	}
 
-	Block_Iterator<Rnd_It, Out_It> begin ()
+	Block_Iterator<Rnd_It, Out_It> begin () const
 	{
 		return Block_Iterator<Rnd_It, Out_It> (this,
 												interleave->get_partition(), 0);
 	}
-	Block_Iterator<Rnd_It, Out_It> end ()
+	const Block_Iterator<Rnd_It, Out_It> end () const
 	{
 		auto part = interleave->get_partition();
 		return Block_Iterator<Rnd_It, Out_It> (this, part,
@@ -295,7 +300,7 @@ public:
 		// see the above commented bitfields for quick reference
 		_symbol_size = static_cast<uint16_t> (common);
 		_sub_blocks = static_cast<uint16_t> (scheme >> 8);
-		_blocks = static_cast<uint8_t> (common >> 24);
+		_blocks = static_cast<uint8_t> (scheme >> 24);
 		//	(common >> 24) == total file size
 		const uint64_t size = common >> 24;
 		if (size > max_data)
@@ -306,14 +311,24 @@ public:
 									static_cast<double> (size * sizeof(T_in)) /
 										static_cast<double> (_symbol_size)));
 
-		part = Impl::Partition (total_symbols,
-										static_cast<uint8_t> (scheme >> 24));
+		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
 		//FIXME: check that the OSI and "part" agree on the data.
 	}
 
-	Decoder (uint16_t symbol_size, uint16_t sub_blocks, uint8_t blocks)
+	Decoder (const uint64_t size, const uint16_t symbol_size,
+								const uint16_t sub_blocks, const uint8_t blocks)
 		:_symbol_size (symbol_size), _sub_blocks (sub_blocks), _blocks (blocks)
-	{}
+	{
+		if (size > max_data)
+			return;
+
+		using T_in = typename std::iterator_traits<In_It>::value_type;
+		const uint64_t total_symbols = static_cast<uint64_t> (ceil (
+									static_cast<double> (size * sizeof(T_in)) /
+										static_cast<double> (_symbol_size)));
+
+		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
+	}
 
 	uint32_t decode (Out_It &start, const Out_It end);
 	uint32_t decode (Out_It &start, const Out_It end, const uint8_t sbn);
@@ -466,8 +481,8 @@ void Encoder<Rnd_It, Out_It>::precompute_block_all (
 	if (obj->interleave == nullptr)
 		return;
 	std::vector<std::thread> t;
-	size_t spawned = threads - 1;
-	if (spawned == 0)
+	ssize_t spawned = threads - 1;
+	if (spawned == -1)
 		spawned = std::thread::hardware_concurrency();
 
 	if (spawned > 0)
@@ -475,7 +490,7 @@ void Encoder<Rnd_It, Out_It>::precompute_block_all (
 	uint8_t sbn = 0;
 
 	// spawn n-1 threads
-	for (uint8_t id = 0; id < spawned; ++id)
+	for (int8_t id = 0; id < spawned; ++id)
 		t.emplace_back (precompute_thread, obj, &sbn, 0);
 
 	// do the work ourselves
