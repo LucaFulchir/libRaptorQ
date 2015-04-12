@@ -82,6 +82,15 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 {
 	// true if added succesfully
 
+	// if we were lucky to get a random access iterator, quickly check that
+	// the we have enough data for the symbol.
+	if (std::is_same<typename std::iterator_traits<In_It>::iterator_category,
+									std::random_access_iterator_tag>::value) {
+		if (static_cast<size_t>(end - start) * sizeof(T_in) <
+								static_cast<size_t> (source_symbols.cols()))
+			return false;
+	}
+
 	if (esi >= std::pow (2, 20))
 		return false;
 
@@ -103,6 +112,8 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 				source_symbols (esi, col++) = *p;
 			}
 		}
+		// input iterator might reach end before we get enough data
+		// for the symol
 		if (col != source_symbols.cols())
 			return false;
 	} else {
@@ -115,6 +126,8 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 				v (col++) = *p;
 			}
 		}
+		// input iterator might reach end before we get enough data
+		// for the symol
 		if (col != v.cols())
 			return false;
 		received_repair.emplace_back (esi, std::move(v));

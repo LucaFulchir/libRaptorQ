@@ -486,7 +486,7 @@ void Encoder<Rnd_It, Out_It>::precompute_block_all (
 		spawned = std::thread::hardware_concurrency();
 
 	if (spawned > 0)
-		t.reserve (spawned);
+		t.reserve (static_cast<size_t> (spawned));
 	uint8_t sbn = 0;
 
 	// spawn n-1 threads

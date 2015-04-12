@@ -77,6 +77,15 @@ uint32_t De_Interleaver<Out_It>::operator() (Out_It &start, const Out_It end)
 			byte = sub_sym_size * sub_symbol;
 		}
 	}
+	if (start != end && offset_al != 0) {
+		// we have more stuff in "al", but not enough to fill
+		// the iterator.
+		// Shift the remaining bytes and save it into the iterator
+		al <<= (sizeof(T) - offset_al) * 8;
+		*start = al;
+		++start;
+		++written;
+	}
 	return written;
 }
 
