@@ -425,6 +425,13 @@ uint64_t RaptorQ_encode (RaptorQ_ptr *enc, void **data, const uint64_t size,
 	}
 }
 
+uint32_t RaptorQ_id (const uint32_t esi, const uint8_t sbn)
+{
+	uint32_t ret = static_cast<uint32_t> (sbn) << 24;
+	ret += esi % static_cast<uint32_t> (std::pow (2, 24));
+	return ret;
+}
+
 
 ///////////
 // Decoding

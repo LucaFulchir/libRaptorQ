@@ -87,6 +87,7 @@ extern "C"
 															const uint64_t size,
 															const uint32_t esi,
 															const uint8_t sbn);
+	uint32_t RAPTORQ_API RaptorQ_id (const uint32_t esi, const uint8_t sbn);
 
 	///////////
 	// Decoding

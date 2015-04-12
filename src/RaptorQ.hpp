@@ -330,8 +330,8 @@ public:
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
 	}
 
-	uint32_t decode (Out_It &start, const Out_It end);
-	uint32_t decode (Out_It &start, const Out_It end, const uint8_t sbn);
+	uint64_t decode (Out_It &start, const Out_It end);
+	uint64_t decode (Out_It &start, const Out_It end, const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
 	bool add_symbol (In_It &start, const In_It end, const uint32_t id);
 	bool add_symbol (In_It &start, const In_It end, const uint32_t esi,
@@ -633,7 +633,7 @@ bool Decoder<In_It, Out_It>::add_symbol (In_It &start, const In_It end,
 }
 
 template <typename In_It, typename Out_It>
-uint32_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
+uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
 {
 	for (uint8_t sbn = 0; sbn < _blocks; ++sbn) {
 		_mtx.lock();
@@ -664,7 +664,7 @@ uint32_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
 }
 
 template <typename In_It, typename Out_It>
-uint32_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end,
+uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end,
 															const uint8_t sbn)
 {
 	if (sbn >= _blocks)

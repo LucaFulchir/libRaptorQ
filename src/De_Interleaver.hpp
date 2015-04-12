@@ -36,16 +36,16 @@ public:
 	{
 		IS_OUTPUT(Out_It, "RaptorQ::Impl::De_Interleaver");
 	}
-	uint32_t operator() (Out_It &start, const Out_It end);
+	uint64_t operator() (Out_It &start, const Out_It end);
 private:
 	const DenseMtx *_symbols;
 	const uint16_t _sub_blocks;
 };
 
 template <typename Out_It>
-uint32_t De_Interleaver<Out_It>::operator() (Out_It &start, const Out_It end)
+uint64_t De_Interleaver<Out_It>::operator() (Out_It &start, const Out_It end)
 {
-	uint32_t written = 0;
+	uint64_t written = 0;
 	uint32_t byte = 0;
 	uint16_t esi = 0;
 	uint16_t sub_symbol = 0;
