@@ -1,8 +1,52 @@
+%    Copyright (C)  2015, Luca Fulchir<luca@fulchir.it>
+%    Permission is granted to copy, distribute and/or modify this document
+%    under the terms of the GNU Free Documentation License, Version 1.3
+%    or any later version published by the Free Software Foundation;
+%    with no Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+%    A copy of the license is included in the section entitled "GNU
+%    Free Documentation License".
+
+
+
 \documentclass[11pt,a4paper]{refart}
 \usepackage[utf8]{inputenc}
 \usepackage{hyperref}
 \usepackage{makeidx}
 \usepackage{verbatimbox}
+\usepackage{listings}
+\usepackage{color}
+
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+
+\lstset{ %
+  backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}
+  basicstyle=\footnotesize,        % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{mygreen},    % comment style
+  deletekeywords={...},            % if you want to delete keywords from the given language
+  escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+  extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  frame=single,                    % adds a frame around the code
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  keywordstyle=\color{blue},       % keyword style
+  language=C,                 % the language of the code
+  %otherkeywords={*,...},            % if you want to add more keywords to the set
+  %numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+  %numbersep=5pt,                   % how far the line-numbers are from the code
+  %numberstyle=\tiny\color{mygray}, % the style that is used for the line-numbers
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  stepnumber=2,                    % the step between two line-numbers. If it's 1, each line will be numbered
+  stringstyle=\color{mymauve},     % string literal style
+  tabsize=4,                       % sets default tabsize to 2 spaces
+  title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
+}
 
 \title{Using libRaptorQ library}
 \author{Luca Fulchir -- \{luker\}@fenrirproject.org}
@@ -16,13 +60,28 @@
 
 \textbf{libRaptorQ} is a C++11 implementation of the RaptorQ Forward Error Correction, as described in the \href{https://tools.ietf.org/html/rfc6330}{RFC6330} .
 
-The implementation was started as a university laboratory project, and will be later used and included in \href{https://www.fenrirproject.org}{Fenrir}, the maintainer's master thesis.
+The implementation was started as a university laboratory project, and will be later used and included in \href{https://www.fenrirproject.org}{Fenrir}, the
+maintainer's master thesis.
 
 This implementation is quite short (the core is $\sim3k$ lines), thanks to the chosen language and the use of external libraries for matrix handling (eigen3).
 
-libRaptorQ is the only RaptorQ implementation in C++, include C hooks, and it is the only free (\textbf{LGPL3}) implementation of the rfc, except for the (apache2) java implementation, OpenRQ , which is much bigger ($\sim 46k$) and slower.
+libRaptorQ is the only RaptorQ implementation in C++, include C hooks, and it is the only free (\textbf{LGPL3}) implementation of the rfc, except for the (apache2)
+java implementation, OpenRQ , which is much bigger ($\sim 46k$) and slower.
 \end{abstract}
 
+\vfill\hfill
+\begin{verbbox}[\tiny]
+Copyright (C)  2015, Luca Fulchir<luca@fulchir.it>
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3
+or any later version published by the Free Software Foundation;
+with no Invariant Sections, no Front-Cover Texts, and no Back-Cover Texts.
+A copy of the license is included in the section entitled "GNU
+Free Documentation License".
+\end{verbbox}
+\theverbbox
+
+\newpage
 \tableofcontents
 \newpage
 
@@ -93,8 +152,8 @@ you can be sure you have the right code.
 libRaptorQ has only 2 dependencies:
 \begin{description}
 \item[\textbf{Eigen}] This is used for matrix manipulation, which is a big part of RaptorQ.
-\item[\textbf{git}] This is used not only to get the source, but also by the build system. We get the last git commit id and feed it to clang or gcc as seed for their internal
-random number generator. This makes it possible to have reproducible builds.
+\item[\textbf{git}] This is used not only to get the source, but also by the build system. We get the last git commit id and feed it to clang or gcc as seed for their
+internal random number generator. This makes it possible to have reproducible builds.
 \end{description}
 
 \subsection{Build \& Install}
@@ -155,7 +214,8 @@ Fountain codes are a special \textit{Forward-Error-Correcting} code class, which
 send $K+X$ packets, and the receiver only needs to get any $K$ packets to be able to reconstruct your data. The number $X$ of overhead packets can be as big
 as you need (theoretically infinite), so you can tune it to be slightly higher than the expected packet loss.
 
-\marginlabel{Systematic codes:} RaptorQ is also a systematic code. This means that those first $K$ packets are the input \textit{as-is} (\textbf{source symbols}), and the $X$ packets (\textbf{repair symbols}) have the information needed to recover any of the lost source packets. This has the big advantage of
+\marginlabel{Systematic codes:} RaptorQ is also a systematic code. This means that those first $K$ packets are the input \textit{as-is} (\textbf{source symbols}),
+and the $X$ packets (\textbf{repair symbols}) have the information needed to recover any of the lost source packets. This has the big advantage of
 avoiding any kind of time and memory consuming decoding if there is no packet loss during the transmission.
 
 \marginlabel{Complexity:} The RaptorQ algorithm is presented as having a linear time encoder and decoder. This implementation does not seem to verify
@@ -218,7 +278,7 @@ and nothing more.
 
 ~\\
 
-\subsection{The Encoder}
+\subsubsection{The Encoder}
 \index{Encoder!C++}
 You can instantiate a decoder for example by doing:
 
@@ -336,7 +396,7 @@ takes an output iterator, and fill it with the symbol data. returns the number o
 return the id (\textit{$sbn + esi$}) of this symbol, that you need to include in every packet you send, before the symbols.
 \end{description}
 
-\subsection{The Decoder}
+\subsubsection{The Decoder}
 \index{Decoder!C++}
 
 The decoder is a bit simpler than the encoder.
@@ -393,6 +453,165 @@ The block size, in bytes. Each block can have different symbols and thus differe
 The number of symbols in a specific block. different blocks can have different symbols.
 \end{description}
 
+\newpage
+\subsection{C interface}
+The C interface looks a lot like the C++ one.
+
+First of all, you need to build the encoder or the decoder:
+
+The C interface is just a wrapper around the C++ code, so you still have to specify the same things as before.
+A quick glance at the constructors should give you all the information you need:
+
+\marginlabel{C Constructors}
+\begin{lstlisting}[language=C]
+typedef enum { NONE = 0,
+         ENC_8 = 1, ENC_16 = 2, ENC_32 = 3, ENC_64 = 4,
+         DEC_8 = 5, DEC_16 = 6, DEC_32 = 7, DEC_64 = 8}
+              RaptorQ_type;
+
+struct RAPTORQ_LOCAL RaptorQ_ptr
+{
+  void *ptr = nullptr;
+  const RaptorQ_type type;
+};
+
+RaptorQ_ptr* RaptorQ_Enc (const RaptorQ_type type,
+                    void *data,
+                    const uint64_t size,
+                    const uint16_t min_subsymbol_size,
+                    const uint16_t symbol_size,
+                    const size_t max_memory);
+
+RaptorQ_ptr* RaptorQ_Dec (const RaptorQ_type type,
+              const RaptorQ_OTI_Common_Data common,
+              const RaptorQ_OTI_Scheme_Specific_Data
+                                                scheme);
+\end{lstlisting}
+
+The encoder and decoder must have a specific alignment. in C++ you can also have different
+alignments for the input and output, while in C things are a bit more strict as we have to enumerate
+all the possible cases. So you only get the same data alignment for both input and output.\\
+Still, you don't lose anything in performance.\\
+
+\newpage
+\subsubsection{Common functions for (de/en)coding}
+
+These functions are used by both the decoder and the decoder, and will be helpful in tracking how much memory
+you will need to allocate, or in general in managing the encoder and decoder.
+
+The \textbf{ptr} must be a valid encoder or decoder.
+The names for now are self-explanatory. Blocks can have different symbols, so the size of a block and the number of symbols in a block
+depend on which block we are talking about.
+
+\marginlabel{symbols, blocks, memory}
+\begin{lstlisting}[language=C]
+uint16_t RaptorQ_symbol_size (struct RaptorQ_ptr *ptr);
+uint8_t RaptorQ_blocks (struct RaptorQ_ptr *ptr);
+uint32_t RaptorQ_block_size (struct RaptorQ_ptr *ptr,
+                                    const uint8_t sbn);
+uint16_t RaptorQ_symbols (struct RaptorQ_ptr *ptr,
+                                    const uint8_t sbn);
+
+void RaptorQ_free (struct RaptorQ_ptr **ptr);
+void RaptorQ_free_block (struct RaptorQ_ptr *ptr,
+                                    const uint8_t sbn);
+\end{lstlisting}
+Finally, when you are done working with a block, you can free the memory associated with the single block
+and just free the whole (en/de)coder when you are done. Freeing the whole (en/de)coder will obviously free
+also all the blocks.
+
+
+\newpage
+\subsubsection{Encoding}
+
+\marginlabel{OTI Data}
+First, we need to tell the receiver all the parameters that the encoder is using, and for that two functions are provided:
+
+\begin{lstlisting}[language=C]
+typedef uint64_t RaptorQ_OTI_Common_Data;
+typedef uint32_t RaptorQ_OTI_Scheme_Specific_Data;
+
+RaptorQ_OTI_Common_Data RaptorQ_OTI_Common (
+                               struct RaptorQ_ptr *enc);
+RaptorQ_OTI_Scheme_Specific_Data RaptorQ_OTI_Scheme (
+                               struct RaptorQ_ptr *enc);
+\end{lstlisting}
+
+\index{Encoder!C}\marginlabel{Encoding}
+
+\begin{lstlisting}[language=C]
+// maximum number of repair symbol in a block
+uint32_t RaptorQ_max_repair (RaptorQ_ptr *enc,
+                                   const uint8_t sbn);
+//estimate bytes of ram used in the precomputation
+// of one block
+size_t RaptorQ_precompute_max_memory (
+                               struct RaptorQ_ptr *enc);
+// do the precomputation.
+void RaptorQ_precompute (struct RaptorQ_ptr *enc,
+                                 const uint8_t threads,
+                                 const bool background);
+
+// encode one symbol. source block number and
+// symbol id are in the ``id'' field.
+// returns number of alignments written.
+uint64_t RaptorQ_encode_id (struct RaptorQ_ptr *enc,
+                                  void **data,
+                                  const uint64_t size,
+                                  const uint32_t id);
+// encode one symbol. same as before
+uint64_t RaptorQ_encode (struct RaptorQ_ptr *enc,
+                                  void **data,
+                                  const uint64_t size,
+                                  const uint32_t esi,
+                                  const uint8_t sbn);
+// build an ``id'' field out of an esi and sbn field.
+uint32_t RaptorQ_id (const uint32_t esi,
+                                  const uint8_t sbn);
+\end{lstlisting}
+As for the C++ version, everything is thread-safe.
+
+You can start the precomputation in background and not worry about it.\\
+If you request repair symbols before the computation is finished, the call will block until the data is available.
+
+The \textbf{encode} functions are the same, and will encode \textbf{one} symbol.
+They work for both source symbols and repair symbols, just keep increasing the \textit{esi} field
+
+
+\newpage
+\subsubsection{Decoding}
+\index{Decoder!C}\marginlabel{Decoding}
+\begin{lstlisting}[language=C]
+// decode all blocks.
+// returns the number of written alignments.
+// returns 0 if encoding of *everything* is not possible
+uint64_t RaptorQ_decode (struct RaptorQ_ptr *dec,
+                                   void **data,
+                                   const size_t size);
+// decode only one block (if possible)
+// returns 0 if encoding of the block is not possible.
+uint64_t RaptorQ_decode_sbn (struct RaptorQ_ptr *dec,
+                                   void **data,
+                                   const size_t size,
+                                   const uint8_t sbn);
+
+// add a received symbol the the structure.
+// either by using the `id' field
+bool RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec,
+                                   void **data,
+                                   const uint32_t size,
+                                   const uint32_t id);
+// or by explicitely declaring esi and sbn
+bool RaptorQ_add_symbol (struct RaptorQ_ptr *dec,
+                                   void **data,
+                                   const uint32_t size,
+                                   const uint32_t esi,
+                                   const uint8_t sbn);
+\end{lstlisting}
+
+
+
+\input{GNU_FDL.tex}
 
 \printindex
 \end{document}
