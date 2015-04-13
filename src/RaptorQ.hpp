@@ -128,9 +128,15 @@ public:
 																		const
 	{
 		uint32_t max_r = max_repair;
+		uint32_t max_sym = 1;
+		max_sym <<= 20;	// max_sym = 2^20
 		if (max_repair > std::pow (2, 20) - _symbols)
-			max_r = std::pow (2, 20) - _symbols;
+			max_r = max_sym - _symbols;
 		return Symbol_Iterator<Rnd_It, Out_It> (_enc, _symbols + max_r,_sbn);
+	}
+	uint32_t max_repair()
+	{
+		return _enc->max_repair (_sbn);
 	}
 
 private:
@@ -208,16 +214,16 @@ public:
 														_symbol_size));
 	}
 
-	Block_Iterator<Rnd_It, Out_It> begin () const
+	Block_Iterator<Rnd_It, Out_It> begin ()
 	{
 		return Block_Iterator<Rnd_It, Out_It> (this,
 												interleave->get_partition(), 0);
 	}
-	const Block_Iterator<Rnd_It, Out_It> end () const
+	const Block_Iterator<Rnd_It, Out_It> end ()
 	{
 		auto part = interleave->get_partition();
 		return Block_Iterator<Rnd_It, Out_It> (this, part,
-													part.num(0) + part.num(1));
+							static_cast<uint8_t> (part.num(0) + part.num(1)));
 	}
 
 	bool operator()() const { return interleave != nullptr; }

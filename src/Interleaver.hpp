@@ -54,7 +54,7 @@ void test (void);
 // Partition: see RFC6330: each object is partitioned in
 //		N1 blocks of size S1, plus N2 blocks of size S2. This class tracks it
 //
-class RAPTORQ_API Partition
+class RAPTORQ_LOCAL Partition
 {
 public:
 	Partition() = default;
@@ -206,7 +206,7 @@ public:
 					_symbol_id * _sub_blocks.size (1) +	// get right subsymbol
 					pos_part2 % _sub_blocks.size (1);	// get right alignment
 		}
-		auto data = _data_from + i;
+		auto data = _data_from + static_cast<int64_t> (i);
 		if (data >= _data_to) {
 			// Padding. remember to cast it to the same time as the iterator
 			// value
@@ -322,7 +322,7 @@ private:
 //		and symbol division and interleaving, and padding.
 //
 template <typename Rnd_It>
-class RAPTORQ_API Interleaver
+class RAPTORQ_LOCAL Interleaver
 {
 public:
 	operator bool() const;	// true => all ok
