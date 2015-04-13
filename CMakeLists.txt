@@ -36,6 +36,7 @@ INCLUDE(cmake/guess_architecture.cmake)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
 
+FIND_PACKAGE(Threads) # optional. Do not build tests if not found.
 FIND_PACKAGE(eigen REQUIRED)
 INCLUDE_DIRECTORIES(SYSTEM ${EIGEN3_INCLUDE_DIR})
 
@@ -155,6 +156,19 @@ SET_TARGET_PROPERTIES (
 	PROPERTIES
 	LINK_FLAGS "-Wl,-z,now,-z,relro"
 )
+
+# Tests need to be linked to threading library
+IF (CMAKE_THREAD_LIBS_INIT)
+	ADD_EXECUTABLE(libRaptorQ-test EXCLUDE_FROM_ALL test/test.cpp)
+	ADD_DEPENDENCIES(libRaptorQ-test RaptorQ)
+	TARGET_LINK_LIBRARIES(libRaptorQ-test ${CMAKE_THREAD_LIBS_INIT})
+	# link the library we just built, too
+	TARGET_LINK_LIBRARIES(libRaptorQ-test ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
+	ADD_CUSTOM_TARGET(tests DEPENDS libRaptorQ-test)
+ENDIF()
+
+INSTALL(TARGETS libRaptorQ-test RUNTIME DESTINATION bin/ OPTIONAL)
+
 
 INSTALL(FILES ${HEADERS} DESTINATION include/RaptorQ/)
 INSTALL(TARGETS RaptorQ RaptorQ_static

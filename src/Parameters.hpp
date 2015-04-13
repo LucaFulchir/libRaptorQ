@@ -62,7 +62,7 @@ private:
 	static bool is_prime (const uint16_t n);
 };
 
-class RAPTORQ_API Octet
+class RAPTORQ_LOCAL Octet
 {
 public:
 	Octet () {}

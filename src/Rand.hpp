@@ -35,7 +35,7 @@
 namespace RaptorQ {
 namespace Impl {
 
-class RAPTORQ_API Rand {
+class RAPTORQ_LOCAL Rand {
 public:
 	Rand() {}
 	Rand (const Rand&) = delete; // Don't Implement

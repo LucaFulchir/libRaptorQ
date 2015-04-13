@@ -56,11 +56,11 @@ public:
 	{
 		return _enc->encode (start, end, _esi, _sbn);
 	}
-	uint32_t id()
+	uint32_t id() const
 	{
 		uint32_t ret = _sbn;
 		ret <<= 24;
-		return ret + _sbn;
+		return ret + _esi;
 	}
 private:
 	Encoder<Rnd_It, Out_It> *_enc;
