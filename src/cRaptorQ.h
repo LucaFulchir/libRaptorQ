@@ -93,9 +93,9 @@ extern "C"
 	// Decoding
 	///////////
 
-	uint32_t RAPTORQ_API RaptorQ_decode (struct RaptorQ_ptr *dec, void **data,
+	uint64_t RAPTORQ_API RaptorQ_decode (struct RaptorQ_ptr *dec, void **data,
 															const size_t size);
-	uint32_t RAPTORQ_API RaptorQ_decode_sbn (struct RaptorQ_ptr *dec,
+	uint64_t RAPTORQ_API RaptorQ_decode_sbn (struct RaptorQ_ptr *dec,
 															void **data,
 															const size_t size,
 															const uint8_t sbn);

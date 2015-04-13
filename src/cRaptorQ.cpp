@@ -437,7 +437,7 @@ uint32_t RaptorQ_id (const uint32_t esi, const uint8_t sbn)
 // Decoding
 ///////////
 
-uint32_t RaptorQ_decode (RaptorQ_ptr *dec, void **data, const size_t size)
+uint64_t RaptorQ_decode (RaptorQ_ptr *dec, void **data, const size_t size)
 {
 	if (dec == nullptr || dec->type == RaptorQ_type::NONE ||
 									dec->ptr == nullptr || data == nullptr) {
@@ -474,7 +474,7 @@ uint32_t RaptorQ_decode (RaptorQ_ptr *dec, void **data, const size_t size)
 
 }
 
-uint32_t RaptorQ_decode_sbn (RaptorQ_ptr *dec, void **data, const size_t size,
+uint64_t RaptorQ_decode_sbn (RaptorQ_ptr *dec, void **data, const size_t size,
 															const uint8_t sbn)
 {
 	if (dec == nullptr || dec->type == RaptorQ_type::NONE ||
