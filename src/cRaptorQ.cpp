@@ -138,6 +138,13 @@ RaptorQ_OTI_Common_Data RaptorQ_OTI_Common (struct RaptorQ_ptr *enc)
 	case RaptorQ_type::NONE:
 		return 0;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return 0;
+#endif
 }
 
 RaptorQ_OTI_Scheme_Specific_Data RaptorQ_OTI_Scheme (struct RaptorQ_ptr *enc)
@@ -164,6 +171,13 @@ RaptorQ_OTI_Scheme_Specific_Data RaptorQ_OTI_Scheme (struct RaptorQ_ptr *enc)
 	case RaptorQ_type::NONE:
 		return 0;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return 0;
+#endif
 }
 
 uint16_t RaptorQ_symbol_size (RaptorQ_ptr *ptr) {
@@ -197,6 +211,13 @@ uint16_t RaptorQ_symbol_size (RaptorQ_ptr *ptr) {
 	case RaptorQ_type::NONE:
 		return 0;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return 0;
+#endif
 }
 uint8_t RaptorQ_blocks (RaptorQ_ptr *ptr)
 {
@@ -230,6 +251,13 @@ uint8_t RaptorQ_blocks (RaptorQ_ptr *ptr)
 	case RaptorQ_type::NONE:
 		return 0;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return 0;
+#endif
 }
 uint32_t RaptorQ_block_size (RaptorQ_ptr *ptr, const uint8_t sbn)
 {
@@ -263,6 +291,13 @@ uint32_t RaptorQ_block_size (RaptorQ_ptr *ptr, const uint8_t sbn)
 	case RaptorQ_type::NONE:
 		return 0;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return 0;
+#endif
 }
 
 uint16_t RaptorQ_symbols (RaptorQ_ptr *ptr, const uint8_t sbn)
@@ -297,6 +332,13 @@ uint16_t RaptorQ_symbols (RaptorQ_ptr *ptr, const uint8_t sbn)
 	case RaptorQ_type::NONE:
 		return 0;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return 0;
+#endif
 }
 
 uint32_t RaptorQ_max_repair (RaptorQ_ptr *enc, const uint8_t sbn)
@@ -323,6 +365,13 @@ uint32_t RaptorQ_max_repair (RaptorQ_ptr *enc, const uint8_t sbn)
 	case RaptorQ_type::NONE:
 		return 0;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return 0;
+#endif
 }
 
 size_t RaptorQ_precompute_max_memory (RaptorQ_ptr *enc)
@@ -349,6 +398,13 @@ size_t RaptorQ_precompute_max_memory (RaptorQ_ptr *enc)
 	case RaptorQ_type::NONE:
 		return 0;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return 0;
+#endif
 }
 
 void RaptorQ_precompute (RaptorQ_ptr *enc, const uint8_t threads,
@@ -376,6 +432,13 @@ void RaptorQ_precompute (RaptorQ_ptr *enc, const uint8_t threads,
 	case RaptorQ_type::NONE:
 		return;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return;
+#endif
 }
 
 uint64_t RaptorQ_encode_id (RaptorQ_ptr *enc, void **data, const uint64_t size,
@@ -423,6 +486,13 @@ uint64_t RaptorQ_encode (RaptorQ_ptr *enc, void **data, const uint64_t size,
 	case RaptorQ_type::NONE:
 		return 0;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return 0;
+#endif
 }
 
 uint32_t RaptorQ_id (const uint32_t esi, const uint8_t sbn)
@@ -471,7 +541,13 @@ uint64_t RaptorQ_decode (RaptorQ_ptr *dec, void **data, const size_t size)
 	case RaptorQ_type::NONE:
 		return false;
 	}
-
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return false;
+#endif
 }
 
 uint64_t RaptorQ_decode_sbn (RaptorQ_ptr *dec, void **data, const size_t size,
@@ -509,6 +585,13 @@ uint64_t RaptorQ_decode_sbn (RaptorQ_ptr *dec, void **data, const size_t size,
 	case RaptorQ_type::NONE:
 		return false;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return false;
+#endif
 }
 
 bool RaptorQ_add_symbol_id (RaptorQ_ptr *dec, void **data, const uint32_t size,
@@ -555,7 +638,13 @@ bool RaptorQ_add_symbol (RaptorQ_ptr *dec, void **data, const uint32_t size,
 	case RaptorQ_type::NONE:
 		return false;
 	}
-
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return false;
+#endif
 }
 
 ///////////////////////
@@ -652,4 +741,11 @@ void RaptorQ_free_block (struct RaptorQ_ptr *ptr, const uint8_t sbn)
 	case RaptorQ_type::NONE:
 		return;
 	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return;
+#endif
 }
