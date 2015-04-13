@@ -186,12 +186,13 @@ $ make -j 4
 \end{verbatim}
 Of course, you can configure the number of parallel jobs (the \textit{-j} parameter) to be what you need.
 
-If you want to build this documentation, too, you need to have installed latex. Then run:
+\marginlabel{Optional make targets:}
+If you want to build this documentation or the tests, too, you need to have installed latex. Then run:
 \begin{verbatim}
 $ make docs
+$ make tests
 \end{verbatim}
-
-~\\
+The tests are only useful to check perfromance of rfc compliance right now.\\
 
 \index{Install}\marginlabel{\textbf{Install:}}
 The installation process is very simple:
@@ -286,14 +287,14 @@ and nothing more.
 \index{Encoder!C++}
 You can instantiate a decoder for example by doing:
 
-\begin{verbbox}[\small]
- std::vector<uint32_t> input, output;
- ...
- using T_it = typename std::vector<uint32_t>::iterator;
- RaptorQ::Encoder<T_it, T_it> enc (input.begin(), input.end(),
-         4, 1444, 10000)
-\end{verbbox}
-\theverbbox
+\begin{lstlisting}[language=C++]
+std::vector<uint32_t> input, output;
+...
+using T_it = typename std::vector<uint32_t>::iterator;
+RaptorQ::Encoder<T_it, T_it> enc (input.begin(),
+                                  input.end(),
+                                  4, 1444, 10000)
+\end{lstlisting}
 
 This will create an Encoder that works on vectors of unsigned 32 bit integers for both input and output, that will create symbols of size 1444 bytes, interleaving
 your input every 4 bytes, and try to work with big number of symbols per blocks (\textbf{TODO: explain memory requirements})
@@ -364,10 +365,10 @@ in a block
 \subsubsection{Blocks}
 \index{Blocks!C++}
 With the \textit{begin()/end()} calls you get \textit{Input iterators} to the blocks. a Block is has the following type:
-\begin{verbatim}
+\begin{lstlisting}[language=C++]
 template <typename Rnd_It, typename Out_It>
 class Block
-\end{verbatim}
+\end{lstlisting}
 
 and exposes the 4 following methods:
 \begin{description}
@@ -376,6 +377,7 @@ and exposes the 4 following methods:
 \item[begin\_repair]\textbf{return: Symbol\_Iterator}
 \item[end\_repair]\textbf{Input: const uint32\_t max\_repair}\\
 \textbf{return: Symbol\_Iterator}
+\item [max\_repair]\textbf{return:uint32\_t}
 \end{description}
 
 As the names explain, you will get an iterator to the symbols in the block. As the number of repair symbols can vary, for now you get two separate begin/ends,
@@ -385,10 +387,10 @@ so that you can check when you sent the source symbols, and how many repair symb
 \subsubsection{Symbols}
 \index{Symbols!C++}
 Finally, through the \textit{Symbol\_Iterator} \textit{Input Iterator} we get the \textbf{Symbol} class:
-\begin{verbatim}
+\begin{lstlisting}[language=C++]
 template <typename Rnd_It, typename Out_It>
 class Symbol
-\end{verbatim}
+\end{lstlisting}
 
 which exposes the 2 methods we need to get the symbol data:
 
@@ -400,6 +402,7 @@ takes an output iterator, and fill it with the symbol data. returns the number o
 return the id (\textit{$sbn + esi$}) of this symbol, that you need to include in every packet you send, before the symbols.
 \end{description}
 
+\newpage
 \subsubsection{The Decoder}
 \index{Decoder!C++}
 
@@ -407,29 +410,29 @@ The decoder is a bit simpler than the encoder.
 
 Theere are two constructors for the Decoder:
 
-\begin{verbbox}[\small]
+\begin{lstlisting}[language=C++]
  std::vector<uint32_t> input, output;
- ...
  using T_it = typename std::vector<uint32_t>::iterator;
- RaptorQ::Decoder<T_it, T_it> dec (const OTI_Common_Data common,
-                          const OTI_Scheme_Specific_Data scheme)
+ RaptorQ::Decoder<T_it, T_it> dec (
+                 const OTI_Common_Data common,
+                 const OTI_Scheme_Specific_Data scheme)
                               
  RaptorQ::Decoder<T_it, T_it> dec (uint64_t size,
-              uint16_t symbol_size,  uint16_t sub_blocks,
-                                                   uint8_t blocks)
-\end{verbbox}
-\theverbbox
+                                  uint16_t symbol_size,
+                                  uint16_t sub_blocks,
+                                  uint8_t blocks)
+\end{lstlisting}
 
 Which should be pretty self-explanatory, once you understand how the encoder works.
 
 The remaining methods are:
 \begin{description}
 \item[decode]\textbf{Input: Out\_It \&start, const Out\_It end}\\
-\textbf{return:uint32\_t}\\
+\textbf{return:uint64\_t}\\
 Write \textbf{all} the blocks into the iterator. refuses to write if the input has not been completely received. Return the number of iterators written.
 
 \item[decode]\textbf{Input: Out\_It \&start, const Out\_It end, const uint8\_t sbn}\\
-\textbf{return:uint32\_t}\\
+\textbf{return:uint64\_t}\\
 Write a specific block into the iterator. Refuses to write if the input for that block has not been completely received.
 
 \item[add\_symbol]\textbf{In\_It \&start, const In\_It end, const uint32\_t esi, const uint8\_t sbn}\\
@@ -457,7 +460,7 @@ The block size, in bytes. Each block can have different symbols and thus differe
 The number of symbols in a specific block. different blocks can have different symbols.
 \end{description}
 
-\newpage
+
 \subsection{C interface}
 The C interface looks a lot like the C++ one.
 
