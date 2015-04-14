@@ -37,7 +37,15 @@
 uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 															uint8_t overhead);
 
+#ifdef USING_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wglobal-constructors"
+#pragma clang diagnostic ignored "-Wexit-time-destructors"
+#endif	//using_clang
 static std::mutex global_mtx;
+#ifdef USING_CLANG
+#pragma clang diagnostic pop
+#endif	//using_clang
 
 
 // for each matrix size, test it multiple times (encode + decode),

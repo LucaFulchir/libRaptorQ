@@ -134,9 +134,17 @@ public:
 			max_r = max_sym - _symbols;
 		return Symbol_Iterator<Rnd_It, Out_It> (_enc, _symbols + max_r,_sbn);
 	}
-	uint32_t max_repair()
+	uint32_t max_repair() const
 	{
 		return _enc->max_repair (_sbn);
+	}
+	uint16_t symbols () const
+	{
+		return _enc->symbols (_sbn);
+	}
+	uint32_t block_size () const
+	{
+		return _enc->block_size (_sbn);
 	}
 
 private:
@@ -185,7 +193,7 @@ private:
 };
 
 
-static const uint64_t max_data = 946270874880;
+static const uint64_t max_data = 946270874880;	// ~881 GB
 
 typedef uint64_t OTI_Common_Data;
 typedef uint32_t OTI_Scheme_Specific_Data;
@@ -205,13 +213,28 @@ public:
 	{
 		IS_RANDOM(Rnd_It, "RaptorQ::Encoder");
 		IS_OUTPUT(Out_It, "RaptorQ::Encoder");
-		// max size: between 2^39 and 2^40
+		auto _alignment = sizeof(typename
+									std::iterator_traits<Rnd_It>::value_type);
+		assert(_symbol_size >= _alignment &&
+						"RaptorQ: symbol_size must be >= alignment");
+		assert((_symbol_size % _alignment) == 0 &&
+						"RaptorQ: symbol_size must be multiple of alignment");
+		assert(min_subsymbol_size >= _alignment &&
+						"RaptorQ: minimum subsymbol must be at least aligment");
+		assert(min_subsymbol_size <= _symbol_size &&
+						"RaptorQ: minimum subsymbol must be at most symbol_size");
+		assert((min_subsymbol_size % _alignment) == 0 &&
+					"RaptorQ: minimum subsymbol must be multiple of alignment");
+		// max size: ~881 GB
 		if (static_cast<uint64_t> (data_to - data_from) > max_data)
 			return;
 		interleave = std::unique_ptr<Impl::Interleaver<Rnd_It>> (
-								new Impl::Interleaver<Rnd_It> (_data_from, _data_to,
+								new Impl::Interleaver<Rnd_It> (_data_from,
+														_data_to,
 														_min_subsymbol, _mem,
 														_symbol_size));
+		if (!(*interleave))
+			interleave = nullptr;
 	}
 
 	Block_Iterator<Rnd_It, Out_It> begin ()
@@ -226,7 +249,7 @@ public:
 							static_cast<uint8_t> (part.num(0) + part.num(1)));
 	}
 
-	bool operator()() const { return interleave != nullptr; }
+	operator bool() const { return interleave != nullptr; }
 	OTI_Common_Data OTI_Common() const;
 	OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
@@ -307,15 +330,13 @@ public:
 		_symbol_size = static_cast<uint16_t> (common);
 		_sub_blocks = static_cast<uint16_t> (scheme >> 8);
 		_blocks = static_cast<uint8_t> (scheme >> 24);
+		_size = common >> 24;
 		//	(common >> 24) == total file size
-		const uint64_t size = common >> 24;
-		if (size > max_data)
+		if (_size > max_data)
 			return;
 
-		using T_in = typename std::iterator_traits<In_It>::value_type;
 		const uint64_t total_symbols = static_cast<uint64_t> (ceil (
-									static_cast<double> (size * sizeof(T_in)) /
-										static_cast<double> (_symbol_size)));
+								_size / static_cast<double> (_symbol_size)));
 
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
 		//FIXME: check that the OSI and "part" agree on the data.
@@ -323,15 +344,14 @@ public:
 
 	Decoder (const uint64_t size, const uint16_t symbol_size,
 								const uint16_t sub_blocks, const uint8_t blocks)
-		:_symbol_size (symbol_size), _sub_blocks (sub_blocks), _blocks (blocks)
+		:_size (size), _symbol_size (symbol_size), _sub_blocks (sub_blocks),
+																_blocks (blocks)
 	{
-		if (size > max_data)
+		if (_size > max_data)
 			return;
 
-		using T_in = typename std::iterator_traits<In_It>::value_type;
 		const uint64_t total_symbols = static_cast<uint64_t> (ceil (
-									static_cast<double> (size * sizeof(T_in)) /
-										static_cast<double> (_symbol_size)));
+								_size / static_cast<double> (_symbol_size)));
 
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
 	}
@@ -343,11 +363,13 @@ public:
 	bool add_symbol (In_It &start, const In_It end, const uint32_t esi,
 															const uint8_t sbn);
 	void free (const uint8_t sbn);
+	uint64_t bytes() const;
 	uint8_t blocks() const;
 	uint32_t block_size (const uint8_t sbn) const;
 	uint16_t symbol_size() const;
 	uint16_t symbols (const uint8_t sbn) const;
 private:
+	uint64_t _size;
 	Impl::Partition part;
 	uint16_t _symbol_size, _sub_blocks;
 	uint8_t _blocks;
@@ -370,7 +392,8 @@ OTI_Common_Data Encoder<Rnd_It, Out_It>::OTI_Common() const
 {
 	OTI_Common_Data ret;
 	// first 40 bits: data length.
-	ret = static_cast<uint64_t> (_data_to - _data_from) << 24;
+	ret = (static_cast<uint64_t> (_data_to - _data_from) *
+			sizeof(typename std::iterator_traits<Rnd_It>::value_type)) << 24;
 	// 8 bits: reserved
 	// last 16 bits: symbol size
 	ret += _symbol_size;
@@ -691,6 +714,12 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end,
 	Impl::De_Interleaver<Out_It> de_interleaving (dec->get_symbols(),
 																_sub_blocks);
 	return de_interleaving (start, end);
+}
+
+template <typename In_It, typename Out_It>
+uint64_t Decoder<In_It, Out_It>::bytes() const
+{
+	return _size;
 }
 
 template <typename In_It, typename Out_It>

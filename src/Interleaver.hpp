@@ -379,6 +379,8 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 					"RaptorQ: symbol_size must be multiple of alignment");
 	assert(min_subsymbol_size >= _alignment &&
 					"RaptorQ: minimum subsymbol must be at least aligment");
+	assert(min_subsymbol_size <= _symbol_size &&
+					"RaptorQ: minimum subsymbol must be at most symbol_size");
 	assert((min_subsymbol_size % _alignment) == 0 &&
 				"RaptorQ: minimum subsymbol must be multiple of alignment");
 	// derive number of source blocks and sub blocks. seed RFC 6330, pg 8

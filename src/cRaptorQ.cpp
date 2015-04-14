@@ -94,7 +94,7 @@ struct RaptorQ_ptr *RaptorQ_Dec (const RaptorQ_type type,
 		break;
 	case RaptorQ_type::DEC_32:
 		ret->ptr = reinterpret_cast<void *> (
-					new RaptorQ::Decoder<uint32_t*, uint16_t*> (common,scheme));
+					new RaptorQ::Decoder<uint32_t*, uint32_t*> (common,scheme));
 		break;
 	case RaptorQ_type::DEC_64:
 		ret->ptr = reinterpret_cast<void *> (
@@ -159,7 +159,7 @@ RaptorQ_OTI_Scheme_Specific_Data RaptorQ_OTI_Scheme (struct RaptorQ_ptr *enc)
 		return (reinterpret_cast<RaptorQ::Encoder<uint16_t*, uint16_t*>*> (
 											enc->ptr))->OTI_Scheme_Specific();
 	case RaptorQ_type::ENC_32:
-		return (reinterpret_cast<RaptorQ::Encoder<uint32_t*, uint16_t*>*> (
+		return (reinterpret_cast<RaptorQ::Encoder<uint32_t*, uint32_t*>*> (
 											enc->ptr))->OTI_Scheme_Specific();
 	case RaptorQ_type::ENC_64:
 		return (reinterpret_cast<RaptorQ::Encoder<uint64_t*, uint64_t*>*> (
@@ -246,7 +246,7 @@ uint8_t RaptorQ_blocks (RaptorQ_ptr *ptr)
 		return (reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
 														ptr->ptr))->blocks();
 	case RaptorQ_type::DEC_64:
-		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint32_t*>*> (
+		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
 														ptr->ptr))->blocks();
 	case RaptorQ_type::NONE:
 		return 0;
@@ -286,7 +286,7 @@ uint32_t RaptorQ_block_size (RaptorQ_ptr *ptr, const uint8_t sbn)
 		return (reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
 													ptr->ptr))->block_size(sbn);
 	case RaptorQ_type::DEC_64:
-		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint32_t*>*> (
+		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
 													ptr->ptr))->block_size(sbn);
 	case RaptorQ_type::NONE:
 		return 0;
@@ -327,7 +327,7 @@ uint16_t RaptorQ_symbols (RaptorQ_ptr *ptr, const uint8_t sbn)
 		return (reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
 													ptr->ptr))->symbols(sbn);
 	case RaptorQ_type::DEC_64:
-		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint32_t*>*> (
+		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
 													ptr->ptr))->symbols(sbn);
 	case RaptorQ_type::NONE:
 		return 0;
@@ -507,6 +507,41 @@ uint32_t RaptorQ_id (const uint32_t esi, const uint8_t sbn)
 // Decoding
 ///////////
 
+uint64_t RAPTORQ_API RaptorQ_bytes (struct RaptorQ_ptr *dec)
+{
+	if (dec == nullptr || dec->type == RaptorQ_type::NONE)
+		return 0;
+
+	switch (dec->type) {
+	case RaptorQ_type::DEC_8:
+		return (reinterpret_cast<RaptorQ::Decoder<uint8_t*, uint8_t*>*> (
+														dec->ptr))->bytes ();
+	case RaptorQ_type::DEC_16:
+		return (reinterpret_cast<RaptorQ::Decoder<uint16_t*, uint16_t*>*> (
+														dec->ptr))->bytes ();
+	case RaptorQ_type::DEC_32:
+		return (reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
+														dec->ptr))->bytes ();
+	case RaptorQ_type::DEC_64:
+		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
+														dec->ptr))->bytes ();
+	case RaptorQ_type::ENC_8:
+	case RaptorQ_type::ENC_16:
+	case RaptorQ_type::ENC_32:
+	case RaptorQ_type::ENC_64:
+	case RaptorQ_type::NONE:
+		return 0;
+	}
+#ifndef USING_CLANG
+	// uncomment the return and:
+	// clang: WARN: will never be executed (exaustive switch)
+	// if commented, GCC: warn: control reaches end of non-void
+	// ...make up your mind, guys?
+	return 0;
+#endif
+
+}
+
 uint64_t RaptorQ_decode (RaptorQ_ptr *dec, void **data, const size_t size)
 {
 	if (dec == nullptr || dec->type == RaptorQ_type::NONE ||
@@ -550,7 +585,7 @@ uint64_t RaptorQ_decode (RaptorQ_ptr *dec, void **data, const size_t size)
 #endif
 }
 
-uint64_t RaptorQ_decode_sbn (RaptorQ_ptr *dec, void **data, const size_t size,
+uint64_t RaptorQ_decode_block (RaptorQ_ptr *dec, void **data, const size_t size,
 															const uint8_t sbn)
 {
 	if (dec == nullptr || dec->type == RaptorQ_type::NONE ||
@@ -697,7 +732,7 @@ void RaptorQ_free (struct RaptorQ_ptr **ptr)
 																(*ptr)->ptr);
 		break;
 	case RaptorQ_type::DEC_64:
-		delete reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint32_t*>*> (
+		delete reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
 																(*ptr)->ptr);
 		break;
 	case RaptorQ_type::NONE:
@@ -736,7 +771,7 @@ void RaptorQ_free_block (struct RaptorQ_ptr *ptr, const uint8_t sbn)
 		return (reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
 														ptr->ptr))->free(sbn);
 	case RaptorQ_type::DEC_64:
-		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint32_t*>*> (
+		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
 														ptr->ptr))->free(sbn);
 	case RaptorQ_type::NONE:
 		return;

@@ -40,9 +40,9 @@ extern "C"
 	struct RAPTORQ_LOCAL RaptorQ_ptr
 	{
 #ifdef __cplusplus
-		RaptorQ_ptr (const RaptorQ_type _type) :type (_type) {}
+		RaptorQ_ptr (const RaptorQ_type _type) : ptr (nullptr), type (_type) {}
 #endif
-		void *ptr = nullptr;
+		void *ptr;
 		const RaptorQ_type type;
 	};
 
@@ -71,7 +71,7 @@ extern "C"
 															const uint8_t sbn);
 	uint16_t RAPTORQ_API RaptorQ_symbols (struct RaptorQ_ptr *ptr,
 															const uint8_t sbn);
-	uint32_t RAPTORQ_API RaptorQ_max_repair (RaptorQ_ptr *enc,
+	uint32_t RAPTORQ_API RaptorQ_max_repair (struct RaptorQ_ptr *enc,
 															const uint8_t sbn);
 	size_t RAPTORQ_API RaptorQ_precompute_max_memory (struct RaptorQ_ptr *enc);
 
@@ -89,13 +89,16 @@ extern "C"
 															const uint8_t sbn);
 	uint32_t RAPTORQ_API RaptorQ_id (const uint32_t esi, const uint8_t sbn);
 
+
 	///////////
 	// Decoding
 	///////////
 
+	uint64_t RAPTORQ_API RaptorQ_bytes (struct RaptorQ_ptr *dec);
+
 	uint64_t RAPTORQ_API RaptorQ_decode (struct RaptorQ_ptr *dec, void **data,
 															const size_t size);
-	uint64_t RAPTORQ_API RaptorQ_decode_sbn (struct RaptorQ_ptr *dec,
+	uint64_t RAPTORQ_API RaptorQ_decode_block (struct RaptorQ_ptr *dec,
 															void **data,
 															const size_t size,
 															const uint8_t sbn);

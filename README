@@ -106,7 +106,7 @@ $ make -j 4
 Optionally: build the pdf documentation (requires latex)
 $ make docs
 
-Optionally: build the libRaptorQ-test bynary, to o
+Optionally: build the libRaptorQ-test bynary, for
 performance and rfc compliance tests.
 $ make tests
 

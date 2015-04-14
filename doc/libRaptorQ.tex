@@ -302,7 +302,7 @@ your input every 4 bytes, and try to work with big number of symbols per blocks 
 The available methods for the encoder are the following:
 
 \begin{description}
-\item[bool operator()()] \textbf{return:bool}\\
+\item[operator bool()] \textbf{return:bool}\\
 False if constructor parameters did not make sense. Else true.
 
 \item[OTI\_Common()] \textbf{return: OTI\_Common\_Data}, aka \textit{uint64\_t}.\\
@@ -377,11 +377,14 @@ and exposes the 4 following methods:
 \item[begin\_repair]\textbf{return: Symbol\_Iterator}
 \item[end\_repair]\textbf{Input: const uint32\_t max\_repair}\\
 \textbf{return: Symbol\_Iterator}
-\item [max\_repair]\textbf{return:uint32\_t}
+\item[max\_repair]\textbf{return:uint32\_t}
+\item[symbols]\textbf{return: uint16\_t}
+\item[block\_size]\textbf{return: uint32\_t}
 \end{description}
 
 As the names explain, you will get an iterator to the symbols in the block. As the number of repair symbols can vary, for now you get two separate begin/ends,
-so that you can check when you sent the source symbols, and how many repair symbols you send.
+so that you can check when you sent the source symbols, and how many repair symbols you send.\\
+The other functions are helpers for the details of the block.
 
 
 \subsubsection{Symbols}
@@ -589,6 +592,10 @@ They work for both source symbols and repair symbols, just keep increasing the \
 \subsubsection{Decoding}
 \index{Decoder!C}\marginlabel{Decoding}
 \begin{lstlisting}[language=C]
+// return the total size of the data that will be
+// decoded
+uint64_t RaptorQ_bytes (struct RaptorQ_ptr *dec);
+
 // decode all blocks.
 // returns the number of written alignments.
 // returns 0 if encoding of *everything* is not possible
@@ -597,7 +604,7 @@ uint64_t RaptorQ_decode (struct RaptorQ_ptr *dec,
                                    const size_t size);
 // decode only one block (if possible)
 // returns 0 if encoding of the block is not possible.
-uint64_t RaptorQ_decode_sbn (struct RaptorQ_ptr *dec,
+uint64_t RaptorQ_decode_block (struct RaptorQ_ptr *dec,
                                    void **data,
                                    const size_t size,
                                    const uint8_t sbn);

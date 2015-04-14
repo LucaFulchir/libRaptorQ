@@ -65,6 +65,9 @@ ENDIF()
 EXECUTE_PROCESS(COMMAND git rev-parse --sq HEAD OUTPUT_VARIABLE SEED)
 SET(DETERMINISTIC "-frandom-seed=${SEED}")
 
+#
+# C++ options
+#
 IF(${CMAKE_CXX_COMPILER} MATCHES ".*clang.*")
 	SET(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} ${STDLIB} ${DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
 	SET(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS} ${STDLIB} ${DETERMINISTIC} -std=c++11 -g -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
@@ -84,7 +87,29 @@ ELSE()
 	ENDIF()
 	# else I do not know your compiler options :)
 ENDIF()
-
+#
+# We hae a C interface example to build.
+# set the proper options for that, too
+#
+IF(${CMAKE_C_COMPILER} MATCHES ".*clang.*")
+	SET(CMAKE_C_FLAGS                "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing ")
+	SET(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -g -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing ")
+	SET(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Os -DNDEBUG -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing ")
+	SET(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
+	ADD_DEFINITIONS(-DUSING_CLANG)
+ELSE()
+	# warn: clang+ and g++ get the same *g++ regexp, keep the "else" above or match the "/" in the regexp
+	IF(${CMAKE_C_COMPILER} MATCHES "^.*cc$" OR ${CMAKE_C_COMPILER} MATCHES "^(.*/)gcc$")
+	# Totally untested.
+	# gcc doesn't seem to support the "-stdlib" option :(
+	SET(CMAKE_C_FLAGS		   "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv")
+# FIXME: some of these are gcc4.9+ only
+	SET(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -g -Wall -pedantic -Wno-padded -fstack-protector-all -Wno-aggressive-loop-optimizations -fstrict-aliasing -ftrapv -fwrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute ")
+	SET(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -Os -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing ")
+	SET(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -O4 -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
+	ENDIF()
+	# else I do not know your compiler options :)
+ENDIF()
 IF(APPLE)
   MESSAGE(STATUS "MacOSX system found. WARN: not tested!")
   ADD_DEFINITIONS(-DUNIX)
@@ -159,12 +184,32 @@ SET_TARGET_PROPERTIES (
 
 # Tests need to be linked to threading library
 IF (CMAKE_THREAD_LIBS_INIT)
-	ADD_EXECUTABLE(libRaptorQ-test EXCLUDE_FROM_ALL test/test.cpp)
+	# add main tests
+	ADD_EXECUTABLE(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
 	ADD_DEPENDENCIES(libRaptorQ-test RaptorQ)
 	TARGET_LINK_LIBRARIES(libRaptorQ-test ${CMAKE_THREAD_LIBS_INIT})
 	# link the library we just built, too
 	TARGET_LINK_LIBRARIES(libRaptorQ-test ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
 	ADD_CUSTOM_TARGET(tests DEPENDS libRaptorQ-test)
+
+	# build examples
+	# C interface
+	ADD_EXECUTABLE(test_c EXCLUDE_FROM_ALL test/test_c.c)
+	ADD_DEPENDENCIES(test_c RaptorQ)
+	TARGET_LINK_LIBRARIES(test_c ${CMAKE_THREAD_LIBS_INIT})
+	# link the library we just built, too
+	TARGET_LINK_LIBRARIES(test_c ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
+	# CPP interface
+	ADD_EXECUTABLE(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
+	ADD_DEPENDENCIES(test_cpp RaptorQ)
+	TARGET_LINK_LIBRARIES(test_cpp ${CMAKE_THREAD_LIBS_INIT})
+	# link the library we just built, too
+	TARGET_LINK_LIBRARIES(test_cpp ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
+	ADD_CUSTOM_TARGET(examples DEPENDS test_c test_cpp)
+
+	ADD_CUSTOM_TARGET(everything DEPENDS Make_static_deterministic tests examples docs)
+ELSE()
+	ADD_CUSTOM_TARGET(everything DEPENDS Make_static_deterministic docs)
 ENDIF()
 
 INSTALL(TARGETS libRaptorQ-test RUNTIME DESTINATION bin/ OPTIONAL)
