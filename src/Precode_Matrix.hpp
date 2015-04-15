@@ -61,7 +61,6 @@ public:
 
 	void gen (const uint32_t repair_overhead);
 
-	DenseMtx intermediate_eigen (DenseMtx &D);
 	DenseMtx intermediate (DenseMtx &D);
 	DenseMtx intermediate (DenseMtx &D, const Bitmask &mask,
 									const std::vector<uint32_t> &repair_esi);

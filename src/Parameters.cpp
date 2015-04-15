@@ -122,10 +122,7 @@ std::vector<uint16_t> RaptorQ::Impl::Parameters::get_idxs (const uint32_t ISI)
 	ret.reserve (t.d + t.d1);
 	ret.push_back (t.b);
 
-	// FIXME: rfc: from 1. OpenRQ: from 0
-	// if start from 1 => 99% failure
-	// yet next loop starts from 1 (or 0, no change)
-	for (uint16_t j = 0; j < t.d; ++j) {
+	for (uint16_t j = 1; j < t.d; ++j) {
 		t.b = (t.b + t.a) % W;
 		ret.push_back (t.b);
 	}

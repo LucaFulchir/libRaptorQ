@@ -37,23 +37,6 @@
 namespace RaptorQ {
 namespace Impl {
 
-// used in encoding, and by decoding
-DenseMtx Precode_Matrix::intermediate_eigen (DenseMtx &D)
-{
-	// rfc says this should work.
-	// this seems to be twice as fast as our method, but it doesn't work.
-	//... with this we can not rebuild correctly any missing symbols.
-	// ...with our method everything seems to be fine,
-	// EXCEPT for size 256, 3422 (and possible more after?)
-	//
-	// Soo... are we doing something stupid, yet making things work,
-	// OR is the rfc wrong ? note that the rfc is *really* badly written...
-	// we also seem to work with the same matrix as OpenRQ, so... wut?
-
-	DenseMtx encoded_symbols = A.partialPivLu().solve (D);
-	return encoded_symbols;
-}
-
 DenseMtx Precode_Matrix::intermediate (DenseMtx &D)
 {
 	// rfc 6330, pg 32
@@ -525,10 +508,7 @@ DenseMtx Precode_Matrix::encode (const DenseMtx &C, const uint32_t ISI) const
 
 	ret.row (0) = C.row (t.b);
 
-	// FIXME: rfc: from 1. OpenRQ: from 0
-	// if start from 1 => 99% failure
-	// yet next loop starts from 1 (or 0, no change)
-	for (uint16_t j = 0; j < t.d; ++j) {
+	for (uint16_t j = 1; j < t.d; ++j) {
 		t.b = (t.b + t.a) % _params.W;
 		ret.row (0) += C.row (t.b);
 	}

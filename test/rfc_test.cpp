@@ -241,7 +241,7 @@ void conform_test (uint16_t *K_idx, uint32_t *test_num,
 		uint8_t overhead = 0;
 		// each test gets a little more dropped packets, so that
 		// more repair packets are used.
-		// Also, 20% max drop pro 0 overhead, 30% for 1 overhead,
+		// Also, 20% max drop for 0 overhead, 30% for 1 overhead,
 		// and 40% for 3 overhead.
 		float max_drop = (20 / 100) * test;
 		if (test >= 100) {
@@ -443,10 +443,9 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	uint64_t micro2 = t.stop();
 
 	if (decoded != mysize) {
-		std::cout << "NOPE: " << decoded << " - " << mysize << "\n";
+		std::cout << "NOPE: "<< mysize << " - " << drop_prob << " - " <<
+											static_cast<int> (overhead) << "\n";
 		return 0;
-	} else {
-		//std::cout << "OK: " << mysize << "-" << micro1 << "\n";
 	}
 	for (uint16_t i = 0; i < mysize; ++i) {
 		if (myvec[i] != received[i]) {
