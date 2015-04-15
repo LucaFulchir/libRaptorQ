@@ -215,6 +215,7 @@ public:
 		IS_OUTPUT(Out_It, "RaptorQ::Encoder");
 		auto _alignment = sizeof(typename
 									std::iterator_traits<Rnd_It>::value_type);
+		UNUSED(_alignment);	// used only for asserts
 		assert(_symbol_size >= _alignment &&
 						"RaptorQ: symbol_size must be >= alignment");
 		assert((_symbol_size % _alignment) == 0 &&
@@ -222,7 +223,7 @@ public:
 		assert(min_subsymbol_size >= _alignment &&
 						"RaptorQ: minimum subsymbol must be at least aligment");
 		assert(min_subsymbol_size <= _symbol_size &&
-						"RaptorQ: minimum subsymbol must be at most symbol_size");
+					"RaptorQ: minimum subsymbol must be at most symbol_size");
 		assert((min_subsymbol_size % _alignment) == 0 &&
 					"RaptorQ: minimum subsymbol must be multiple of alignment");
 		// max size: ~881 GB
@@ -339,7 +340,6 @@ public:
 								_size / static_cast<double> (_symbol_size)));
 
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
-		//FIXME: check that the OSI and "part" agree on the data.
 	}
 
 	Decoder (const uint64_t size, const uint16_t symbol_size,

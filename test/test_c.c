@@ -127,7 +127,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		// exactly (overhead + dropped_source) repair symbols,
 		// and "sym_for_blk + overhead" total symbols
 		uint32_t sym_rep;
-		for (sym_rep = sym_for_blk; repair > 0 && 
+		for (sym_rep = sym_for_blk; repair > 0 &&
 							sym_rep < RaptorQ_max_repair (enc, block);
 																	++sym_rep) {
 			// repair symbols can be dropped, too!
@@ -154,7 +154,8 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 			++next_encoded;
 		}
 		if (sym_rep == RaptorQ_max_repair (enc, block)) {
-			fprintf(stderr, "Maybe losing %f%% symbols is too much?\n", drop_prob);
+			fprintf(stderr, "Maybe losing %f%% symbols is too much?\n",
+																	drop_prob);
 			return false;
 		}
 	}

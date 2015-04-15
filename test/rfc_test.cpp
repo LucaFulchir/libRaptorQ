@@ -48,6 +48,168 @@ static std::mutex global_mtx;
 #endif	//using_clang
 
 
+void save (std::string filename, bool *keep_working, uint16_t *K_idx,
+			uint32_t *test_num, uint32_t threads,
+			std::array<std::tuple<uint8_t, uint16_t, uint32_t>, 477> *failures);
+void save (std::string filename, bool *keep_working, uint16_t *K_idx,
+			uint32_t *test_num, uint32_t threads,
+			std::array<std::tuple<uint8_t, uint16_t, uint32_t>, 477> *failures)
+{
+	while (*keep_working) {
+		// wait 30 seconds, then save the data
+		for (size_t wait = 0; wait < 30; ++wait) {
+			if (!*keep_working)
+				return;
+			std::this_thread::sleep_for (std::chrono::seconds (1));
+		}
+		std::ofstream myfile;
+		myfile.open (filename, std::ios::out | std::ios::trunc |
+															std::ios::binary);
+		if (myfile.is_open()) {
+			global_mtx.lock();
+			auto idx = *K_idx;
+			auto test = *test_num;
+			global_mtx.unlock();
+			myfile.write (reinterpret_cast<char*> (&idx), 2);
+			myfile.write (reinterpret_cast<char*> (&test), 4);
+			myfile.write (reinterpret_cast<char*> (&threads), 4);
+			for (uint16_t row = 0; row < failures->size(); ++row) {
+				uint8_t t_1;
+				uint16_t t_2;
+				uint32_t t_3;
+				std::tie (t_1, t_2, t_3) = (*failures)[row];
+				myfile.write (reinterpret_cast<char*> (&t_1), 1);
+				myfile.write (reinterpret_cast<char*> (&t_2), 2);
+				myfile.write (reinterpret_cast<char*> (&t_3), 4);
+			}
+			myfile.close();
+			std::cout << "Saved file\n";
+		} else {
+			std::cout << "Can't save!\n";
+		}
+	}
+}
+
+bool load (std::string &filename, uint16_t *K_idx, uint32_t *test_num,
+		   uint32_t *threads,
+		   std::array<std::tuple<uint8_t, uint16_t, uint32_t>, 477> *failures);
+bool load (std::string &filename, uint16_t *K_idx, uint32_t *test_num,
+		   uint32_t *threads,
+		   std::array<std::tuple<uint8_t, uint16_t, uint32_t>, 477> *failures)
+{
+	std::ifstream input;
+	input.open (filename);
+
+	if (input.is_open()) {
+		input.read (reinterpret_cast<char*> (K_idx), 2);
+		if (!input) { //did not read enough.
+			input.close();
+			return false;
+		}
+		input.read (reinterpret_cast<char*> (test_num), 4);
+		if (!input) { //did not read enough.
+			input.close();
+			return false;
+		}
+		input.read (reinterpret_cast<char*> (threads), 4);
+		if (!input) { //did not read enough.
+			input.close();
+			return false;
+		}
+		size_t row = 0;
+		for (row = 0; row < failures->size(); ++row) {
+			uint8_t t_1;
+			uint16_t t_2;
+			uint32_t t_3 = 0;
+			input.read (reinterpret_cast<char*> (&t_1), 1);
+			if (!input) { //did not read enough.
+				input.close();
+				return false;
+			}
+			input.read (reinterpret_cast<char*> (&t_2), 2);
+			if (!input) { //did not read enough.
+				input.close();
+				return false;
+			}
+			input.read (reinterpret_cast<char*> (&t_3), 4);
+			(*failures)[row] = std::make_tuple (t_1, t_2, t_3);
+			if (!input) { //did not read enough.
+				break;
+			}
+		}
+		if (row != failures->size()) {
+			input.close();
+			return false;
+		}
+		input.close();
+		std::cout << "Succesfully loaded\n";
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool print (std::string &filename);
+bool print (std::string &filename)
+{
+	std::ifstream input;
+	input.open (filename);
+
+	if (input.is_open()) {
+		uint16_t idx;
+		uint32_t test, threads;	//unused, really
+		input.read (reinterpret_cast<char*> (&idx), 2);
+		if (!input) { //did not read enough.
+			input.close();
+			return false;
+		}
+		input.read (reinterpret_cast<char*> (&test), 4);
+		if (!input) { //did not read enough.
+			input.close();
+			return false;
+		}
+		input.read (reinterpret_cast<char*> (&threads), 4);
+		if (!input) { //did not read enough.
+			input.close();
+			return false;
+		}
+		std::cout << "idx: " << idx << "==" <<
+					RaptorQ::Impl::K_padded[idx] << " test: " << test << "\n";
+		size_t row = 0;
+		for (row = 0; row < 477; ++row) {
+			uint8_t t_1;
+			uint16_t t_2;
+			uint32_t t_3 = 0;
+			input.read (reinterpret_cast<char*> (&t_1), 1);
+			if (!input) { //did not read enough.
+				input.close();
+				return false;
+			}
+			input.read (reinterpret_cast<char*> (&t_2), 2);
+			if (!input) { //did not read enough.
+				input.close();
+				return false;
+			}
+			input.read (reinterpret_cast<char*> (&t_3), 4);
+			std::cout << static_cast<uint32_t> (t_1) << " - " <<
+										static_cast<uint32_t> (t_2) << " - " <<
+										static_cast<uint32_t> (t_3) << "\n";
+			if (!input) { //did not read enough.
+				break;
+			}
+		}
+		if (row != 477) {
+			input.close();
+			return false;
+		}
+		input.close();
+		std::cout << "Succesfully loaded\n";
+		return true;
+	} else {
+		return false;
+	}
+}
+
 // for each matrix size, test it multiple times (encode + decode),
 // with different overheads (0, 1, 2 symbols).
 void conform_test (uint16_t *K_idx, uint32_t *test_num,
@@ -284,7 +446,7 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 		std::cout << "NOPE: " << decoded << " - " << mysize << "\n";
 		return 0;
 	} else {
-		std::cout << "OK: " << mysize << "-" << micro1 << "\n";
+		//std::cout << "OK: " << mysize << "-" << micro1 << "\n";
 	}
 	for (uint16_t i = 0; i < mysize; ++i) {
 		if (myvec[i] != received[i]) {
@@ -301,44 +463,57 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 int main (int argc, char **argv)
 {
 	// get the amount of threads to use
-	uint32_t threads;
+	std::string file_state;
+	uint32_t threads = 0;
 	bool conformity = false;
 
+	std::string option = "conformity";
+	char *end_ptr = nullptr;
 	switch (argc) {
 	case 2:
-		// one argument: the number of threads.
-		// or the string "conformity" to test the
-		// rfc6330 conformity specifics
-		if (!strncmp("conformity", argv[1], strlen(argv[1]))) {
+		// one argument: benchmark: the number of threads.
+		threads = static_cast<uint32_t> (strtol(argv[1], &end_ptr, 10));
+		if ((end_ptr != nullptr && end_ptr != argv[1] + strlen(argv[1]))) {
+			// some problem. print help and exit
+			std::cout << "Usage:\t\t" << argv[0] << " [threads]\n";
+			std::cout << "rfc test:\t" << argv[0] << " conformity file\n";
+			return 1;
+		}
+		if (threads == 0)
 			threads = std::thread::hardware_concurrency();
+		break;
+	case 3:
+		if (option.compare (argv[1]) == 0) {
 			conformity = true;
+			threads = std::thread::hardware_concurrency();
+			file_state = std::string (argv[2]);
+			break;
 		} else {
-			char *end_ptr = nullptr;
-			threads = static_cast<uint32_t> (strtol(argv[1], &end_ptr, 10));
-			if ((end_ptr != nullptr && end_ptr != argv[1] + strlen(argv[1]))) {
-				// some problem. print help and exit
-				std::cout << "Usage:\t\t" << argv[0] << " [threads]\n";
-				std::cout << "rfc test:\t" << argv[0] << " conformity\n";
+			option = "print";
+			if (option.compare (argv[1]) == 0) {
+				option = std::string (argv[2]);
+				if (print (option))
+					return 0;
 				return 1;
 			}
-			if (threads == 0) {
-				threads = std::thread::hardware_concurrency();
-			}
 		}
-		break;
+		// else fallthrough
+#ifdef USING_CLANG
+	[[clang::fallthrough]];
+#endif
 	default:
 		std::cout << "libRaptorQ tests\n";
 		std::cout << "\tuse this to verify the library performance\n";
 		std::cout << "\tUsage:\t\t" << argv[0] << " [threads]\n";
-		std::cout << "\trfc test:\t" << argv[0] << " conformity\n";
-		return 1;
+		std::cout << "\trfc test:\t" << argv[0] << " conformity file\n";
+		return 0;
 	}
 
 
 	uint16_t K_index = 0;
 
 	std::vector<std::thread> t;
-	t.reserve (threads);
+	t.reserve (threads + 1);
 	if (!conformity) {
 		std::array<uint64_t, 477> times;
 		for (uint32_t i = 0; i < 477; ++i)
@@ -357,20 +532,43 @@ int main (int argc, char **argv)
 																		<< "\n";
 	} else {
 		std::array<std::tuple<uint8_t, uint16_t, uint32_t>, 477> failures;
-		for (uint16_t i = 0; i < 477; ++i)
+		for (uint16_t i = 0; i < 477; ++i) {
 			failures[i] = std::make_tuple (static_cast<uint8_t> (0),
 						static_cast<uint16_t> (0), static_cast<uint32_t> (0));
+		}
 		uint32_t test_num = 0;
+		uint32_t tmp_threads;
+		// try lo load previous crunched data:
+		if (load (file_state, &K_index, &test_num, &tmp_threads, &failures)) {
+			if (test_num > tmp_threads) {
+				test_num -= tmp_threads;
+			} else {
+				test_num = 0;
+			}
+		} else {
+			K_index = 0;
+			test_num = 0;
+			for (uint16_t i = 0; i < 477; ++i) {
+				failures[i] = std::make_tuple (static_cast<uint8_t> (0),
+						static_cast<uint16_t> (0), static_cast<uint32_t> (0));
+			}
+		}
 		for (uint8_t i = 0; i < threads; ++i)
 			t.emplace_back (conform_test, &K_index, &test_num, &failures);
-		while (K_index != 477 && test_num < 1000000) {
+		bool keep_working = true;
+		t.emplace_back (save, file_state, &keep_working, &K_index, &test_num,
+															threads, &failures);
+		while (K_index != 477 || test_num < 1000000) {
 			std::this_thread::sleep_for (std::chrono::seconds(10));
 			std::cout << "Done: " << K_index << "==" <<
 								RaptorQ::Impl::K_padded[K_index] << ". Test:"
 															<< test_num << "\n";
 		}
-		for (uint8_t i = 0; i < threads; ++i)
+		uint8_t i;
+		for (i = 0; i < threads; ++i)
 			t[i].join();
+		keep_working = false;
+		t[i].join();	//"save" thread
 	}
 
 	return 0;
