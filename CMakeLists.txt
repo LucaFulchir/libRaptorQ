@@ -22,14 +22,16 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 AUX_SOURCE_DIRECTORY(. SRC_LIST)
 
 # easy compiler choice...doesn't set clang as default, though :(
-SET(CMAKE_CXX_COMPILER "clang++" CACHE STRING "Compiler") # default compiler
-SET_PROPERTY(CACHE CMAKE_CXX_COMPILER PROPERTY STRINGS clang++ c++ g++)
+SET(CMAKE_CXX_COMPILER "clang++" CACHE STRING "C++ Compiler") # default compiler
+SET_PROPERTY(CACHE CMAKE_CXX_COMPILER PROPERTY STRINGS clang++ g++ c++)
+SET(CMAKE_C_COMPILER "clang" CACHE STRING "C Compiler") # default compiler
+SET_PROPERTY(CACHE CMAKE_C_COMPILER PROPERTY STRINGS clang gcc cc)
 
 SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build mode") # default build type
 SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel)
 
 SET(STDLIB "libc++" CACHE STRING "Standard library to use")
-SET_PROPERTY(CACHE STDLIB PROPERTY STRINGS libc++ stdlib)
+SET_PROPERTY(CACHE STDLIB PROPERTY STRINGS libc++ libstdc++)
 
 # try to guess architecture if it was not provided
 INCLUDE(cmake/guess_architecture.cmake)
@@ -44,13 +46,11 @@ INCLUDE_DIRECTORIES(SYSTEM ${EIGEN3_INCLUDE_DIR})
 IF(STDLIB)
 	IF(${STDLIB} STREQUAL "libc++" AND NOT (${CMAKE_CXX_COMPILER} MATCHES "^.*c[+][+]$" OR ${CMAKE_CXX_COMPILER} MATCHES "^(.*/)g[+][+]$"))
 		# gcc is particoularly unhappy with libc++ headers...
-		FIND_PACKAGE(clib_clang REQUIRED)
 		INCLUDE_DIRECTORIES(SYSTEM ${CLANG_C_INCLUDE_DIR})
 		FIND_PACKAGE(std_clang REQUIRED)
 		INCLUDE_DIRECTORIES(SYSTEM ${CLANG_STD_INCLUDE_DIR})
 	ENDIF()
 	IF(${STDLIB} STREQUAL "libstdc++" OR (${CMAKE_CXX_COMPILER} MATCHES "^.*c[+][+]$" OR ${CMAKE_CXX_COMPILER} MATCHES "^(.*/)g[+][+]$"))
-		FIND_PACKAGE(clib_gcc REQUIRED)
 		INCLUDE_DIRECTORIES(SYSTEM ${GCC_C_INCLUDE_DIR})
 		FIND_PACKAGE(std_gcc REQUIRED)
 		INCLUDE_DIRECTORIES(SYSTEM ${GCC_STD_INCLUDE_DIR})
