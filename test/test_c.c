@@ -101,7 +101,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		// and "sym_for_blk + overhead" total symbols
 		int32_t repair = overhead;
 		for (uint32_t source = 0; source < sym_for_blk; ++source) {
-			float dropped = (float)(rand() / RAND_MAX * 100.0);
+			float dropped = ((float)(rand()) / (float) RAND_MAX) * (float)100.0;
 			if (dropped < drop_prob) {
 				// dropped source symbol. Don't even get it.
 				++repair;
@@ -128,17 +128,15 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		// and "sym_for_blk + overhead" total symbols
 		uint32_t sym_rep;
 		for (sym_rep = sym_for_blk; repair > 0 &&
-							sym_rep < RaptorQ_max_repair (enc, block);
-																	++sym_rep) {
+						sym_rep < RaptorQ_max_repair (enc, block); ++sym_rep) {
 			// repair symbols can be dropped, too!
-			float dropped = (float)(rand() / RAND_MAX * 100.0);
+			float dropped = ((float)(rand()) / (float) RAND_MAX) * (float)100.0;
 			if (dropped < drop_prob) {
 				// dropped repair symbol. Don't even get it.
 				continue;
 			}
 			--repair;
 			// successfully transmitted repair symbol. Add it to "encoded";
-			printf("next_encoded:%i\n", next_encoded);
 			encoded[next_encoded].id = RaptorQ_id (sym_rep, block);
 			uint32_t data_size = symbol_size / sizeof(uint32_t);
 			encoded[next_encoded].symbol = (uint32_t *) malloc (symbol_size);

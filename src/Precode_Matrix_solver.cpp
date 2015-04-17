@@ -432,18 +432,15 @@ void Precode_Matrix::decode_phase3 (const DenseMtx &X, DenseMtx &D,
 	//	A. After this operation, the submatrix of A consisting of the
 	//	intersection of the first i rows and columns equals to X, whereas the
 	//	matrix U_upper is transformed to a sparse form.
-	auto sub_X = X.block (0, 0, i, i);
+	const auto sub_X = X.block (0, 0, i, i);
 	auto sub_A = A.block (0, 0, i, A.cols());
 	sub_A = sub_X * sub_A;
 
 	// Now fix D, too
-	// Need a fresh copy. also, remember we changed the rows, so fix that
-	// while we're at it.
 	DenseMtx D_2 = D;
 
 	for (uint16_t row = 0; row < sub_X.rows(); ++row) {
-		D.row (row) = sub_X.row (row) * D_2.block (0,0, sub_X.cols(),
-																	D.cols());
+		D.row (row) = sub_X.row (row) * D_2.block (0,0, sub_X.cols(), D.cols());
 	}
 }
 

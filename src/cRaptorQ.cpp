@@ -343,7 +343,7 @@ uint16_t RaptorQ_symbols (RaptorQ_ptr *ptr, const uint8_t sbn)
 
 uint32_t RaptorQ_max_repair (RaptorQ_ptr *enc, const uint8_t sbn)
 {
-	if (enc == nullptr || enc->type == RaptorQ_type::NONE || enc->ptr == nullptr)
+	if (enc == nullptr || enc->type == RaptorQ_type::NONE ||enc->ptr == nullptr)
 		return 0;
 	switch (enc->type) {
 	case RaptorQ_type::ENC_8:

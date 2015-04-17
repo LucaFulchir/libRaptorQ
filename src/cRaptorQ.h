@@ -46,13 +46,13 @@ extern "C"
 		const RaptorQ_type type;
 	};
 
-	struct RaptorQ_ptr* RAPTORQ_API RaptorQ_Enc (const RaptorQ_type type,
+	RAPTORQ_API struct RaptorQ_ptr* RaptorQ_Enc (const RaptorQ_type type,
 											void *data,
 											const uint64_t size,
 											const uint16_t min_subsymbol_size,
 											const uint16_t symbol_size,
 											const size_t max_memory);
-	struct RaptorQ_ptr* RAPTORQ_API RaptorQ_Dec (const RaptorQ_type type,
+	RAPTORQ_API struct RaptorQ_ptr* RaptorQ_Dec (const RaptorQ_type type,
 								const RaptorQ_OTI_Common_Data common,
 								const RaptorQ_OTI_Scheme_Specific_Data scheme);
 
