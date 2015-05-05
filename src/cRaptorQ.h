@@ -37,14 +37,7 @@ extern "C"
 								DEC_8 = 5, DEC_16 = 6, DEC_32 = 7, DEC_64 = 8}
 				 RaptorQ_type;
 
-	struct RAPTORQ_LOCAL RaptorQ_ptr
-	{
-#ifdef __cplusplus
-		RaptorQ_ptr (const RaptorQ_type _type) : ptr (nullptr), type (_type) {}
-#endif
-		void *ptr;
-		const RaptorQ_type type;
-	};
+	struct RAPTORQ_LOCAL RaptorQ_ptr;
 
 	RAPTORQ_API struct RaptorQ_ptr* RaptorQ_Enc (const RaptorQ_type type,
 											void *data,
@@ -103,7 +96,7 @@ extern "C"
 															const size_t size,
 															const uint8_t sbn);
 
-	bool RAPTORQ_API RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec, void **data,
+	bool RAPTORQ_API RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec,void **data,
 														const uint32_t size,
 														const uint32_t id);
 	bool RAPTORQ_API RaptorQ_add_symbol (struct RaptorQ_ptr *dec, void **data,

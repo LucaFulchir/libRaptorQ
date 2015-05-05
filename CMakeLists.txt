@@ -21,26 +21,49 @@ PROJECT(libRaptorQ)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 AUX_SOURCE_DIRECTORY(. SRC_LIST)
 
-# easy compiler choice...doesn't set clang as default, though :(
-SET(CMAKE_CXX_COMPILER "clang++" CACHE STRING "C++ Compiler") # default compiler
+SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build mode" FORCE) # default build type
+SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+
+MESSAGE(STATUS "Build selected: ${CMAKE_BUILD_TYPE}")
+
+# easy compiler choice...
+SET(CMAKE_CXX_COMPILER "g++" CACHE STRING "C++ Compiler") # default compiler
+SET(CMAKE_C_COMPILER "gcc" CACHE STRING "C Compiler") # default compiler
+SET(STDLIB "libstdc++" CACHE STRING "Standard library to use")
 SET_PROPERTY(CACHE CMAKE_CXX_COMPILER PROPERTY STRINGS clang++ g++ c++)
-SET(CMAKE_C_COMPILER "clang" CACHE STRING "C Compiler") # default compiler
 SET_PROPERTY(CACHE CMAKE_C_COMPILER PROPERTY STRINGS clang gcc cc)
-
-SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build mode") # default build type
-SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel)
-
-SET(STDLIB "libc++" CACHE STRING "Standard library to use")
 SET_PROPERTY(CACHE STDLIB PROPERTY STRINGS libc++ libstdc++)
+MARK_AS_ADVANCED(CLEAR
+	CMAKE_CXX_COMPILER
+	CMAKE_C_COMPILER
+)
 
-# try to guess architecture if it was not provided
-INCLUDE(cmake/guess_architecture.cmake)
+# profiling support: optimize the library
+SET(PROFILING "yes" CACHE STRING "Optimize library assembly")
+SET_PROPERTY(CACHE PROFILING PROPERTY STRINGS yes no)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
 
 FIND_PACKAGE(Threads) # optional. Do not build tests if not found.
 FIND_PACKAGE(eigen REQUIRED)
 INCLUDE_DIRECTORIES(SYSTEM ${EIGEN3_INCLUDE_DIR})
+
+#This only works if *FIRST* you checkout a commit and *THEN* you run cmake
+EXECUTE_PROCESS(COMMAND git rev-parse --sq HEAD OUTPUT_VARIABLE SEED)
+SET(DETERMINISTIC "-frandom-seed=${SEED}")
+
+#activate profiling if requested.
+# profiling needs to build a test, which needs threading.
+IF ((CMAKE_THREAD_LIBS_INIT) AND (PROFILING STREQUAL "yes"))
+	MESSAGE(STATUS "Profiling activated")
+ELSE()
+	IF(NOT CMAKE_THREAD_LIBS_INIT)
+		MESSAGE(STATUS "Profiling deactivated: Missing threading libraries!")
+	ELSE()
+		MESSAGE(STATUS "Profiling deactivated")
+	ENDIF()
+	SET (PROFILING	"no")
+ENDIF()
 
 # setup the compiler and the standard library
 IF(STDLIB)
@@ -58,32 +81,51 @@ IF(STDLIB)
 ENDIF(STDLIB)
 # generic standard library support, put it as compiler option:
 IF(${STDLIB} MATCHES "^.+$")
-	SET(STDLIB	"-stdlib=${STDLIB}")
+	SET(STDLIB_FLAG		"-stdlib=${STDLIB}")
 ENDIF()
-
-#This only works if *FIRST* you checkout a commit and *THEN* you run cmake
-EXECUTE_PROCESS(COMMAND git rev-parse --sq HEAD OUTPUT_VARIABLE SEED)
-SET(DETERMINISTIC "-frandom-seed=${SEED}")
 
 #
 # C++ options
 #
 IF(${CMAKE_CXX_COMPILER} MATCHES ".*clang.*")
-	SET(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} ${STDLIB} ${DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS} ${STDLIB} ${DETERMINISTIC} -std=c++11 -g -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS} ${STDLIB} ${DETERMINISTIC} -std=c++11 -Os -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS} ${STDLIB} ${DETERMINISTIC} -std=c++11 -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
+	IF (PROFILING STREQUAL "yes")
+		SET (PROFILE_GET           "-fprofile-instr-generate -g")
+		SET (PROFILE_GET_FILE      "RaptorQ.profraw")
+		SET (PROFILE_SET_FILE      "RaptorQ.profdata")
+		SET (PROFILE_SET           "-fprofile-instr-use=${PROFILE_SET_FILE}")
+	ENDIF()
+	SET(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
+	SET(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -g -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
+	SET(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -Os -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
+	SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
+	SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -Ofast -g -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
 	ADD_DEFINITIONS(-DUSING_CLANG)
+	SET(USE_CLANG 1)
 ELSE()
 	# warn: clang+ and g++ get the same *g++ regexp, keep the "else" above or match the "/" in the regexp
 	IF(${CMAKE_CXX_COMPILER} MATCHES "^.*c[+][+]$" OR ${CMAKE_CXX_COMPILER} MATCHES "^(.*/)g[+][+]$")
+	IF (PROFILING STREQUAL "yes")
+		SET (PROFILE_GET           "-fprofile-generate")
+		# gcc creates a couple more files than clang for prifiling. Track them.
+		SET (PROFILE_GET_FILE
+CMakeFiles/RaptorQ_static_profiling.dir/src/Graph.cpp.gcda
+CMakeFiles/RaptorQ_static_profiling.dir/src/Parameters.cpp.gcda
+CMakeFiles/RaptorQ_static_profiling.dir/src/Rand.cpp.gcda
+CMakeFiles/RaptorQ_static_profiling.dir/src/Precode_Matrix.cpp.gcda
+CMakeFiles/RaptorQ_static_profiling.dir/src/Precode_Matrix_solver.cpp.gcda
+CMakeFiles/RaptorQ_static_profiling.dir/src/cRaptorQ.cpp.gcda
+CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
+		SET (PROFILE_SET_FILE      ${PROFILE_GET_FILE})
+		SET (PROFILE_SET           "-fprofile-use")
+	ENDIF()
 	# Totally untested.
 	# gcc doesn't seem to support the "-stdlib" option :(
-	SET(CMAKE_CXX_FLAGS		   "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv")
+	SET(CMAKE_CXX_FLAGS		   "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv")
 # FIXME: some of these are gcc4.9+ only
-	SET(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -Wno-unknown-pragmas -g -Wall -pedantic -Wno-padded -fstack-protector-all -Wno-aggressive-loop-optimizations -fstrict-aliasing -ftrapv -fwrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute ")
-	SET(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -Wno-unknown-pragmas -Os -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -Wno-unknown-pragmas -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -O4 -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
+	SET(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -g -Wall -pedantic -Wno-padded -fstack-protector-all -Wno-aggressive-loop-optimizations -fstrict-aliasing -ftrapv -fwrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute ")
+	SET(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Os -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing ")
+	SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -O4 -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
+	SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Ofast -g -fvisibility=hidden -fvisibility-inlines-hidden -O4 -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
 	ENDIF()
 	# else I do not know your compiler options :)
 ENDIF()
@@ -95,7 +137,7 @@ IF(${CMAKE_C_COMPILER} MATCHES ".*clang.*")
 	SET(CMAKE_C_FLAGS                "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing ")
 	SET(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -g -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing ")
 	SET(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Os -DNDEBUG -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
+	SET(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
 	ADD_DEFINITIONS(-DUSING_CLANG)
 ELSE()
 	# warn: clang+ and g++ get the same *g++ regexp, keep the "else" above or match the "/" in the regexp
@@ -106,14 +148,15 @@ ELSE()
 # FIXME: some of these are gcc4.9+ only
 	SET(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -g -Wall -pedantic -Wno-padded -fstack-protector-all -Wno-aggressive-loop-optimizations -fstrict-aliasing -ftrapv -fwrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute ")
 	SET(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -Os -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -O4 -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
+	SET(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -Ofast -fvisibility=hidden -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
 	ENDIF()
 	# else I do not know your compiler options :)
 ENDIF()
+
 IF(APPLE)
   MESSAGE(STATUS "MacOSX system found. WARN: not tested!")
   ADD_DEFINITIONS(-DUNIX)
-ENDIF(APPLE)
+ENDIF()
 IF(UNIX)
   MESSAGE(STATUS "UNIX system found")
   ADD_DEFINITIONS(-DUNIX)
@@ -150,6 +193,70 @@ SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 # LATEX documentation
 add_subdirectory(${CMAKE_SOURCE_DIR}/doc)
 
+IF(PROFILING STREQUAL "yes")
+	# we need to build a profiling version of the static library.
+	# then we will run the profiling,  and then finally rebuild
+	# everything with the profiling optimizations
+
+	# build the static library for profiling
+	ADD_LIBRARY(RaptorQ_static_profiling STATIC ${SOURCES} ${HEADERS})
+	# ar: add deterministic build
+	SET_TARGET_PROPERTIES (
+		RaptorQ_static_profiling
+		PROPERTIES
+		LINK_FLAGS "-Wl,-z,now,-z,relro -pie"
+		STATIC_LIBRARY_FLAGS "-D"
+	)
+	TARGET_LINK_LIBRARIES(RaptorQ_static_profiling  stdc++)
+	SET_TARGET_PROPERTIES(RaptorQ_static_profiling PROPERTIES COMPILE_FLAGS ${PROFILE_GET})
+
+	# build the C example test for profiling
+	ADD_EXECUTABLE(test_c_profiled test/test_c.c)
+	ADD_DEPENDENCIES(test_c_profiled RaptorQ_static_profiling)
+	SET_TARGET_PROPERTIES(test_c_profiled PROPERTIES COMPILE_FLAGS ${PROFILE_GET})
+	TARGET_LINK_LIBRARIES(test_c_profiled ${LIBRARY_OUTPUT_PATH}/libRaptorQ_static_profiling.a)
+	STRING(LENGTH ${STDLIB} STDLIB_LENGTH)
+	STRING(SUBSTRING ${STDLIB} 3 ${STDLIB_LENGTH} STDLIB_NAME)
+	TARGET_LINK_LIBRARIES(test_c_profiled ${STDLIB_NAME})
+	TARGET_LINK_LIBRARIES(test_c_profiled m) # math library
+	TARGET_LINK_LIBRARIES(test_c_profiled ${CMAKE_THREAD_LIBS_INIT})
+	SET_TARGET_PROPERTIES(test_c_profiled PROPERTIES LINK_FLAGS "${PROFILE_GET}")
+
+	# run the profiling and create the profile
+	IF(USE_CLANG)
+		add_custom_command(
+			OUTPUT ${PROFILE_GET_FILE}
+			COMMAND LLVM_PROFILE_FILE=${PROFILE_GET_FILE} ./test_c_profiled
+			DEPENDS test_c_profiled
+			COMMENT "Running profiling test..."
+			VERBATIM
+		)
+	ELSE()
+		add_custom_command(
+			OUTPUT ${PROFILE_GET_FILE}
+			COMMAND ./test_c_profiled
+			DEPENDS test_c_profiled
+			COMMENT "Running profiling test..."
+			VERBATIM
+		)
+	ENDIF()
+	IF(USE_CLANG)
+		# the profile must be translated into readable form
+		add_custom_command(
+			OUTPUT ${PROFILE_SET_FILE}
+			COMMAND llvm-profdata merge -output=${PROFILE_SET_FILE} ${PROFILE_GET_FILE}
+			DEPENDS ${PROFILE_GET_FILE}
+			COMMENT "Creating profile data..."
+			VERBATIM
+		)
+	ENDIF()
+	add_custom_target(
+		profile ALL
+		DEPENDS ${PROFILE_SET_FILE}
+	)
+	# now we can rebuild the test, the static library with the profiling optimizations.
+ENDIF()
+
 ADD_LIBRARY(RaptorQ_static STATIC ${SOURCES} ${HEADERS})
 # ar: add deterministic build
 SET_TARGET_PROPERTIES (
@@ -158,6 +265,10 @@ SET_TARGET_PROPERTIES (
 	LINK_FLAGS "-Wl,-z,now,-z,relro -pie"
 	STATIC_LIBRARY_FLAGS "-D"
 )
+IF(PROFILING STREQUAL "yes")
+	ADD_DEPENDENCIES(RaptorQ_static profile)
+	SET_TARGET_PROPERTIES(RaptorQ_static PROPERTIES COMPILE_FLAGS ${PROFILE_SET})
+ENDIF()
 
 ADD_EXECUTABLE(make_deterministic src/deterministic.cpp)
 add_custom_command(
@@ -176,11 +287,18 @@ ADD_DEFINITIONS(-DRAPTORQ_DLL)
 ADD_DEFINITIONS(-DRAPTORQ_DLL_EXPORTS)
 
 ADD_LIBRARY(RaptorQ SHARED ${SOURCES} ${HEADERS})
+# add profiling dependency if requested
+IF(PROFILING STREQUAL "yes")
+	ADD_DEPENDENCIES(RaptorQ profile)
+	SET_TARGET_PROPERTIES(RaptorQ PROPERTIES COMPILE_FLAGS ${PROFILE_SET})
+ENDIF()
 SET_TARGET_PROPERTIES (
 	RaptorQ
 	PROPERTIES
 	LINK_FLAGS "-Wl,-z,now,-z,relro"
 )
+
+
 
 # Tests need to be linked to threading library
 IF (CMAKE_THREAD_LIBS_INIT)
@@ -190,6 +308,7 @@ IF (CMAKE_THREAD_LIBS_INIT)
 	TARGET_LINK_LIBRARIES(libRaptorQ-test ${CMAKE_THREAD_LIBS_INIT})
 	# link the library we just built, too
 	TARGET_LINK_LIBRARIES(libRaptorQ-test ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
+	INSTALL(TARGETS libRaptorQ-test RUNTIME DESTINATION bin/ OPTIONAL)
 	ADD_CUSTOM_TARGET(tests DEPENDS libRaptorQ-test)
 
 	# build examples
@@ -212,10 +331,9 @@ ELSE()
 	ADD_CUSTOM_TARGET(everything DEPENDS Make_static_deterministic docs)
 ENDIF()
 
-INSTALL(TARGETS libRaptorQ-test RUNTIME DESTINATION bin/ OPTIONAL)
-
 
 INSTALL(FILES ${HEADERS} DESTINATION include/RaptorQ/)
 INSTALL(TARGETS RaptorQ RaptorQ_static
 	 LIBRARY DESTINATION lib COMPONENT libraries
 	 ARCHIVE DESTINATION lib COMPONENT libraries)
+

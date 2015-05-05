@@ -22,6 +22,14 @@
 #include "RaptorQ.hpp"
 #include <memory>
 
+struct RAPTORQ_LOCAL RaptorQ_ptr
+{
+	void *ptr;
+	const RaptorQ_type type;
+
+	RaptorQ_ptr (const RaptorQ_type _type) : ptr (nullptr), type (_type) {}
+};
+
 struct RaptorQ_ptr *RaptorQ_Enc (const RaptorQ_type type, void *data,
 											const uint64_t size,
 											const uint16_t min_subsymbol_size,
