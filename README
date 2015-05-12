@@ -103,36 +103,60 @@ $ cmake -DCMAKE_BUILD_TYPE=Release ../
 
 $ make -j 4
 
-Optionally: build the pdf documentation (requires latex)
-$ make docs
+Optional targets are available:
+$ make tests examples docs
+where:
+	tests: benchmarks, rfc tests.
+	examples: C/C++ examples
+	docs: LATEX documentation.
 
-Optionally: build the libRaptorQ-test bynary, for
-performance and rfc compliance tests.
-$ make tests
+or simply:
+$ make everything
 
 finally, install everything
 $ make install
 
+libRaptorQ uses deterministic (reproducible) builds,
+so if you compile it twice, or on two different computers
+(but with the same compiler), the hash of the resulting
+libraries will be the same.
 
-And you are set. You can customize lots of things in the installation, all by
-telling CMake what you need.
+The only configuration that breaks deterministic builds
+currently is the clang + profiling one. It probably can not
+be fixed.
 
-adding "-DCMAKE_CXX_COMPILER=clang++"
-will use clang as the compiler.
+You can customize the CMake build with tthe following variables:
+PROFILING	yes/no: Default:yes. Activate or deactivate profiling.
+				Profiling compiles everything, then runs a test to see
+				which code paths are more used. Then it recompiles everything
+				but optimizing for for those code paths.
+				Only for gcc/clang.
+LTO			yes/no: Default:yes. Activate or deactivate Link time Optimization
+				Makes the library smaller and better optimized.
+				Only for gcc/clang.
+STDLIB		libc++,libstdc++. Choose the standard library to use.
+				Note: gcc can only use its own libstdc++
+CMAKE_C_COMPILER	used to compile examples
+CMAKE_CXX_COMPILER	choose between g++ or clang++.
+CMAKE_BUILD_TYPE	Debug,MinSizeRel,Release,RelWithDebInfo
+CMAKE_INSTALL_PREFIX Default: /usr/local
 
-adding "-DSTDLIB=libc++"
-will use clang libc++ library for the C++ standard library.
 
-adding "-DCMAKE_INSTALL_PREFIX=/usr"
-might help you follow your distribution guidelines.
+##############
+#
+# Using libRaptorQ
+#
+##############
 
-The supported release types are:
-- Debug
-- MinSizeRel
-- Release
-The names should be self-explanatory.
-Use them with "-DCMAKE_BUILD_TYPE=release"
+Compile the documentation:
+$ make docs
 
+or simply visit:
+https://www.fenrirproject.org/projects/libraptorq/documents
 
+for the full up-to-date documentation.
+
+includes the information in this readme, plus a quick description
+of the RaptorQ algorithm, and the C and C++ interfaces.
 
 
