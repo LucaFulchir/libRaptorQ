@@ -1,0 +1,11 @@
+
+#scan-build with clang:
+
+mkdir build &>/dev/null
+rm -rf build/*
+cd build
+cmake -DCMAKE_CXX_COMPILER=/usr/lib/clang-analyzer/scan-build/c++-analyzer -DSTDLIB=libc++ -DCMAKE_BUILD_TYPE=Debug -DPROFILING=no ../
+
+scan-build -enable-checker deadcode.DeadStores -enable-checker security.insecureAPI.UncheckedReturn -enable-checker security.FloatLoopCounter -enable-checker security.insecureAPI.rand -enable-checker cplusplus.NewDelete -enable-checker security.insecureAPI.getpw -enable-checker security.insecureAPI.gets -enable-checker security.insecureAPI.mkstemp -enable-checker security.insecureAPI.mktemp -enable-checker security.insecureAPI.vfork -enable-checker unix.API -enable-checker unix.Malloc -enable-checker unix.MallocSizeof -enable-checker unix.MismatchedDeallocator -enable-checker unix.cstring.BadSizeArg -enable-checker unix.cstring.NullArg --use-c++=clang++ make -j 9
+
+

@@ -14,14 +14,12 @@ passedByValue:src/Interleaver.hpp:170
 passedByValue:src/Interleaver.hpp:263
 passedByValue:src/RaptorQ.hpp:143
 
+functionStatic:src/Parameters.hpp:116
+noExplicitConstructor:src/Parameters.hpp:69
+
 // Initialization is wastful if we overwrite it anyway.
 // which we do, valgrind never gives us "uninitalized value"
 uninitMemberVar:src/Parameters.hpp:68
 
-// Testing function. Will be deleted when we undertand
-// is we are doing something wrong or the rfc is lying.
-unusedFunction:src/Precode_Matrix_solver.cpp:41
-// well, this is the API. of course we are not using it.
-unusedFunction:src/cRaptorQ.cpp
 missingIncludeSystem
 

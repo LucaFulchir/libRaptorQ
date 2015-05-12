@@ -34,10 +34,6 @@
 bool decode (uint32_t mysize, float drop_prob, uint8_t overhead);
 bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 {
-	// SOO many leaks in this code!!!
-	// -- Hint: it only has to run once, so I didn't care about
-	// freeing the malloc'd data before return.
-
 	uint32_t *myvec;
 
 
@@ -71,6 +67,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 
 	if (enc == NULL) {
 		fprintf(stderr, "Coud not initialize encoder.\n");
+		free (myvec);
 		return false;
 	}
 
@@ -118,6 +115,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 			// you can use this for some tricks if you *really* need it.
 			if (written != data_size) {
 				fprintf(stderr, "Error in getting source symbol\n");
+				free (myvec);
+				for (uint32_t k = 0; k <= next_encoded; ++k)
+					free (encoded[k].symbol);
+				free (encoded);
+				RaptorQ_free (&enc);
 				return false;
 			}
 			++next_encoded;
@@ -147,6 +149,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 			// you can use this for some tricks if you *really* need it.
 			if (written != data_size) {
 				fprintf(stderr, "Error in getting repair symbol\n");
+				free (myvec);
+				for (uint32_t k = 0; k <= next_encoded; ++k)
+					free (encoded[k].symbol);
+				free (encoded);
+				RaptorQ_free (&enc);
 				return false;
 			}
 			++next_encoded;
@@ -154,6 +161,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		if (sym_rep == RaptorQ_max_repair (enc, block)) {
 			fprintf(stderr, "Maybe losing %f%% symbols is too much?\n",
 																	drop_prob);
+			free (myvec);
+			for (uint32_t k = 0; k < next_encoded; ++k)
+				free (encoded[k].symbol);
+			free (encoded);
+			RaptorQ_free (&enc);
 			return false;
 		}
 	}
@@ -177,6 +189,10 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 
 	if (dec == NULL) {
 		fprintf(stderr, "Could not initialize decoder!\n");
+		free (myvec);
+		for (uint32_t k = 0; k < next_encoded; ++k)
+			free (encoded[k].symbol);
+		free (encoded);
 		return false;
 	}
 
@@ -194,6 +210,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 			// everything so that there are no duplicates here,
 			// so this is some other error.
 			fprintf(stderr, "Error: couldn't add the symbol to the decoder\n");
+			free (myvec);
+			for (uint32_t k = 0; k < next_encoded; ++k)
+				free (encoded[k].symbol);
+			free (encoded);
+			RaptorQ_free (&dec);
 			return false;
 		}
 		// "data" now points to encoded[i].symbol +
@@ -216,6 +237,12 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 
 	if (written != RaptorQ_bytes (dec) / sizeof(uint32_t)) {
 		fprintf(stderr, "Couldn't decode: %i - %lu\n", mysize, written);
+		free (myvec);
+		free(received);
+		for (uint32_t k = 0; k < next_encoded; ++k)
+			free (encoded[k].symbol);
+		free (encoded);
+		RaptorQ_free(&dec);
 		return false;
 	} else {
 		printf("Decoded: %i\n", mysize);
@@ -225,6 +252,12 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		if (myvec[i] != received[i]) {
 			fprintf(stderr, "FAILED, but we though otherwise! %i - %f - %i\n",
 												mysize, drop_prob, overhead);
+			free (myvec);
+			free(received);
+			for (uint32_t k = 0; k < next_encoded; ++k)
+				free (encoded[k].symbol);
+			free (encoded);
+			RaptorQ_free(&dec);
 			return false;
 		}
 	}
@@ -233,6 +266,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	// this is done by the RaptorQ_free call anyway
 	// RaptorQ_free_block (&dec, 0);
 	// free the decoder memory
+	free (myvec);
+	free(received);
+	for (uint32_t k = 0; k < next_encoded; ++k)
+		free (encoded[k].symbol);
+	free (encoded);
 	RaptorQ_free(&dec);
 	// dec == NULL now
 	return true;

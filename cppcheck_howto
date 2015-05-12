@@ -1,1 +1,1 @@
-cppcheck --std=c++11 --enable=all --inconclusive --xml-version=2 --suppressions cppcheck.suppress src/
+cppcheck --std=c++11 --enable=all --inconclusive --xml-version=2 --suppressions cppcheck.suppress src/ test/

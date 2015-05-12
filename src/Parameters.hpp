@@ -51,7 +51,7 @@ public:
 class RAPTORQ_API Parameters
 {
 public:
-	Parameters (const uint16_t symbols);
+	explicit Parameters (const uint16_t symbols);
 	uint16_t Deg (const uint32_t v) const;
 	Tuple tuple (const uint32_t ISI) const;
 	std::vector<uint16_t> get_idxs (const uint32_t ISI) const;

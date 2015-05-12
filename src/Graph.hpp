@@ -30,7 +30,7 @@ namespace Impl {
 class RAPTORQ_LOCAL Graph
 {
 public:
-	Graph (const uint16_t size);
+	explicit Graph (const uint16_t size);
 
 	void connect (const uint16_t node_a, const uint16_t node_b);
 	bool is_max (const uint16_t id) const;

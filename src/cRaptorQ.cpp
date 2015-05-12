@@ -36,7 +36,7 @@ struct RaptorQ_ptr *RaptorQ_Enc (const RaptorQ_type type, void *data,
 											const uint16_t symbol_size,
 											const size_t max_memory)
 {
-	std::unique_ptr<RaptorQ_ptr> ret ( new RaptorQ_ptr (type));
+	std::unique_ptr<RaptorQ_ptr> ret (new RaptorQ_ptr (type));
 
 	switch (type) {
 	case RaptorQ_type::ENC_8:
@@ -697,58 +697,55 @@ bool RaptorQ_add_symbol (RaptorQ_ptr *dec, void **data, const uint32_t size,
 void RaptorQ_free (struct RaptorQ_ptr **ptr)
 {
 
+	std::unique_ptr<RaptorQ_ptr> uptr;
 	if (ptr == nullptr || *ptr == nullptr || (*ptr)->type == RaptorQ_type::NONE
 													|| (*ptr)->ptr == nullptr) {
 		if (ptr != nullptr) {
-			if (*ptr != nullptr) {
-				// (*ptr)->ptr == nullptr
-				free (*ptr);
-				*ptr = nullptr;
-				return;
-			}
+			uptr = std::unique_ptr<RaptorQ_ptr> (*ptr);
+			*ptr = nullptr;
 			return;
 		}
 		return;
 	}
-	switch ((*ptr)->type) {
+	uptr = std::unique_ptr<RaptorQ_ptr> (*ptr);
+	*ptr = nullptr;
+	switch (uptr->type) {
 	case RaptorQ_type::ENC_8:
 		delete reinterpret_cast<RaptorQ::Encoder<uint8_t*, uint8_t*>*> (
-																(*ptr)->ptr);
+																uptr->ptr);
 		break;
 	case RaptorQ_type::ENC_16:
 		delete reinterpret_cast<RaptorQ::Encoder<uint16_t*, uint16_t*>*> (
-																(*ptr)->ptr);
+																uptr->ptr);
 		break;
 	case RaptorQ_type::ENC_32:
 		delete reinterpret_cast<RaptorQ::Encoder<uint32_t*, uint32_t*>*> (
-																(*ptr)->ptr);
+																uptr->ptr);
 		break;
 	case RaptorQ_type::ENC_64:
 		delete reinterpret_cast<RaptorQ::Encoder<uint64_t*, uint64_t*>*> (
-																(*ptr)->ptr);
+																uptr->ptr);
 		break;
 	case RaptorQ_type::DEC_8:
 		delete reinterpret_cast<RaptorQ::Decoder<uint8_t*, uint8_t*>*> (
-																(*ptr)->ptr);
+																uptr->ptr);
 		break;
 	case RaptorQ_type::DEC_16:
 		delete reinterpret_cast<RaptorQ::Decoder<uint16_t*, uint16_t*>*> (
-																(*ptr)->ptr);
+																uptr->ptr);
 		break;
 	case RaptorQ_type::DEC_32:
 		delete reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
-																(*ptr)->ptr);
+																uptr->ptr);
 		break;
 	case RaptorQ_type::DEC_64:
 		delete reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
-																(*ptr)->ptr);
+																uptr->ptr);
 		break;
 	case RaptorQ_type::NONE:
 		break;
 	}
-	(*ptr)->ptr = nullptr;
-	free (*ptr);
-	*ptr = nullptr;
+	uptr->ptr = nullptr;
 	return;
 }
 
