@@ -38,6 +38,10 @@ MARK_AS_ADVANCED(CLEAR
 	CMAKE_C_COMPILER
 )
 
+# Link time optimization: smaller, better optimized libraries
+SET(LTO "yes" CACHE STRING "Link Time Optimization")
+SET_PROPERTY(CACHE LTO PROPERTY STRINGS yes no)
+
 # profiling support: optimize the library
 SET(PROFILING "yes" CACHE STRING "Optimize library assembly")
 SET_PROPERTY(CACHE PROFILING PROPERTY STRINGS yes no)
@@ -52,6 +56,11 @@ INCLUDE_DIRECTORIES(SYSTEM ${EIGEN3_INCLUDE_DIR})
 EXECUTE_PROCESS(COMMAND git rev-parse --sq HEAD OUTPUT_VARIABLE SEED)
 SET(DETERMINISTIC "-frandom-seed=${SEED}")
 
+IF("${LTO}" STREQUAL "yes")
+	MESSAGE(STATUS "Link Time Optimization activated")
+ELSE()
+	MESSAGE(STATUS "Link Time Optimization deactivated")
+ENDIF()
 #activate profiling if requested.
 # profiling needs to build a test, which needs threading.
 IF ((CMAKE_THREAD_LIBS_INIT) AND (PROFILING STREQUAL "yes"))
@@ -89,10 +98,22 @@ ENDIF()
 #
 IF(${CMAKE_CXX_COMPILER} MATCHES ".*clang.*")
 	IF (PROFILING STREQUAL "yes")
+		MESSAGE(WARNING		"Profiling and clang breaks deterministic builds")
 		SET (PROFILE_GET           "-fprofile-instr-generate -g")
 		SET (PROFILE_GET_FILE      "RaptorQ.profraw")
 		SET (PROFILE_SET_FILE      "RaptorQ.profdata")
 		SET (PROFILE_SET           "-fprofile-instr-use=${PROFILE_SET_FILE}")
+	ENDIF()
+	IF("${LTO}" STREQUAL "yes")
+		SET(CMAKE_CXX_FLAGS		"${CMAKE_CXX_FLAGS} -flto -fuse-ld=gold")
+		SET(CMAKE_C_FLAGS		"${CMAKE_C_FLAGS} -flto -fuse-ld=gold")
+		FIND_PROGRAM(LLVM_AR "llvm-ar")
+		FIND_PROGRAM(LLVM_NM "llvm-nm")
+		FIND_PROGRAM(LLVM_RANLIB "llvm-ranlib")
+		SET(CMAKE_AR ${LLVM_AR})
+		SET(LINK_FLAGS "-rng-seed=${SEED} --build-id=none")
+		SET(CMAKE_NM ${LLVM_NM})
+		SET(CMAKE_RANLIB ${LLVM_RANLIB})
 	ENDIF()
 	SET(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
 	SET(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -g -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
@@ -118,8 +139,17 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
 		SET (PROFILE_SET_FILE      ${PROFILE_GET_FILE})
 		SET (PROFILE_SET           "-fprofile-use")
 	ENDIF()
-	# Totally untested.
-	# gcc doesn't seem to support the "-stdlib" option :(
+	IF("${LTO}" STREQUAL "yes")
+		SET(CMAKE_CXX_FLAGS		"${CMAKE_CXX_FLAGS} -flto -fuse-ld=gold")
+		SET(CMAKE_C_FLAGS		"${CMAKE_C_FLAGS} -flto -fuse-ld=gold")
+		FIND_PROGRAM(GCC_AR "gcc-ar")
+		FIND_PROGRAM(GCC_NM "gcc-nm")
+		FIND_PROGRAM(GCC_RANLIB "gcc-ranlib")
+		SET(CMAKE_AR ${GCC_AR})
+		SET(LINK_FLAGS "-D")
+		SET(CMAKE_NM ${GCC_NM})
+	SET(CMAKE_RANLIB ${GCC_RANLIB})
+	ENDIF()
 	SET(CMAKE_CXX_FLAGS		   "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv")
 # FIXME: some of these are gcc4.9+ only
 	SET(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -g -Wall -pedantic -Wno-padded -fstack-protector-all -Wno-aggressive-loop-optimizations -fstrict-aliasing -ftrapv -fwrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute ")
@@ -134,16 +164,15 @@ ENDIF()
 # set the proper options for that, too
 #
 IF(${CMAKE_C_COMPILER} MATCHES ".*clang.*")
-	SET(CMAKE_C_FLAGS                "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -g -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Os -DNDEBUG -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
+	SET(CMAKE_C_FLAGS                "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wno-disabled-macro-expansion ")
+	SET(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -g -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wno-disabled-macro-expansion ")
+	SET(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Os    -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC -Wno-disabled-macro-expansion ")
+	SET(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC -Wno-disabled-macro-expansion ")
 	ADD_DEFINITIONS(-DUSING_CLANG)
 ELSE()
 	# warn: clang+ and g++ get the same *g++ regexp, keep the "else" above or match the "/" in the regexp
 	IF(${CMAKE_C_COMPILER} MATCHES "^.*cc$" OR ${CMAKE_C_COMPILER} MATCHES "^(.*/)gcc$")
-	# Totally untested.
-	# gcc doesn't seem to support the "-stdlib" option :(
+
 	SET(CMAKE_C_FLAGS		   "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv")
 # FIXME: some of these are gcc4.9+ only
 	SET(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -g -Wall -pedantic -Wno-padded -fstack-protector-all -Wno-aggressive-loop-optimizations -fstrict-aliasing -ftrapv -fwrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute ")
@@ -205,7 +234,6 @@ IF(PROFILING STREQUAL "yes")
 		RaptorQ_static_profiling
 		PROPERTIES
 		LINK_FLAGS "-Wl,-z,now,-z,relro -pie"
-		STATIC_LIBRARY_FLAGS "-D"
 	)
 	TARGET_LINK_LIBRARIES(RaptorQ_static_profiling  stdc++)
 	SET_TARGET_PROPERTIES(RaptorQ_static_profiling PROPERTIES COMPILE_FLAGS ${PROFILE_GET})
@@ -258,12 +286,10 @@ IF(PROFILING STREQUAL "yes")
 ENDIF()
 
 ADD_LIBRARY(RaptorQ_static STATIC ${SOURCES} ${HEADERS})
-# ar: add deterministic build
 SET_TARGET_PROPERTIES (
 	RaptorQ_static
 	PROPERTIES
 	LINK_FLAGS "-Wl,-z,now,-z,relro -pie"
-	STATIC_LIBRARY_FLAGS "-D"
 )
 IF(PROFILING STREQUAL "yes")
 	ADD_DEPENDENCIES(RaptorQ_static profile)
@@ -297,7 +323,6 @@ SET_TARGET_PROPERTIES (
 	PROPERTIES
 	LINK_FLAGS "-Wl,-z,now,-z,relro"
 )
-
 
 
 # Tests need to be linked to threading library

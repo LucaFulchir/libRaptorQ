@@ -49,7 +49,6 @@
 }
 
 \title{Using libRaptorQ library}
-\author{Luca Fulchir -- \{luker\}@fenrirproject.org}
 \date{\today}
 \makeindex
 
@@ -71,7 +70,7 @@ java implementation, OpenRQ , which is much bigger ($\sim 46k$) and slower.
 
 \vfill\hfill
 \begin{verbbox}[\tiny]
-Copyright (C)  2015, Luca Fulchir<luca@fulchir.it>
+Copyright (C)  2015, Luca Fulchir<luker@fenrirproject.org>
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.3
 or any later version published by the Free Software Foundation;
@@ -84,6 +83,21 @@ Free Documentation License".
 \newpage
 \tableofcontents
 \newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Contacts}\index{Contacts}
+
+The main development and dicussions on the project, along with bug reporting, happens on
+\href{https://www.fenrirproject.org/projects/libraptorq/}{the main website}.
+
+\marginlabel{Mailing Lists} Mailing lists are available at \href{https://www.fenrirproject.org/lists}{https://www.fenrirproject.org/lists}\\
+The two mailing lists are for development and announcments, but due to the low traffic of the development mailing list, it
+can also be used by users for questions on the project.
+
+\marginlabel{IRC} Since there are not many developers for now, the main irc channel is \textbf{\#fenrirproject} on freenode
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -151,7 +165,7 @@ you can be sure you have the right code.
 
 libRaptorQ has only 2 dependencies:
 \begin{description}
-\item[\textbf{Eigen}] This is used for matrix manipulation, which is a big part of RaptorQ.
+\item[\textbf{Eigen3}] This is used for matrix manipulation, which is a big part of RaptorQ.
 \item[\textbf{git}] This is used not only to get the source, but also by the build system. We get the last git commit id and feed it to clang or gcc as seed for their
 internal random number generator. This makes it possible to have reproducible builds.
 \end{description}
@@ -167,16 +181,27 @@ $ cmake ../
 $ make -j 4
 \end{verbatim}
 
+By default, the libRaptorQ project tries to have deterministic builds. This means that if you compile things twice, or with two different computers, the
+hash of the resulting library will be the same, provided that the same compiler (clang, gcc 4.8, gcc 4.9 etc) was used. Currently the only exception is the clang
+compiler with the \textit{PROFILING} option enabled, and this will not likely be solved.
+
 \index{cMake}
 There are lots of options, you can use in cmake. As always, you can change them by adding ``\textbf{-Dcmake\_option=cmake\_value}'' when calling cmake.
+
+You can always use the cmake-gui or ccmake commands to have the list of possible options.
 
 The ones we recognize are:
 
 \begin{description}
+\item[LTO] yes/no. Default:\textbf{yes}. Enable \textit{Link Time Optimizatios} for clang or gcc. Makes libraries smaller and better optimized.
+\item[PROFILING] yes/no. Default:\textbf{yes}. \textit{WARN: breaks deterministic builds with clang.}
+Profiling compiles everything once, then runs a test to see which code paths are used more, and then
+recompiles everything again, but making sure that the binary is optimized for those paths. Works with clang and gcc. Provides a slight speedup.
+\item[CMAKE\_C\_COMPILER] gcc and clang are directly supported. other should work, too. This is only used if you want to build the C example.
 \item[CMAKE\_CXX\_COMPILER] g++, clang++ are directly supported. other should work, too.
-\item[STDLIB] to change the c++ standard library. ``libstdc++'' for the (default) gcc one, ``libc++'' for the clang/llvm one. Note that it seems you can't use libc++ with gcc as of yet.
+\item[STDLIB] change the c++ standard library. ``libstdc++'' for the (default) gcc one, ``libc++'' for the clang/llvm one. Note that it seems you can't use libc++ with gcc yet.
 \item[CMAKE\_CXX\_FLAGS] Additional compiler flags you might want to pass.
-\item[CMAKE\_BUILD\_TYPE] Type of build. you can choose between ``Debug'', ``Release'' or ``MinSizeRel''
+\item[CMAKE\_BUILD\_TYPE] Type of build. you can choose between ``Debug'', ``Release'', ``MinSizeRel'' or ``RelWithDebInfo''
 \item[CMAKE\_INSTALL\_PREFIX] Default to \textit{/usr/local}. Change it to fit your distribution guidelines.
 \end{description}
 
@@ -187,21 +212,23 @@ $ make -j 4
 Of course, you can configure the number of parallel jobs (the \textit{-j} parameter) to be what you need.
 
 \marginlabel{Optional make targets:}
-If you want to build this documentation or the tests, too, you need to have installed latex. Then run:
+The following optional targets are also supported:
 \begin{verbatim}
-$ make docs
-$ make tests
+$ make docs tests examples
+$ make everything
 \end{verbatim}
-The tests are only useful to check perfromance of rfc compliance right now.\\
+The ``docs'' target builds this document, but you need latex with the refman style.
+The tests are only useful to check perfromance of rfc compliance right now. ``examples'' compiles the C and C++ examples, which will not be installed.
 
 \index{Install}\marginlabel{\textbf{Install:}}
 The installation process is very simple:
 
 \begin{verbatim}
-$ make install DESTDIR=/usr
+$ make install DESTDIR=...
 \end{verbatim}
 
 You can change the \textit{DESTDIR} parameter to fit your distribution guidelines.
+
 \newpage
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -223,8 +250,9 @@ as you need (theoretically infinite), so you can tune it to be slightly higher t
 and the $X$ packets (\textbf{repair symbols}) have the information needed to recover any of the lost source packets. This has the big advantage of
 avoiding any kind of time and memory consuming decoding if there is no packet loss during the transmission.
 
-\marginlabel{Complexity:} The RaptorQ algorithm is presented as having a linear time encoder and decoder. This implementation does not seem to verify
-this property, and the algorithm itself for now is actually cubic on the number of symbols.\\
+\marginlabel{Complexity:} The RaptorQ algorithm is often presented as having a linear time encoder and decoder. This is both false and misleading.
+Generating the source or repair symbols from the intermediate symbols has linear complexity. Generating the intermediate symbols has cubic complexity on the
+number of symbols. Which is a completely different thing.
 It is still very quick. On a core i7, 2.4Ghz, you need to wait \textit{0.4ms} for $10$ symbols, \textit{280ms} for 1.000 symbols, but it can take an hour for $27.000$ symbols.
 RaptorQ handles up to $56.403$ symbols.
 
@@ -259,7 +287,8 @@ This is actually a lot. More benchmarks and optimizations will come later, for n
 
 \subsection{C++ interface}
 \index{Interface!C++}
-To use the C++ interface you only need to include the \textbf{RaptorQ.hpp} header.
+To use the C++ interface you only need to include the \textbf{RaptorQ.hpp} header, and link \textbf{libRaptorQ} and your threading library (usually
+\textit{libpthread}.
 
 To provide grater flexibility, the whole library uses iterators to read your data, and to write the data onto your data structures.\\
 This means that a big part of the library is a template, which adapts to the alignment of the data in the data structures you use.
@@ -281,7 +310,6 @@ symbol and to the subsymbol). The output iterator will be used to write the data
 The same is done for the \textbf{Decoder}, but we do not need to do any interleaving on the input, so the first iterator can be just an input iterator,
 and nothing more.
 
-~\\
 
 \subsubsection{The Encoder}
 \index{Encoder!C++}
@@ -358,9 +386,8 @@ The number of symbols in a specific block. different blocks can have different s
 The maximum amount of repair symbols that you can generate. Something less than $2^{24}$, but the exact number depends on the number of symbols
 in a block
 \end{description}
-\newpage
 
-
+~\\
 
 \subsubsection{Blocks}
 \index{Blocks!C++}
@@ -405,7 +432,6 @@ takes an output iterator, and fill it with the symbol data. returns the number o
 return the id (\textit{$sbn + esi$}) of this symbol, that you need to include in every packet you send, before the symbols.
 \end{description}
 
-\newpage
 \subsubsection{The Decoder}
 \index{Decoder!C++}
 
@@ -462,10 +488,14 @@ The block size, in bytes. Each block can have different symbols and thus differe
 \textbf{return: uint16\_t}\\
 The number of symbols in a specific block. different blocks can have different symbols.
 \end{description}
+\newpage
 
-
-\subsection{C interface}
-The C interface looks a lot like the C++ one.
+\subsection{C interface}\index{Interface!C}
+The C interface looks a lot like the C++ one.\\
+You need to include the \textbf{cRaptorQ.h} header, and link the \textit{libRaptorQ} library.\\
+\marginlabel{Static linking}\index{Static Linking}
+If you are working with the static version of libRaptorQ remember to link the C++ standard library used when
+compiling the library (\textit{libstdc++} for gcc or maybe \textit{libc++} for clang), your threding library (usually \textit{libpthread}), and the C math library (\textit{libm}).\\
 
 First of all, you need to build the encoder or the decoder:
 
@@ -504,6 +534,7 @@ all the possible cases. So you only get the same data alignment for both input a
 Still, you don't lose anything in performance.\\
 
 \newpage
+
 \subsubsection{Common functions for (de/en)coding}
 
 These functions are used by both the decoder and the decoder, and will be helpful in tracking how much memory
