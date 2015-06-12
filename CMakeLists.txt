@@ -48,13 +48,22 @@ SET_PROPERTY(CACHE PROFILING PROPERTY STRINGS yes no)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
 
-FIND_PACKAGE(Threads) # optional. Do not build tests if not found.
+FIND_PACKAGE(Threads REQUIRED)
+FIND_PACKAGE(git)
 FIND_PACKAGE(eigen REQUIRED)
 INCLUDE_DIRECTORIES(SYSTEM ${EIGEN3_INCLUDE_DIR})
 
 #This only works if *FIRST* you checkout a commit and *THEN* you run cmake
-EXECUTE_PROCESS(COMMAND git rev-parse --sq HEAD OUTPUT_VARIABLE SEED)
-SET(DETERMINISTIC "-frandom-seed=${SEED}")
+IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/.git/)
+MESSAGE(STATUS "directory found")
+IF(GIT_FOUND)
+    EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} rev-parse --sq HEAD OUTPUT_VARIABLE SEED)
+    SET(DETERMINISTIC "-frandom-seed=${SEED}")
+ENDIF()
+ELSE()
+    SET(DETERMINISTIC "-frandom-seed=RaptorQ_nongit")
+    MESSAGE(WARNING "Not inside a git repository. compiler seed is now constant.")
+ENDIF()
 
 IF("${LTO}" STREQUAL "yes")
 	MESSAGE(STATUS "Link Time Optimization activated")
@@ -63,14 +72,10 @@ ELSE()
 ENDIF()
 #activate profiling if requested.
 # profiling needs to build a test, which needs threading.
-IF ((CMAKE_THREAD_LIBS_INIT) AND (PROFILING STREQUAL "yes"))
+IF (PROFILING STREQUAL "yes")
 	MESSAGE(STATUS "Profiling activated")
 ELSE()
-	IF(NOT CMAKE_THREAD_LIBS_INIT)
-		MESSAGE(STATUS "Profiling deactivated: Missing threading libraries!")
-	ELSE()
-		MESSAGE(STATUS "Profiling deactivated")
-	ENDIF()
+	MESSAGE(STATUS "Profiling deactivated")
 	SET (PROFILING	"no")
 ENDIF()
 
@@ -324,36 +329,31 @@ SET_TARGET_PROPERTIES (
 )
 
 
-# Tests need to be linked to threading library
-IF (CMAKE_THREAD_LIBS_INIT)
-	# add main tests
-	ADD_EXECUTABLE(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
-	ADD_DEPENDENCIES(libRaptorQ-test RaptorQ)
-	TARGET_LINK_LIBRARIES(libRaptorQ-test ${CMAKE_THREAD_LIBS_INIT})
-	# link the library we just built, too
-	TARGET_LINK_LIBRARIES(libRaptorQ-test ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
-	INSTALL(TARGETS libRaptorQ-test RUNTIME DESTINATION bin/ OPTIONAL)
-	ADD_CUSTOM_TARGET(tests DEPENDS libRaptorQ-test)
+# add main tests
+ADD_EXECUTABLE(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
+ADD_DEPENDENCIES(libRaptorQ-test RaptorQ)
+TARGET_LINK_LIBRARIES(libRaptorQ-test ${CMAKE_THREAD_LIBS_INIT})
+# link the library we just built, too
+TARGET_LINK_LIBRARIES(libRaptorQ-test ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
+INSTALL(TARGETS libRaptorQ-test RUNTIME DESTINATION bin/ OPTIONAL)
+ADD_CUSTOM_TARGET(tests DEPENDS libRaptorQ-test)
 
-	# build examples
-	# C interface
-	ADD_EXECUTABLE(test_c EXCLUDE_FROM_ALL test/test_c.c)
-	ADD_DEPENDENCIES(test_c RaptorQ)
-	TARGET_LINK_LIBRARIES(test_c ${CMAKE_THREAD_LIBS_INIT})
-	# link the library we just built, too
-	TARGET_LINK_LIBRARIES(test_c ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
-	# CPP interface
-	ADD_EXECUTABLE(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
-	ADD_DEPENDENCIES(test_cpp RaptorQ)
-	TARGET_LINK_LIBRARIES(test_cpp ${CMAKE_THREAD_LIBS_INIT})
-	# link the library we just built, too
-	TARGET_LINK_LIBRARIES(test_cpp ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
-	ADD_CUSTOM_TARGET(examples DEPENDS test_c test_cpp)
+# build examples
+# C interface
+ADD_EXECUTABLE(test_c EXCLUDE_FROM_ALL test/test_c.c)
+ADD_DEPENDENCIES(test_c RaptorQ)
+TARGET_LINK_LIBRARIES(test_c ${CMAKE_THREAD_LIBS_INIT})
+# link the library we just built, too
+TARGET_LINK_LIBRARIES(test_c ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
+# CPP interface
+ADD_EXECUTABLE(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
+ADD_DEPENDENCIES(test_cpp RaptorQ)
+TARGET_LINK_LIBRARIES(test_cpp ${CMAKE_THREAD_LIBS_INIT})
+# link the library we just built, too
+TARGET_LINK_LIBRARIES(test_cpp ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
+ADD_CUSTOM_TARGET(examples DEPENDS test_c test_cpp)
 
-	ADD_CUSTOM_TARGET(everything DEPENDS Make_static_deterministic tests examples docs)
-ELSE()
-	ADD_CUSTOM_TARGET(everything DEPENDS Make_static_deterministic docs)
-ENDIF()
+ADD_CUSTOM_TARGET(everything DEPENDS Make_static_deterministic tests examples docs)
 
 
 INSTALL(FILES ${HEADERS} DESTINATION include/RaptorQ/)
