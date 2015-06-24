@@ -31,9 +31,13 @@
 #include <utility>
 #include <vector>
 #include <Eigen/Dense>
+#include <iostream>
 
 namespace RaptorQ {
 namespace Impl {
+
+extern template class Precode_Matrix<Save_Computation::OFF>;
+extern template class Precode_Matrix<Save_Computation::ON>;
 
 template <typename In_It>
 class RAPTORQ_API Decoder
@@ -54,14 +58,14 @@ public:
 	}
 
 	bool add_symbol (In_It &start, const In_It end, const uint32_t esi);
-	bool decode ();
+	bool decode (DenseMtx &res);
 	DenseMtx* get_symbols();
 	//std::vector<T> get (const uint16_t symbol) const;
 
 private:
 	std::mutex lock;
 	const uint16_t _symbols;
-	Precode_Matrix precode;
+	Precode_Matrix<Save_Computation::OFF> precode;
 	Bitmask mask;
 	DenseMtx source_symbols;
 
@@ -138,7 +142,7 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 }
 
 template <typename In_It>
-bool Decoder<In_It>::decode ()
+bool Decoder<In_It>::decode (DenseMtx &res)
 {
 	// rfc 6330: can decode when received >= K_padded
 	// actually: (K_padded - K) are padding and thus constant and NOT
@@ -202,16 +206,34 @@ bool Decoder<In_It>::decode ()
 		D.row (row) = symbol->second;
 	}
 	lock.unlock();
+	uint16_t size = 0;
+	std::deque<std::unique_ptr<Operation>> ops;
 
 	// do not lock this part, as it's the expensive part
-	DenseMtx missing = precode.intermediate (D, mask_safe, repair_esi);
+	DenseMtx missing = precode.intermediate (D, mask_safe, repair_esi, ops,
+																		size);
 	D = DenseMtx();	// free some memory;
+	if (missing.rows() != 0) {
+		res = DenseMtx ();	// make sure there isn't other data
+		res.setIdentity (size, size);
+		for (auto &op : ops)
+			op->build_mtx (res);
+	}
+	uint32_t zeros = 0;
+	for (uint16_t row = 0; row < res.rows(); ++row) {
+		for (uint16_t col = 0; col < res.cols(); ++col) {
+			if (static_cast<uint8_t> (res (row, col)) == 0)
+				++zeros;
+		}
+	}
+	std::cout << "mat: " << size << " = " << size * size << "0: " << zeros <<
+																		"\n";
 
 	if (missing.rows() == 0)
 		return mask.get_holes() == 0; // did other threads do something?
 
-	std::lock_guard<std::mutex> guard (lock);
-	UNUSED(guard);
+	std::lock_guard<std::mutex> dec_lock (lock);
+	UNUSED(dec_lock);
 
 	if (mask.get_holes() == 0)
 		return true;			// other thread did something
@@ -232,7 +254,6 @@ bool Decoder<In_It>::decode ()
 
 	// free some memory, we don't need recover symbols anymore
 	received_repair = std::vector<std::pair<uint32_t, Vect>>();
-
 	return true;
 }
 

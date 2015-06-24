@@ -18,10 +18,11 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef RAPTORQ_PRECODE_MATRIX_SOLVER_HPP
+#define RAPTORQ_PRECODE_MATRIX_SOLVER_HPP
+
 #include "Graph.hpp"
-#include "multiplication.hpp"
 #include "Precode_Matrix.hpp"
-#include "Rand.hpp"
 
 ///////////////////
 //
@@ -29,15 +30,16 @@
 //
 ///////////////////
 
-///
-/// These methods are used to solve the system A * C = D, where we have
-/// A and D. By doing this, we generate the intermediate symbols.
-///
-
 namespace RaptorQ {
 namespace Impl {
 
-DenseMtx Precode_Matrix::intermediate (DenseMtx &D)
+// The template parameter "IS_OFFLINE" lets us identify
+// wether we should save the computation we are doing for offline usage
+// or we can avoid saving it, and thus be faster and more memory efficient.
+
+template <Save_Computation IS_OFFLINE>
+DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D, Op_Vec &ops,
+																uint16_t &size)
 {
 	// rfc 6330, pg 32
 	// "c" and "d" are used to track row and columns exchange.
@@ -57,17 +59,19 @@ DenseMtx Precode_Matrix::intermediate (DenseMtx &D)
 	for (i = 0; i < _params.L; ++i)
 		c.emplace_back (i);
 
-	std::tie (success, i, u) = decode_phase1 (X, D, c);
+	std::tie (success, i, u) = decode_phase1 (X, D, c ,ops);
+	size = static_cast<uint16_t> (X.rows());
+
 	if (!success)
 		return C;
-	success = decode_phase2 (D, i, u);
+	success = decode_phase2 (D, i, u, ops);
 	if (!success)
 		return C;
 	// A now should be considered as being LxL from now
-	decode_phase3 (X, D, i);
+	decode_phase3 (X, D, i, ops);
 	X = DenseMtx ();	// free some memory, X is not needed anymore.
-	decode_phase4 (D, i, u);
-	decode_phase5 (D, i);
+	decode_phase4 (D, i, u, ops);
+	decode_phase5 (D, i, ops);
 	// A now must be an LxL identity matrix: check it.
 	// CHECK DISABLED: phase4  does not modify A, as it's never readed
 	// again. So the Matrix is *not* an identity anymore.
@@ -80,19 +84,24 @@ DenseMtx Precode_Matrix::intermediate (DenseMtx &D)
 	//}
 	A = DenseMtx();	// free A memory.
 
+	if (IS_OFFLINE == Save_Computation::ON)
+		ops.emplace_back (new Operation_Reorder (c));
+
 	C = DenseMtx (D.rows(), D.cols());
 	for (i = 0; i < _params.L; ++i)
 		C.row (c[i]) = D.row (i);
-
 	return C;
 }
 
 // Used in decoding
-DenseMtx Precode_Matrix::intermediate (DenseMtx &D, const Bitmask &mask,
-										const std::vector<uint32_t> &repair_esi)
+template <Save_Computation IS_OFFLINE>
+DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D,
+										const Bitmask &mask,
+										const std::vector<uint32_t> &repair_esi,
+										Op_Vec &ops, uint16_t &size)
 {
 	decode_phase0 (mask, repair_esi);
-	DenseMtx C = intermediate (D);
+	DenseMtx C = intermediate (D, ops, size);
 
 	if (C.rows() == 0) {
 		// error somewhere
@@ -113,7 +122,8 @@ DenseMtx Precode_Matrix::intermediate (DenseMtx &D, const Bitmask &mask,
 	return missing;
 }
 
-void Precode_Matrix::decode_phase0 (const Bitmask &mask,
+template <Save_Computation IS_OFFLINE>
+void Precode_Matrix<IS_OFFLINE>::decode_phase0 (const Bitmask &mask,
 										const std::vector<uint32_t> &repair_esi)
 {
 	// D was built as follows:
@@ -171,9 +181,10 @@ void Precode_Matrix::decode_phase0 (const Bitmask &mask,
 	}
 }
 
+template <Save_Computation IS_OFFLINE>
 std::tuple<bool, uint16_t, uint16_t>
-	Precode_Matrix::decode_phase1 (DenseMtx &X, DenseMtx &D,
-													std::vector<uint16_t> &c)
+	Precode_Matrix<IS_OFFLINE>::decode_phase1 (DenseMtx &X, DenseMtx &D,
+										std::vector<uint16_t> &c, Op_Vec &ops)
 {
 	//rfc6330, page 33
 
@@ -320,6 +331,8 @@ std::tuple<bool, uint16_t, uint16_t>
 			X.row (i).swap (X.row (chosen + i));
 			D.row (i).swap (D.row (chosen + i));
 			std::swap (tracking[i], tracking[chosen + i]);
+			if (IS_OFFLINE == Save_Computation::ON)
+				ops.emplace_back (new Operation_Swap (i, chosen + i));
 		}
 		// column swap in A. looking at the first V row,
 		// the first column must be nonzero, and the other non-zero must be
@@ -357,6 +370,10 @@ std::tuple<bool, uint16_t, uint16_t>
 				const Octet multiple = V (row, 0) / V (0, 0);
 				A.row (row + i) += A.row (i) * multiple;
 				D.row (row + i) += D.row (i) * multiple;	//rfc6330, pg32
+				if (IS_OFFLINE == Save_Computation::ON) {
+					ops.emplace_back (new Operation_Add_Mul (row + i, i,
+																	multiple));
+				}
 			}
 		}
 
@@ -368,8 +385,9 @@ std::tuple<bool, uint16_t, uint16_t>
 	return std::make_tuple (true, i, u);
 }
 
-bool Precode_Matrix::decode_phase2 (DenseMtx &D, const uint16_t i,
-															const uint16_t u)
+template<Save_Computation IS_OFFLINE>
+bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
+												const uint16_t u, Op_Vec &ops)
 {
 	// rfc 6330, pg 35
 
@@ -394,6 +412,8 @@ bool Precode_Matrix::decode_phase2 (DenseMtx &D, const uint16_t i,
 		} else if (row != row_nonzero) {
 			A.row (row).swap (A.row (row_nonzero));
 			D.row (row).swap (D.row (row_nonzero));
+			if (IS_OFFLINE == Save_Computation::ON)
+				ops.emplace_back (new Operation_Swap (row, row_nonzero));
 		}
 
 		// U_Lower (row, row) != 0. make it 1.
@@ -401,19 +421,24 @@ bool Precode_Matrix::decode_phase2 (DenseMtx &D, const uint16_t i,
 			const auto divisor = A (row, col_diag);
 			A.row (row) /= divisor;
 			D.row (row) /= divisor;
+			if (IS_OFFLINE == Save_Computation::ON)
+				ops.emplace_back (new Operation_Div (row, divisor));
 		}
 
 		// make U_Lower and identity up to row
 		for (uint16_t del_row = row_start; del_row < row_end; ++del_row) {
 			if (del_row == row)
 				continue;
-			// subtrace row "row" to "del_row" enough times to make
+			// subtract row "row" to "del_row" enough times to make
 			// row "del_row" start with zero. but row "row" now starts
 			// with "1", so this is easy.
 			const auto multiple = A (del_row, col_diag);
 			if (static_cast<uint8_t> (multiple) != 0) {
 				A.row (del_row) -= A.row (row) * multiple;
 				D.row (del_row) -= D.row (row) * multiple;
+				if (IS_OFFLINE == Save_Computation::ON)
+					ops.emplace_back (new Operation_Add_Mul (del_row, row,
+																	multiple));
 			}
 		}
 	}
@@ -423,8 +448,9 @@ bool Precode_Matrix::decode_phase2 (DenseMtx &D, const uint16_t i,
 	return true;
 }
 
-void Precode_Matrix::decode_phase3 (const DenseMtx &X, DenseMtx &D,
-															const uint16_t i)
+template<Save_Computation IS_OFFLINE>
+void Precode_Matrix<IS_OFFLINE>::decode_phase3 (const DenseMtx &X, DenseMtx &D,
+												const uint16_t i, Op_Vec &ops)
 {
 	// rfc 6330, pg 35:
 	//	To this end, the matrix X is
@@ -439,13 +465,16 @@ void Precode_Matrix::decode_phase3 (const DenseMtx &X, DenseMtx &D,
 	// Now fix D, too
 	DenseMtx D_2 = D;
 
+	if (IS_OFFLINE == Save_Computation::ON)
+		ops.emplace_back (new Operation_Block (sub_X));
 	for (uint16_t row = 0; row < sub_X.rows(); ++row) {
 		D.row (row) = sub_X.row (row) * D_2.block (0,0, sub_X.cols(), D.cols());
 	}
 }
 
-void Precode_Matrix::decode_phase4 (DenseMtx &D, const uint16_t i,
-															const uint16_t u)
+template<Save_Computation IS_OFFLINE>
+void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseMtx &D, const uint16_t i,
+												const uint16_t u, Op_Vec &ops)
 {
 	// rfc 6330, pg 35:
 	// For each of the first i rows of U_upper, do the following: if the row
@@ -465,15 +494,20 @@ void Precode_Matrix::decode_phase4 (DenseMtx &D, const uint16_t i,
 
 				// "b times row j of I_u" => row "j" in U_lower.
 				// aka: U_upper.rows() + j
-				D.row (row) += D.row (
-								static_cast<uint16_t> (U_upper.rows()) + col) *
-																	multiple;
+				uint16_t row_2 = static_cast<uint16_t> (U_upper.rows()) + col;
+				D.row (row) += D.row (row_2) * multiple;
+				if (IS_OFFLINE == Save_Computation::ON) {
+					ops.emplace_back (new Operation_Add_Mul (row, row_2,
+																	multiple));
+				}
 			}
 		}
 	}
 }
 
-void Precode_Matrix::decode_phase5 (DenseMtx &D, const uint16_t i)
+template<Save_Computation IS_OFFLINE>
+void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
+																	Op_Vec &ops)
 {
 	// rc 6330, pg 36
 	for (uint16_t j = 0; j <= i; ++j) {
@@ -482,18 +516,24 @@ void Precode_Matrix::decode_phase5 (DenseMtx &D, const uint16_t i)
 			const auto multiple = A (j, j);
 			A.row (j) /= multiple;
 			D.row (j) /= multiple;
+			if (IS_OFFLINE == Save_Computation::ON)
+				ops.emplace_back (new Operation_Div (j, multiple));
 		}
 		for (uint16_t tmp = 0; tmp < j; ++tmp) {	//tmp == "l" in rfc6330
 			const auto multiple = A (j, tmp);
 			if (static_cast<uint8_t> (multiple) != 0) {
 				A.row (j) += A.row (tmp) * multiple;
 				D.row (j) += D.row (tmp) * multiple;
+				if (IS_OFFLINE == Save_Computation::ON)
+					ops.emplace_back (new Operation_Add_Mul (j, tmp, multiple));
 			}
 		}
 	}
 }
 
-DenseMtx Precode_Matrix::encode (const DenseMtx &C, const uint32_t ISI) const
+template<Save_Computation IS_OFFLINE>
+DenseMtx Precode_Matrix<IS_OFFLINE>::encode (const DenseMtx &C,
+													const uint32_t ISI) const
 {
 	// Generate repair symbols. same algorithm as "get_idxs"
 	// rfc6330, pg29
@@ -525,3 +565,5 @@ DenseMtx Precode_Matrix::encode (const DenseMtx &C, const uint32_t ISI) const
 
 }	// namespace RaptorQ
 }	// namespace Impl
+
+#endif

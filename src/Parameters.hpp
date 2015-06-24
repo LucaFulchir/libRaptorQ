@@ -129,13 +129,23 @@ public:
 		}
 		return *this;
 	}
+
 	friend Octet operator/ (Octet lhs, const Octet rhs)
 	{
 		lhs /= rhs;
 		return lhs;
 	}
-	friend std::ostream &operator<< (std::ostream &os, Octet const &m) {
-		os << std::hex << static_cast<ssize_t> (m.data) << std::dec;
+
+	Octet inverse() const
+	{
+		return Octet (RaptorQ::Impl::oct_exp[255 - oct_log[data - 1]]);
+	}
+
+	friend std::ostream &operator<< (std::ostream &os, const Octet m) {
+		// used to print
+		//os << std::hex << static_cast<ssize_t> (m.data) << std::dec;
+		// used to save to file
+		os << static_cast<uint8_t> (m.data);
 		return os;
 	}
 private:

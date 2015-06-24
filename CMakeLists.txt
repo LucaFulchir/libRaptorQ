@@ -118,12 +118,12 @@ else()
 endif()
 
 
-
-SET(SOURCES	src/Precode_Matrix_solver.cpp
-		src/Precode_Matrix.cpp
+SET(SOURCES src/Operation.cpp
+		src/Bitmask.cpp
 		src/Rand.cpp
 		src/Parameters.cpp
 		src/Graph.cpp
+		src/Precode_Matrix_Instantiation.cpp
 		src/cRaptorQ.cpp)
 
 SET(HEADERS	src/Interleaver.hpp
@@ -134,7 +134,10 @@ SET(HEADERS	src/Interleaver.hpp
 		src/Encoder.hpp
 		src/Decoder.hpp
 		src/Rand.hpp
+		src/Operation.hpp
 		src/Precode_Matrix.hpp
+		src/Precode_Matrix_Init.hpp
+		src/Precode_Matrix_Solver.hpp
 		src/Parameters.hpp
 		src/Graph.hpp
 		src/De_Interleaver.hpp
@@ -143,7 +146,6 @@ SET(HEADERS	src/Interleaver.hpp
 
 
 include(cmake/compiler_flags)
-
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_definitions(-DUSING_CLANG)

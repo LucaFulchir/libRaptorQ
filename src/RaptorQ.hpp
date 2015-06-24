@@ -260,6 +260,7 @@ public:
 	OTI_Common_Data OTI_Common() const;
 	OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
+	Impl::DenseMtx precompute ();
 	void precompute (const uint8_t threads, const bool background);
 	size_t precompute_max_memory ();
 	uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
@@ -295,7 +296,8 @@ private:
 	static void precompute_block_all (Encoder<Rnd_It, Fwd_It> *obj,
 														const uint8_t threads);
 	static void precompute_thread (Encoder<Rnd_It, Fwd_It> *obj, uint8_t *sbn,
-													const uint8_t single_sbn);
+													const uint8_t single_sbn,
+													Impl::DenseMtx *result);
 };
 
 
@@ -370,8 +372,9 @@ public:
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
 	}
 
-	uint64_t decode (Fwd_It &start, const Fwd_It end);
-	uint64_t decode (Fwd_It &start, const Fwd_It end, const uint8_t sbn);
+	Impl::DenseMtx precompute ();
+	uint64_t decode (Out_It &start, const Out_It end);
+	uint64_t decode (Out_It &start, const Out_It end, const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
 	bool add_symbol (In_It &start, const In_It end, const uint32_t id);
 	bool add_symbol (In_It &start, const In_It end, const uint32_t esi,
@@ -471,7 +474,8 @@ size_t Encoder<Rnd_It, Fwd_It>::precompute_max_memory ()
 template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::precompute_thread (Encoder<Rnd_It, Fwd_It> *obj,
 													uint8_t *sbn,
-													const uint8_t single_sbn)
+													const uint8_t single_sbn,
+													Impl::DenseMtx *result)
 {
 	if (obj->interleave == nullptr)
 		return;
@@ -507,7 +511,13 @@ void Encoder<Rnd_It, Fwd_It>::precompute_thread (Encoder<Rnd_It, Fwd_It> *obj,
 		obj->_mtx.unlock();
 		if (locked) {	// if not locked, someone else is already waiting
 						// on this. so don't do the same work twice.
-			enc_ptr->_enc.generate_symbols();
+			// result can be nullptr. in that case, disregard the result.
+			Impl::DenseMtx *p = result;
+			if (result == nullptr)
+				p = new Impl::DenseMtx();
+			enc_ptr->_enc.generate_symbols(*p);
+			if (result == nullptr)
+				delete p;
 			enc_ptr->_mtx.unlock();
 		}
 		if (sbn == nullptr)
@@ -547,14 +557,22 @@ void Encoder<Rnd_It, Fwd_It>::precompute_block_all (
 
 	// spawn n-1 threads
 	for (int8_t id = 0; id < spawned; ++id)
-		t.emplace_back (precompute_thread, obj, &sbn, 0);
+		t.emplace_back (precompute_thread, obj, &sbn, 0, nullptr);
 
 	// do the work ourselves
-	precompute_thread (obj, &sbn, 0);
+	precompute_thread (obj, &sbn, 0, nullptr);
 
 	// join other threads
 	for (uint8_t id = 0; id < spawned; ++id)
 		t[id].join();
+}
+
+template <typename Rnd_It, typename Out_It>
+Impl::DenseMtx Encoder<Rnd_It, Out_It>::precompute ()
+{
+	Impl::DenseMtx ret;
+	precompute_thread (this, nullptr, 0, &ret);
+	return ret;
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -582,14 +600,16 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 		bool success;
 		std::tie (it, success) = encoders.emplace (sbn,
 						std::make_shared<Locked_Encoder> (*interleave, sbn));
-		background_work.emplace_back (precompute_thread, this, nullptr, sbn);
+		background_work.emplace_back (precompute_thread, this, nullptr, sbn,
+																	nullptr);
 	}
 	auto enc_ptr = it->second;
 	_mtx.unlock();
 	if (esi >= interleave->source_symbols (sbn)) {
 		// make sure we generated the intermediate symbols
 		enc_ptr->_mtx.lock();
-		enc_ptr->_enc.generate_symbols();
+		Impl::DenseMtx res;
+		enc_ptr->_enc.generate_symbols (res);
 		enc_ptr->_mtx.unlock();
 	}
 
@@ -695,6 +715,25 @@ bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 	return dec->add_symbol (start, end, esi);
 }
 
+template <typename In_It, typename Out_It>
+Impl::DenseMtx Decoder<In_It, Out_It>::precompute ()
+{
+	_mtx.lock();
+	auto it = decoders.find (0);
+	if (it == decoders.end()) {
+		_mtx.unlock();
+		return Impl::DenseMtx();
+	}
+	auto dec = it->second;
+	_mtx.unlock();
+
+	Impl::DenseMtx res;
+	bool test = dec->decode(res);
+	if (!test)
+		return Impl::DenseMtx();
+	return res;
+}
+
 template <typename In_It, typename Fwd_It>
 uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end)
 {
@@ -708,7 +747,8 @@ uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end)
 		auto dec = it->second;
 		_mtx.unlock();
 
-		if (!dec->decode())
+		Impl::DenseMtx res;
+		if (!dec->decode(res))
 			return 0;
 	}
 	// everything has been decoded
@@ -764,7 +804,8 @@ uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end,
 	auto dec = it->second;
 	_mtx.unlock();
 
-	if (!dec->decode())
+	Impl::DenseMtx res;
+	if (!dec->decode(res))
 		return 0;
 
 	Impl::De_Interleaver<Fwd_It> de_interleaving (dec->get_symbols(),

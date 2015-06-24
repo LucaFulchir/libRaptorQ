@@ -29,9 +29,14 @@
 #include "multiplication.hpp"
 #include <Eigen/Dense>
 #include <Eigen/SparseLU>
+#include <iostream>
 
 namespace RaptorQ {
 namespace Impl {
+
+extern template class Precode_Matrix<Save_Computation::OFF>;
+extern template class Precode_Matrix<Save_Computation::ON>;
+
 
 template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder
@@ -47,10 +52,11 @@ public:
 	}
 	uint64_t Enc (const uint32_t ESI, Fwd_It &output, const Fwd_It end) const;
 
-	bool generate_symbols ();
+	bool generate_symbols (DenseMtx &res);
+
 	uint16_t padded() const;
 private:
-	Precode_Matrix precode;
+	Precode_Matrix<Save_Computation::OFF> precode;
 	const Interleaver<Rnd_It> _symbols;
 	const uint8_t _SBN;
 
@@ -106,7 +112,24 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols ()
 			D (row, col) = 0;
 	}
 
-	encoded_symbols = precode.intermediate (D);
+	uint16_t size;
+	std::deque<std::unique_ptr<Operation>> ops;
+	encoded_symbols = precode.intermediate (D, ops, size);
+	if (encoded_symbols.cols() != 0) {
+		res = DenseMtx ();	// make sure there isn't other data
+		res.setIdentity (size, size);
+		for (auto &op : ops)
+			op->build_mtx (res);
+	}
+	uint32_t zeros = 0;
+	for (row = 0; row < res.rows(); ++row) {
+		for (uint16_t col = 0; col < res.cols(); ++col) {
+			if (static_cast<uint8_t> (res (row, col)) == 0)
+				++zeros;
+		}
+	}
+	std::cout << "mat: " << size << " = " << size * size << "0: " << zeros <<
+																		"\n";
 	return encoded_symbols.cols() != 0;
 }
 

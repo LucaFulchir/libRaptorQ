@@ -18,75 +18,11 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Graph.hpp"
-#include "multiplication.hpp"
-#include "Precode_Matrix.hpp"
+#ifndef RAPTORQ_PRECODE_MATRIX_INIT_HPP
+#define RAPTORQ_PRECODE_MATRIX_INIT_HPP
+
 #include "Rand.hpp"
-
-
-// force promotion to double in division
-namespace {
-float RAPTORQ_LOCAL div_floor (const float a, const float b);
-float RAPTORQ_LOCAL div_ceil (const float a, const float b);
-
-float div_floor (const float a, const float b)
-{
-	return std::floor (a / b);
-}
-float div_ceil (const float a, const float b)
-{
-	return std::ceil (a / b);
-}
-}
-
-///////////////////
-//
-// Bitmask
-//
-///////////////////
-
-namespace RaptorQ {
-namespace Impl {
-
-Bitmask::Bitmask (const uint16_t symbols)
-	: _max_nonrepair (symbols)
-{
-	holes = _max_nonrepair;
-	size_t max_element = static_cast<size_t> (div_ceil (_max_nonrepair,
-															sizeof(size_t)));
-	mask.reserve (max_element + 1);
-	for (size_t i = 0; i <= max_element; ++i)
-		mask.push_back (0);
-}
-
-void Bitmask::add (const size_t id)
-{
-	size_t element = static_cast<size_t> (div_floor (id, sizeof(size_t)));
-	while (element >= mask.size())
-		mask.push_back(0);
-	if (exists(id))
-		return;
-
-	size_t add_mask = 1 << (id - (element * sizeof(size_t)));
-	mask[element] |= add_mask;
-	if (id < _max_nonrepair)
-		--holes;
-}
-
-bool Bitmask::exists (const size_t id ) const
-{
-	size_t element = static_cast<size_t> (div_floor (id, sizeof(size_t)));
-	if (element >= mask.size())
-		return false;
-
-	size_t check_mask = 1 << (id - (element * sizeof(size_t)));
-	return (mask[element] & check_mask) != 0;
-}
-
-uint16_t Bitmask::get_holes () const
-{
-	return holes;
-}
+#include "Precode_Matrix.hpp"
 
 ///////////////////
 //
@@ -94,11 +30,15 @@ uint16_t Bitmask::get_holes () const
 //
 ///////////////////
 
+namespace RaptorQ {
+namespace Impl {
+
 ///
 /// These methods are used to generate the precode matrix.
 ///
 
-void Precode_Matrix::gen (const uint32_t repair_overhead)
+template<Save_Computation IS_OFFLINE>
+void Precode_Matrix<IS_OFFLINE>::gen (const uint32_t repair_overhead)
 {
 	_repair_overhead = repair_overhead;
 	A = DenseMtx (_params.L + repair_overhead, _params.L);
@@ -117,7 +57,8 @@ void Precode_Matrix::gen (const uint32_t repair_overhead)
 	}
 }
 
-void Precode_Matrix::init_LDPC1 (const uint16_t S, const uint16_t B)
+template<Save_Computation IS_OFFLINE>
+void Precode_Matrix<IS_OFFLINE>::init_LDPC1 (const uint16_t S, const uint16_t B)
 {
 	// The first LDPC1 submatrix is a SxB matrix of SxS submatrixes
 	// (the last submatrix can have less than S columns)
@@ -145,7 +86,9 @@ void Precode_Matrix::init_LDPC1 (const uint16_t S, const uint16_t B)
 	}
 }
 
-void Precode_Matrix::add_identity (const uint16_t size, const uint16_t skip_row,
+template<Save_Computation IS_OFFLINE>
+void Precode_Matrix<IS_OFFLINE>::add_identity (const uint16_t size,
+														const uint16_t skip_row,
 														const uint16_t skip_col)
 {
 	auto sub_mtx = A.block (skip_row, skip_col, size, size);
@@ -155,7 +98,9 @@ void Precode_Matrix::add_identity (const uint16_t size, const uint16_t skip_row,
 	}
 }
 
-void Precode_Matrix::init_LDPC2 (const uint16_t skip, const uint16_t rows,
+template<Save_Computation IS_OFFLINE>
+void Precode_Matrix<IS_OFFLINE>::init_LDPC2 (const uint16_t skip,
+															const uint16_t rows,
 															const uint16_t cols)
 {
 	// this submatrix has two consecutive "1" in the first row, first two
@@ -177,7 +122,8 @@ void Precode_Matrix::init_LDPC2 (const uint16_t skip, const uint16_t rows,
 	}
 }
 
-DenseMtx Precode_Matrix::make_MT() const
+template<Save_Computation IS_OFFLINE>
+DenseMtx Precode_Matrix<IS_OFFLINE>::make_MT() const
 {
 	// rfc 6330, pg 24
 	Rand rnd;
@@ -202,7 +148,8 @@ DenseMtx Precode_Matrix::make_MT() const
 	return MT;
 }
 
-DenseMtx Precode_Matrix::make_GAMMA() const
+template<Save_Computation IS_OFFLINE>
+DenseMtx Precode_Matrix<IS_OFFLINE>::make_GAMMA() const
 {
 	// rfc 6330, pg 24
 	DenseMtx GAMMA = DenseMtx (_params.K_padded + _params.S,
@@ -223,7 +170,8 @@ DenseMtx Precode_Matrix::make_GAMMA() const
 	return GAMMA;
 }
 
-void Precode_Matrix::init_HDPC ()
+template<Save_Computation IS_OFFLINE>
+void Precode_Matrix<IS_OFFLINE>::init_HDPC ()
 {
 	// rfc 6330, pg 25
 	DenseMtx MT = make_MT();
@@ -232,7 +180,8 @@ void Precode_Matrix::init_HDPC ()
 	A.block(_params.S, 0, _params.H, GAMMA.rows()) = MT * GAMMA;
 }
 
-void Precode_Matrix::add_G_ENC ()
+template<Save_Computation IS_OFFLINE>
+void Precode_Matrix<IS_OFFLINE>::add_G_ENC ()
 {
 	// rfc 6330, pg 26
 	for (uint16_t row = _params.S + _params.H; row < _params.L; ++row) {
@@ -248,3 +197,5 @@ void Precode_Matrix::add_G_ENC ()
 
 }	// namespace RaptorQ
 }	// namespace Impl
+
+#endif
