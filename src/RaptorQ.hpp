@@ -163,7 +163,7 @@ public:
 		:_enc (enc), _part (part), _sbn (sbn) {}
 	Block<Rnd_It, Out_It> operator*()
 	{
-		if (_sbn > _part.num (0))
+		if (_sbn < _part.num (0))
 			return Block<Rnd_It, Out_It> (_enc, _part.size (0), _sbn);
 		return Block<Rnd_It, Out_It> (_enc, _part.size (1), _sbn);
 	}
