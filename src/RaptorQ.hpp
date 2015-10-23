@@ -227,8 +227,11 @@ public:
 		assert((min_subsymbol_size % _alignment) == 0 &&
 					"RaptorQ: minimum subsymbol must be multiple of alignment");
 		// max size: ~881 GB
-		if (static_cast<uint64_t> (data_to - data_from) > max_data)
+		if (static_cast<uint64_t> (data_to - data_from) *
+					sizeof(typename std::iterator_traits<Rnd_It>::value_type)
+																> max_data) {
 			return;
+		}
 		interleave = std::unique_ptr<Impl::Interleaver<Rnd_It>> (
 								new Impl::Interleaver<Rnd_It> (_data_from,
 														_data_to,
@@ -687,7 +690,15 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
 		_mtx.unlock();
 		Impl::De_Interleaver<Out_It> de_interleaving (
 											dec->get_symbols(), _sub_blocks);
-		written += de_interleaving (start, end);
+		const uint16_t symbols = sbn < part.num (0) ?
+													part.size(0) : part.size(1);
+		const int32_t block_size = symbols * _symbol_size /
+					sizeof(typename std::iterator_traits<Out_It>::value_type);
+		if (end - start >= block_size) {
+			written += de_interleaving (start, start + block_size);
+		} else {
+			break;
+		}
 	}
 	return written;
 }
@@ -713,7 +724,12 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end,
 
 	Impl::De_Interleaver<Out_It> de_interleaving (dec->get_symbols(),
 																_sub_blocks);
-	return de_interleaving (start, end);
+	const uint16_t symbols = sbn < part.num (0) ? part.size(0) : part.size(1);
+	const int32_t block_size = symbols * _symbol_size /
+				sizeof(typename std::iterator_traits<Out_It>::value_type);
+	if (end - start >= block_size)
+		return de_interleaving (start, start + block_size);
+	return 0;
 }
 
 template <typename In_It, typename Out_It>

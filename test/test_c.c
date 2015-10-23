@@ -61,9 +61,9 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	 * Now start decoding things
 	 */
 
-	// make everything fit a single block
+	// use multiple blocks
 	struct RaptorQ_ptr *enc = RaptorQ_Enc (ENC_32, myvec, mysize, subsymbol,
-													symbol_size, 1073741824);
+															symbol_size, 200);
 
 	if (enc == NULL) {
 		fprintf(stderr, "Coud not initialize encoder.\n");
@@ -79,20 +79,28 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	 * if needed you'll just block on the call.
 	 */
 
-	if (drop_prob > 100.0)
+	if (drop_prob > 90.0)
 		drop_prob = 90.0;	// this is still too high probably.
 
 
 	// we used a lot of memory before so there will be only one block.
 	// allocate memory only for that data.
-	uint32_t symbols_blk0 = RaptorQ_symbols (enc, 0);
-	encoded = (struct pair *) malloc (sizeof(struct pair) *
-													(symbols_blk0 + overhead));
+	uint32_t symbols_tot = 0;
+	for (uint8_t b = 0; b < RaptorQ_blocks (enc); ++b) {
+		uint16_t sym = RaptorQ_symbols (enc, b);
+		symbols_tot += (sym + overhead);
+	}
+
+	encoded = (struct pair *) malloc (sizeof(struct pair) * symbols_tot);
+	for (uint32_t i = 0; i < symbols_tot; ++i)
+		encoded[i].symbol = NULL;
+
 	uint32_t next_encoded = 0;
 
 	uint32_t blocks = RaptorQ_blocks (enc);
 	for (uint8_t block = 0; block < blocks; ++block) {
-		uint32_t sym_for_blk = RaptorQ_symbols (enc, 0);
+		printf("Block: %i\n", block);
+		uint32_t sym_for_blk = RaptorQ_symbols (enc, block);
 		// some source packets will be lost. Be sure we will have
 		// exactly (overhead + dropped_source) repair symbols.
 		// and "sym_for_blk + overhead" total symbols
@@ -176,8 +184,8 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	// optionally: free the memory just of block 0
 	// this is done by the RaptorQ_free call anyway
 	// RaptorQ_free_block (&enc, 0);
-	// free the encoder memory:
-	RaptorQ_free(&enc);
+	// free the whole encoder memory:
+	RaptorQ_free (&enc);
 	// enc == NULL now
 
 
@@ -200,7 +208,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	// if you want to generalize things,
 	// RaptorQ_blocks (dec); will tell you how many blocks
 	// there are.
-	for (size_t i = 0; i < symbols_blk0 + overhead; ++i) {
+	for (size_t i = 0; i < next_encoded; ++i) {
 		uint32_t *data = encoded[i].symbol;
 		uint32_t data_size = RaptorQ_symbol_size (dec) / sizeof(uint32_t);
 		if (!RaptorQ_add_symbol_id (dec, (void **)&data, data_size,
@@ -250,14 +258,21 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	// check if everything was decoded nicely
 	for (uint16_t i = 0; i < mysize; ++i) {
 		if (myvec[i] != received[i]) {
-			fprintf(stderr, "FAILED, but we though otherwise! %i - %f - %i\n",
-												mysize, drop_prob, overhead);
+			fprintf(stderr, "FAILED, but we though otherwise! %i - %f: %i "
+													"%i -- %i\n",
+													mysize, drop_prob, i,
+													myvec[i], received[i]);
+			printf("asd\n");
 			free (myvec);
-			free(received);
+			printf("asd\n");
+			free (received);
+			printf("asd\n");
 			for (uint32_t k = 0; k < next_encoded; ++k)
 				free (encoded[k].symbol);
+			printf("asd\n");
 			free (encoded);
-			RaptorQ_free(&dec);
+			printf("asd\n");
+			RaptorQ_free (&dec);
 			return false;
 		}
 	}
