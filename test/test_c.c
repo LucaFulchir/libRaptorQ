@@ -54,8 +54,8 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	struct pair *encoded;
 
 	// symbol and sub-symbol sizes
-	const uint16_t subsymbol = 4;
-	const uint16_t symbol_size = 8;
+	const uint16_t subsymbol = 8;
+	const uint16_t symbol_size = 16;
 
 	/*
 	 * Now start decoding things
@@ -262,16 +262,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 													"%i -- %i\n",
 													mysize, drop_prob, i,
 													myvec[i], received[i]);
-			printf("asd\n");
 			free (myvec);
-			printf("asd\n");
 			free (received);
-			printf("asd\n");
 			for (uint32_t k = 0; k < next_encoded; ++k)
 				free (encoded[k].symbol);
-			printf("asd\n");
 			free (encoded);
-			printf("asd\n");
 			RaptorQ_free (&dec);
 			return false;
 		}
@@ -294,7 +289,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 int main (void)
 {
 	// encode and decode
-	bool ret = decode (500, 20.0, 4);
+	bool ret = decode (501, 20.0, 4);
 
 	return (ret == true ? 0 : -1);
 }

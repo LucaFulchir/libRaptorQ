@@ -46,8 +46,8 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	std::vector<std::pair<uint32_t, std::vector<uint32_t>>> encoded;
 
 	// symbol and sub-symbol sizes
-	const uint16_t subsymbol = 4;
-	const uint16_t symbol_size = 8;
+	const uint16_t subsymbol = 8;
+	const uint16_t symbol_size = 16;
 	auto enc_it = myvec.begin();
 	// use multiple blocks
 	RaptorQ::Encoder<std::vector<uint32_t>::iterator,
@@ -86,8 +86,9 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			}
 			// create a place where to save our source symbol
 			std::vector<uint32_t> source_sym;
-			source_sym.reserve (symbol_size / 4);
-			source_sym.insert (source_sym.begin(), symbol_size / 4, 0);
+			source_sym.reserve (symbol_size / sizeof(uint32_t));
+			source_sym.insert (source_sym.begin(),
+											symbol_size / sizeof(uint32_t), 0);
 			auto it = source_sym.begin();
 			// save the symbol
 			auto written = (*sym_it) (it, source_sym.end());
@@ -111,8 +112,9 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			--repair;
 			// create a place where to save our source symbol
 			std::vector<uint32_t> repair_sym;
-			repair_sym.reserve (symbol_size / 4);
-			repair_sym.insert (repair_sym.begin(), symbol_size / 4, 0);
+			repair_sym.reserve (symbol_size / sizeof(uint32_t));
+			repair_sym.insert (repair_sym.begin(),
+											symbol_size / sizeof(uint32_t), 0);
 			auto it = repair_sym.begin();
 			// save the repair symbol
 			auto written = (*sym_it) (it, repair_sym.end());
@@ -184,7 +186,7 @@ int main (void)
 	rnd.seed (seed);
 
 	// encode and decode
-	bool ret = decode (500, rnd, 20.0, 4);
+	bool ret = decode (501, rnd, 20.0, 4);
 
 	return (ret == true ? 0 : -1);
 }
