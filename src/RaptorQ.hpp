@@ -680,7 +680,8 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
 		if (!dec->decode())
 			return 0;
 	}
-	uint32_t written = 0;
+	// everything has been decoded
+	uint64_t written = 0;
 	for (uint8_t sbn = 0; sbn < _blocks; ++sbn) {
 		_mtx.lock();
 		auto it = decoders.find (sbn);
@@ -690,15 +691,7 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
 		_mtx.unlock();
 		Impl::De_Interleaver<Out_It> de_interleaving (
 											dec->get_symbols(), _sub_blocks);
-		const uint16_t symbols = sbn < part.num (0) ?
-													part.size(0) : part.size(1);
-		const int32_t block_size = symbols * _symbol_size /
-					sizeof(typename std::iterator_traits<Out_It>::value_type);
-		if (end - start >= block_size) {
-			written += de_interleaving (start, start + block_size);
-		} else {
-			break;
-		}
+		written += de_interleaving (start, end);
 	}
 	return written;
 }
@@ -724,12 +717,7 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end,
 
 	Impl::De_Interleaver<Out_It> de_interleaving (dec->get_symbols(),
 																_sub_blocks);
-	const uint16_t symbols = sbn < part.num (0) ? part.size(0) : part.size(1);
-	const int32_t block_size = symbols * _symbol_size /
-				sizeof(typename std::iterator_traits<Out_It>::value_type);
-	if (end - start >= block_size)
-		return de_interleaving (start, start + block_size);
-	return 0;
+	return de_interleaving (start, end);
 }
 
 template <typename In_It, typename Out_It>

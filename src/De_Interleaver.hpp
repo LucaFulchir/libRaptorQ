@@ -23,6 +23,7 @@
 
 #include "common.hpp"
 #include "Decoder.hpp"
+#include <iostream>
 
 namespace RaptorQ {
 namespace Impl {
@@ -48,17 +49,16 @@ uint64_t De_Interleaver<Out_It>::operator() (Out_It &start, const Out_It end)
 	uint64_t written = 0;
 	uint32_t byte = 0;
 	uint16_t esi = 0;
-	uint16_t sub_symbol = 0;
+	uint16_t sub_blk = 0;
 	const uint16_t max_esi = static_cast<uint16_t> (_symbols->rows());
 	const uint16_t sub_sym_size = static_cast<uint16_t> (_symbols->cols() /
 																_sub_blocks);
 	uint8_t offset_al = 0;
 	using T = typename std::iterator_traits<Out_It>::value_type;
 	T al = static_cast<T> (0);
-	while (start != end && sub_symbol < max_esi * _sub_blocks) {
-		al += static_cast<uint32_t> (static_cast<uint8_t> (
-													(*_symbols) (esi, byte)))
-									<< offset_al * 8;
+	while (start != end && sub_blk < _sub_blocks) {
+		al += static_cast<T> (static_cast<uint8_t> ((*_symbols)(esi, byte)))
+															<< offset_al * 8;
 		++offset_al;
 		if (offset_al >= sizeof(T)) {
 			*start = al;
@@ -72,9 +72,9 @@ uint64_t De_Interleaver<Out_It>::operator() (Out_It &start, const Out_It end)
 			++esi;
 			if (esi >= max_esi) {
 				esi = 0;
-				++sub_symbol;
+				++sub_blk;
 			}
-			byte = sub_sym_size * sub_symbol;
+			byte = sub_sym_size * sub_blk;
 		}
 	}
 	if (start != end && offset_al != 0) {
