@@ -393,6 +393,8 @@ private:
 template <typename Rnd_It, typename Out_It>
 OTI_Common_Data Encoder<Rnd_It, Out_It>::OTI_Common() const
 {
+	if (interleave == nullptr)
+		return 0;
 	OTI_Common_Data ret;
 	// first 40 bits: data length.
 	ret = (static_cast<uint64_t> (_data_to - _data_from) *
@@ -407,6 +409,8 @@ OTI_Common_Data Encoder<Rnd_It, Out_It>::OTI_Common() const
 template <typename Rnd_It, typename Out_It>
 OTI_Scheme_Specific_Data Encoder<Rnd_It, Out_It>::OTI_Scheme_Specific() const
 {
+	if (interleave == nullptr)
+		return 0;
 	OTI_Scheme_Specific_Data ret;
 	// 8 bit: source blocks
 	ret = static_cast<uint32_t> (interleave->blocks()) << 24;
@@ -452,6 +456,8 @@ void Encoder<Rnd_It, Out_It>::precompute_thread (Encoder<Rnd_It, Out_It> *obj,
 													uint8_t *sbn,
 													const uint8_t single_sbn)
 {
+	if (obj->interleave == nullptr)
+		return;
 	// if "sbn" pointer is NOT nullptr, than we are a thread from
 	// from a precompute_block_all. This means that we need to update
 	// the value of sbn as soon as we get our work.
@@ -496,6 +502,8 @@ template <typename Rnd_It, typename Out_It>
 void Encoder<Rnd_It, Out_It>::precompute (const uint8_t threads,
 														const bool background)
 {
+	if (interleave == nullptr)
+		return;
 	if (background) {
 		std::thread t (precompute_block_all, this, threads);
 		t.detach();
@@ -548,6 +556,8 @@ uint64_t Encoder<Rnd_It, Out_It>::encode (Out_It &output, const Out_It end,
 															const uint32_t esi,
 															const uint8_t sbn)
 {
+	if (interleave == nullptr)
+		return 0;
 	if (sbn >= interleave->blocks())
 		return 0;
 	_mtx.lock();
@@ -585,12 +595,16 @@ void Encoder<Rnd_It, Out_It>::free (const uint8_t sbn)
 template <typename Rnd_It, typename Out_It>
 uint8_t Encoder<Rnd_It, Out_It>::blocks() const
 {
+	if (interleave == nullptr)
+		return 0;
 	return interleave->blocks();
 }
 
 template <typename Rnd_It, typename Out_It>
 uint32_t Encoder<Rnd_It, Out_It>::block_size (const uint8_t sbn) const
 {
+	if (interleave == nullptr)
+		return 0;
 	return interleave->source_symbols (sbn) * interleave->symbol_size();
 }
 
@@ -613,6 +627,8 @@ uint16_t Encoder<Rnd_It, Out_It>::symbols (const uint8_t sbn) const
 template <typename Rnd_It, typename Out_It>
 uint32_t Encoder<Rnd_It, Out_It>::max_repair (const uint8_t sbn) const
 {
+	if (interleave == nullptr)
+		return 0;
 	return static_cast<uint32_t> (std::pow (2, 20)) -
 											interleave->source_symbols (sbn);
 }
