@@ -385,10 +385,10 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 				"RaptorQ: minimum subsymbol must be multiple of alignment");
 	// derive number of source blocks and sub blocks. seed RFC 6330, pg 8
 	std::vector<uint16_t> sizes;
-	const float input_size = _data_to - data_from;
-	const float Kt = div_ceil(input_size *
-					sizeof(typename std::iterator_traits<Rnd_It>::value_type),
-																symbol_size);
+	size_t iter_size =sizeof(typename std::iterator_traits<Rnd_It>::value_type);
+	const float input_size = static_cast<size_t>(_data_to - _data_from) *
+																	iter_size;
+	const float Kt = div_ceil(input_size, symbol_size);
 	const size_t N_max = static_cast<size_t> (div_floor (_symbol_size,
 														min_subsymbol_size));
 

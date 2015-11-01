@@ -127,11 +127,30 @@ uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
 		auto block = _symbols[_SBN];
 		auto requested_symbol = block[static_cast<uint16_t> (ESI)];
 
+		typedef typename std::iterator_traits<Out_It>::value_type out_al;
+		size_t byte = 0;
+		out_al tmp_out = 0;
 		for (auto al : requested_symbol) {
-			*(output++) = al;
+			uint8_t *p;
+			for (p = reinterpret_cast<uint8_t *> (&al);
+							p != reinterpret_cast<uint8_t *>(&al) + sizeof(al);
+																++p, ++byte) {
+				tmp_out <<= byte * 8;
+				tmp_out += *p;
+				if (byte % sizeof(out_al) == 0) {
+					*(output++) = tmp_out;
+					++written;
+					byte = 0;
+					tmp_out = 0;
+					if (output == end)
+						return written;
+				}
+			}
+		}
+		if (byte % sizeof(out_al) != 0) {
+			tmp_out <<= (sizeof(out_al) - byte) * 8;
+			*(output++) = tmp_out;
 			++written;
-			if (output == end)
-				return written;
 		}
 	} else {
 		// repair symbol requested.
