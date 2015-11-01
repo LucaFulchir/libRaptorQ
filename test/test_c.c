@@ -31,6 +31,8 @@
 // to encode, drop some (random) packets, and then
 // decode what remains.
 
+// Encode / decode "mysize" uint32_t
+// for a more elaborate examlpe with different alignments, see test_cpp
 bool decode (uint32_t mysize, float drop_prob, uint8_t overhead);
 bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 {

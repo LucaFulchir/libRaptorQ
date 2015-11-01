@@ -29,29 +29,62 @@
 // then encode, drop some packets (source and repair)
 // and finally decode everything.
 
-bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
+// mysize is bytes.
+bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 														const uint8_t overhead);
-bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
+bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 														const uint8_t overhead)
 {
-	std::vector<uint32_t> myvec;
+	// define the alignment of the input and output data, for
+	// decoder and encoder.
+	// note that this is independent from the "mysize" argument,
+	// which is always in bytes.
+	typedef uint8_t			in_enc_align;
+	typedef uint8_t			out_enc_align;
+	typedef out_enc_align	in_dec_align;
+	typedef uint8_t			out_dec_align;
+	// NOTE:  out_enc_align is the same as in_dec_align so that we
+	// can simulate data trnsmision just by passing along a vector, but
+	// they do not need to be the same.
 
-	//initialize vector with random data
-	std::uniform_int_distribution<uint32_t> distr(0, ~static_cast<uint32_t>(0));
-	myvec.reserve (mysize);
-	for (uint32_t i = 0; i < mysize; ++i)
-		myvec.push_back (distr(rnd));
+
+	std::vector<in_enc_align> myvec;
+
+	// initialize vector with random data
+	// fill remaining data (more than "mysize" bytes) with zeros
+	std::uniform_int_distribution<uint8_t> distr(0, 0xFF);
+	myvec.reserve (static_cast<size_t> (
+									std::ceil(mysize / sizeof(in_enc_align))));
+	in_enc_align tmp = 0;
+	uint8_t shift = 0;
+	for (uint32_t i = 0; i < mysize; ++i) {
+		tmp <<= shift * 8;
+		tmp += distr(rnd);
+		++shift;
+		if (shift >= sizeof(in_enc_align)) {
+			myvec.push_back (tmp);
+			tmp = 0;
+			shift = 0;
+		}
+	}
+	if (shift != 0)
+		myvec.push_back (tmp);
+	// done initializing random data.
+
+
 
 	// std::pair<symbol id (esi), symbol>
-	std::vector<std::pair<uint32_t, std::vector<uint32_t>>> encoded;
+	std::vector<std::pair<uint32_t, std::vector<out_enc_align>>> encoded;
 
 	// symbol and sub-symbol sizes
-	const uint16_t subsymbol = 8;
-	const uint16_t symbol_size = 16;
+	const uint16_t subsymbol = 16;
+	const uint16_t symbol_size = 1444;
+	size_t aligned_symbol_size = static_cast<size_t> (
+								std::ceil(symbol_size / sizeof(out_enc_align)));
 	auto enc_it = myvec.begin();
 	// use multiple blocks
-	RaptorQ::Encoder<std::vector<uint32_t>::iterator,
-									std::vector<uint32_t>::iterator> enc (
+	RaptorQ::Encoder<std::vector<in_enc_align>::iterator,
+									std::vector<out_enc_align>::iterator> enc (
 					enc_it, myvec.end(), subsymbol, symbol_size, 200);
 	std::cout << static_cast<int32_t>(enc.blocks()) << " blocks\n";
 	if (!enc) {
@@ -67,6 +100,7 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 
 	int32_t repair;
 
+	// start encoding
 	int32_t blockid = -1;
 	for (auto block : enc) {
 		repair = overhead;
@@ -85,14 +119,13 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 				continue;
 			}
 			// create a place where to save our source symbol
-			std::vector<uint32_t> source_sym;
-			source_sym.reserve (symbol_size / sizeof(uint32_t));
-			source_sym.insert (source_sym.begin(),
-											symbol_size / sizeof(uint32_t), 0);
+			std::vector<out_enc_align> source_sym;
+			source_sym.reserve (aligned_symbol_size);
+			source_sym.insert (source_sym.begin(), aligned_symbol_size, 0);
 			auto it = source_sym.begin();
 			// save the symbol
 			auto written = (*sym_it) (it, source_sym.end());
-			if (written != source_sym.size()) {
+			if (written != aligned_symbol_size) {
 				std::cout << "Could not get the whole source symbol!\n";
 				return false;
 			}
@@ -111,14 +144,13 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			}
 			--repair;
 			// create a place where to save our source symbol
-			std::vector<uint32_t> repair_sym;
-			repair_sym.reserve (symbol_size / sizeof(uint32_t));
-			repair_sym.insert (repair_sym.begin(),
-											symbol_size / sizeof(uint32_t), 0);
+			std::vector<out_enc_align> repair_sym;
+			repair_sym.reserve (aligned_symbol_size);
+			repair_sym.insert (repair_sym.begin(), aligned_symbol_size, 0);
 			auto it = repair_sym.begin();
 			// save the repair symbol
 			auto written = (*sym_it) (it, repair_sym.end());
-			if (written != repair_sym.size()) {
+			if (written != aligned_symbol_size) {
 				std::cout << "Could not get the whole repair symbol!\n";
 				return false;
 			}
@@ -135,15 +167,21 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	auto oti_scheme = enc.OTI_Scheme_Specific();
 	auto oti_common = enc.OTI_Common();
 
-	RaptorQ::Decoder<std::vector<uint32_t>::iterator, std::vector<uint32_t>::
-										iterator> dec (oti_common, oti_scheme);
+	// encoding done. now "encoded" is the vector with the trnasmitted data.
+	// let's decode it
 
-	std::vector<uint32_t> received;
-	received.reserve (mysize);
+	RaptorQ::Decoder<std::vector<in_dec_align>::iterator,
+										std::vector<out_dec_align>::iterator>
+												dec (oti_common, oti_scheme);
+
+	std::vector<out_dec_align> received;
+	size_t out_size = static_cast<size_t> (
+									std::ceil(mysize / sizeof(out_dec_align)));
+	received.reserve (out_size);
 	// make sure that there's enough place in "received" to get the
 	// whole decoded data.
-	for (uint32_t i = 0; i < mysize; ++i)
-		received.push_back (0);
+	for (uint32_t i = 0; i < out_size; ++i)
+		received.push_back (static_cast<out_dec_align> (0));
 
 	for (size_t i = 0; i < encoded.size(); ++i) {
 		auto it = encoded[i].second.begin();
@@ -158,17 +196,26 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	// it has enough data.
 	auto decoded = dec.decode(re_it, received.end());
 
-	if (decoded != mysize) {
-		std::cout << "Couldn't decode: " << mysize << "\n";
+	if (decoded * sizeof(out_dec_align) < mysize) {
+		if (decoded == 0) {
+			std::cout << "Couldn't decode, RaptorQ Algorithm failure. Retry.\n";
+		} else {
+			std::cout << "Partial Decoding? This should not have happened: " <<
+					decoded * sizeof(out_dec_align) << " vs " << mysize << "\n";
+		}
 		return false;
 	} else {
 		std::cout << "Decoded: " << mysize << "\n";
 	}
-	for (uint16_t i = 0; i < mysize; ++i) {
-		if (myvec[i] != received[i]) {
+	// byte-wise check: did we actually decode everything the right way?
+	uint8_t *in, *out;
+	in = reinterpret_cast<uint8_t *> (myvec.data());
+	out = reinterpret_cast<uint8_t *> (received.data());
+	for (uint64_t i = 0; i < mysize; ++i) {
+		if (in[i] != out[i]) {
 			std::cout << "FAILED, but we though otherwise! " << mysize << " - "
-					<< drop_prob << " at " << i << ":" << received[i] << "\n";
-			//return false;
+						<< drop_prob << " at " << i << ":" << out[i] << "\n";
+			return false;
 		}
 	}
 
@@ -186,7 +233,7 @@ int main (void)
 	rnd.seed (seed);
 
 	// encode and decode
-	bool ret = decode (501, rnd, 20.0, 4);
+	bool ret = decode (50001, rnd, 30.0, 4);
 
 	return (ret == true ? 0 : -1);
 }

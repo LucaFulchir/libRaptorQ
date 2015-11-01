@@ -23,7 +23,6 @@
 
 #include "common.hpp"
 #include "Decoder.hpp"
-#include <iostream>
 
 namespace RaptorQ {
 namespace Impl {
