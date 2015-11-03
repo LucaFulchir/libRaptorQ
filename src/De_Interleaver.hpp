@@ -93,7 +93,6 @@ uint64_t De_Interleaver<Out_It>::operator() (Out_It &start, const Out_It end)
 		// we have more stuff in "al", but not enough to fill
 		// the iterator.
 		// Shift the remaining bytes and save it into the iterator
-		element <<= (sizeof(T) - offset_al) * 8;
 		*start = element;
 		++start;
 		++written;

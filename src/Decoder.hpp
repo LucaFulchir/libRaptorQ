@@ -107,8 +107,8 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 		for (; start != end && col != source_symbols.cols(); ++start) {
 			T_in al = *start;
 			for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
-						p != reinterpret_cast<uint8_t *> (&al) + sizeof(T_in);
-																		++p) {
+						p != reinterpret_cast<uint8_t *> (&al) + sizeof(T_in)
+										&& col != source_symbols.cols(); ++p) {
 				source_symbols (esi, col++) = *p;
 			}
 		}
@@ -121,8 +121,8 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 		for (; start != end && col != source_symbols.cols(); ++start) {
 			T_in al = *start;
 			for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
-						p != reinterpret_cast<uint8_t *> (&al) + sizeof(T_in);
-																		++p) {
+						p != reinterpret_cast<uint8_t *> (&al) + sizeof(T_in)
+										&& col != source_symbols.cols(); ++p) {
 				v (col++) = *p;
 			}
 		}

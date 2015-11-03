@@ -73,7 +73,7 @@ template <typename Rnd_It, typename Out_It>
 bool Encoder<Rnd_It, Out_It>::generate_symbols ()
 {
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
-	// do not obther checing for multithread. that is done in RaptorQ.hpp
+	// do not bother checing for multithread. that is done in RaptorQ.hpp
 	if (encoded_symbols.cols() != 0)
 		return true;
 	DenseMtx D = DenseMtx (precode._params.K_padded + precode._params.S +
@@ -148,7 +148,6 @@ uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
 			}
 		}
 		if (byte % sizeof(out_al) != 0) {
-			tmp_out <<= (sizeof(out_al) - byte) * 8;
 			*(output++) = tmp_out;
 			++written;
 		}
