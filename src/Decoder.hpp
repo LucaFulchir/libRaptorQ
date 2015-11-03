@@ -113,7 +113,7 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 			}
 		}
 		// input iterator might reach end before we get enough data
-		// for the symol
+		// for the symbol.
 		if (col != source_symbols.cols())
 			return false;
 	} else {
@@ -127,7 +127,7 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 			}
 		}
 		// input iterator might reach end before we get enough data
-		// for the symol
+		// for the symbol.
 		if (col != v.cols())
 			return false;
 		received_repair.emplace_back (esi, std::move(v));
