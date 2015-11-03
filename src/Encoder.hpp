@@ -178,6 +178,14 @@ uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
 					return written;
 			}
 		}
+		if (p != reinterpret_cast<uint8_t *>  (&al) + sizeof(T)) {
+			// symbol size is not aligned with Out_IT type
+			while (p != reinterpret_cast<uint8_t *>  (&al) + sizeof(T))
+				*(p++) = 0;
+			*output = al;
+			++output;
+			++written;
+		}
 	}
 	return written;
 }
