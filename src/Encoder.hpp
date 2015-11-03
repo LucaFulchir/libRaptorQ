@@ -134,9 +134,9 @@ uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
 			uint8_t *p;
 			for (p = reinterpret_cast<uint8_t *> (&al);
 							p != reinterpret_cast<uint8_t *>(&al) + sizeof(al);
-																++p, ++byte) {
-				tmp_out <<= byte * 8;
-				tmp_out += *p;
+																		++p) {
+				tmp_out += static_cast<out_al> (*p) << (byte * 8);
+				++byte;
 				if (byte % sizeof(out_al) == 0) {
 					*(output++) = tmp_out;
 					++written;
