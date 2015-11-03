@@ -42,7 +42,7 @@ class RAPTORQ_API Decoder
 	using T_in = typename std::iterator_traits<In_It>::value_type;
 public:
 	Decoder (const uint16_t symbols, const uint16_t symbol_size)
-		:_symbols (symbols), _symbol_size (symbol_size / sizeof(T_in)),
+		:_symbols (symbols),
 				precode (Parameters(symbols)), mask (_symbols)
 	{
 
@@ -50,7 +50,7 @@ public:
 
 		// symbol size is in octets, but we save it in "T" sizes.
 		// so be aware that "symbol_size" != "_symbol_size" for now
-		source_symbols = DenseMtx (_symbols, _symbol_size * sizeof(T_in));
+		source_symbols = DenseMtx (_symbols, symbol_size);
 	}
 
 	bool add_symbol (In_It &start, const In_It end, const uint32_t esi);
@@ -60,7 +60,7 @@ public:
 
 private:
 	std::mutex lock;
-	const uint16_t _symbols, _symbol_size;
+	const uint16_t _symbols;
 	Precode_Matrix precode;
 	Bitmask mask;
 	DenseMtx source_symbols;
