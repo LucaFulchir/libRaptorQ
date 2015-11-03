@@ -332,7 +332,11 @@ public:
 
 		// see the above commented bitfields for quick reference
 		_symbol_size = static_cast<uint16_t> (common);
-		_sub_blocks = static_cast<uint16_t> (scheme >> 8);
+		uint16_t tot_sub_blocks = static_cast<uint16_t> (scheme >> 8);
+		_alignment = static_cast<uint8_t> (scheme);
+		_sub_blocks = Impl::Partition (_symbol_size /
+												static_cast<uint8_t> (scheme),
+																tot_sub_blocks);
 		_blocks = static_cast<uint8_t> (scheme >> 24);
 		_size = common >> 24;
 		//	(common >> 24) == total file size
@@ -346,15 +350,18 @@ public:
 	}
 
 	Decoder (const uint64_t size, const uint16_t symbol_size,
-								const uint16_t sub_blocks, const uint8_t blocks)
-		:_size (size), _symbol_size (symbol_size), _sub_blocks (sub_blocks),
-																_blocks (blocks)
+													const uint16_t sub_blocks,
+													const uint8_t blocks,
+													const uint8_t alignment)
+		:_size (size), _symbol_size (symbol_size), _blocks (blocks),
+														_alignment(alignment)
 	{
 		if (_size > max_data)
 			return;
 
 		const uint64_t total_symbols = static_cast<uint64_t> (ceil (
 								_size / static_cast<double> (_symbol_size)));
+		_sub_blocks = Impl::Partition (_symbol_size / _alignment, sub_blocks);
 
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
 	}
@@ -373,9 +380,9 @@ public:
 	uint16_t symbols (const uint8_t sbn) const;
 private:
 	uint64_t _size;
-	Impl::Partition part;
-	uint16_t _symbol_size, _sub_blocks;
-	uint8_t _blocks;
+	Impl::Partition part, _sub_blocks;
+	uint16_t _symbol_size;
+	uint8_t _blocks, _alignment;
 	std::map<uint8_t, Dec_ptr> decoders;
 	std::mutex _mtx;
 };
@@ -705,8 +712,8 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
 			return written;
 		auto dec = it->second;
 		_mtx.unlock();
-		Impl::De_Interleaver<Out_It> de_interleaving (
-											dec->get_symbols(), _sub_blocks);
+		Impl::De_Interleaver<Out_It> de_interleaving (dec->get_symbols(),
+													_sub_blocks, _alignment);
 		written += de_interleaving (start, end);
 	}
 	return written;
@@ -732,7 +739,7 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end,
 		return 0;
 
 	Impl::De_Interleaver<Out_It> de_interleaving (dec->get_symbols(),
-																_sub_blocks);
+													_sub_blocks, _alignment);
 	return de_interleaving (start, end);
 }
 
