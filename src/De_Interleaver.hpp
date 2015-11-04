@@ -28,7 +28,7 @@
 namespace RaptorQ {
 namespace Impl {
 
-template <typename Out_It>
+template <typename Fwd_It>
 class RAPTORQ_LOCAL De_Interleaver
 {
 public:
@@ -36,17 +36,19 @@ public:
 														const uint8_t alignment)
 		:_symbols (symbols), _sub_blocks (sub_blocks), _al (alignment)
 	{
-		IS_OUTPUT(Out_It, "RaptorQ::Impl::De_Interleaver");
+		IS_FORWARD(Fwd_It, "RaptorQ::Impl::De_Interleaver");
 	}
-	uint64_t operator() (Out_It &start, const Out_It end);
+	uint64_t operator() (Fwd_It &start, const Fwd_It end,
+														const uint8_t skip = 0);
 private:
 	const DenseMtx *_symbols;
 	const Partition _sub_blocks;
 	const uint8_t _al;
 };
 
-template <typename Out_It>
-uint64_t De_Interleaver<Out_It>::operator() (Out_It &start, const Out_It end)
+template <typename Fwd_It>
+uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
+															const uint8_t skip)
 {
 	uint64_t written = 0;
 	uint32_t byte = 0;
@@ -56,11 +58,20 @@ uint64_t De_Interleaver<Out_It>::operator() (Out_It &start, const Out_It end)
 	const uint16_t max_esi = static_cast<uint16_t> (_symbols->rows());
 	uint16_t sub_sym_size = _al *(_sub_blocks.num(0) > 0 ? _sub_blocks.size(0) :
 													  _sub_blocks.size(1));
-	uint8_t offset_al = 0;
-	using T = typename std::iterator_traits<Out_It>::value_type;
-	T element = static_cast<T> (0);
+	// if the Fwd_It::value_type is not aligned with the block size,
+	// we need to skip a certain amount of data in the first output element
+	// so that we do not overwrite the old data or add unnecessary zeros
+	// to (start-1) during the decoding of the previous block.
+	uint8_t offset_al = skip;
+	using T = typename std::iterator_traits<Fwd_It>::value_type;
+	T element;
+	if (skip != 0) {
+		element = static_cast<T> (0);
+	} else {
+		element = *start;
+	}
 	while (start != end && sub_blk < (_sub_blocks.num(0) + _sub_blocks.num(1))){
-		element += static_cast<T> (static_cast<uint8_t> ((*_symbols)(esi, byte)))
+		element += static_cast<T> (static_cast<uint8_t>((*_symbols)(esi, byte)))
 															<< offset_al * 8;
 		++offset_al;
 		if (offset_al >= sizeof(T)) {
@@ -92,7 +103,6 @@ uint64_t De_Interleaver<Out_It>::operator() (Out_It &start, const Out_It end)
 	if (start != end && offset_al != 0) {
 		// we have more stuff in "al", but not enough to fill
 		// the iterator.
-		// Shift the remaining bytes and save it into the iterator
 		*start = element;
 		++start;
 		++written;

@@ -84,17 +84,15 @@
 			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
 									std::random_access_iterator_tag>::value, \
 			CLASS " is supposed to get an INPUT iterator\n");
-#define IS_OUTPUT(IT, CLASS) \
+#define IS_FORWARD(IT, CLASS) \
 		static_assert ( \
-			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
-									std::output_iterator_tag>::value || \
 			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
 									std::forward_iterator_tag>::value || \
 			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
 									std::bidirectional_iterator_tag>::value || \
 			std::is_same<typename std::iterator_traits<IT>::iterator_category, \
 									std::random_access_iterator_tag>::value, \
-			CLASS " is supposed to get an INPUT iterator\n");
+			CLASS " is supposed to get a FORWARD iterator\n");
 #endif
 
 #endif

@@ -42,17 +42,17 @@
 
 namespace RaptorQ {
 
-template <typename Rnd_It, typename Out_It>
+template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder;
 
-template <typename Rnd_It, typename Out_It>
+template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Symbol
 {
 public:
-	Symbol (Encoder<Rnd_It, Out_It> *enc, const uint32_t esi, const uint8_t sbn)
+	Symbol (Encoder<Rnd_It, Fwd_It> *enc, const uint32_t esi, const uint8_t sbn)
 		: _enc (enc), _esi (esi), _sbn (sbn) {}
 
-	uint64_t operator() (Out_It &start, const Out_It end)
+	uint64_t operator() (Fwd_It &start, const Fwd_It end)
 	{
 		return _enc->encode (start, end, _esi, _sbn);
 	}
@@ -63,68 +63,68 @@ public:
 		return ret + _esi;
 	}
 private:
-	Encoder<Rnd_It, Out_It> *_enc;
+	Encoder<Rnd_It, Fwd_It> *_enc;
 	const uint32_t _esi;
 	const uint8_t _sbn;
 };
 
-template <typename Rnd_It, typename Out_It>
+template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Symbol_Iterator :
-		public std::iterator<std::input_iterator_tag, Symbol<Rnd_It, Out_It>>
+		public std::iterator<std::input_iterator_tag, Symbol<Rnd_It, Fwd_It>>
 {
 public:
-	Symbol_Iterator (Encoder<Rnd_It, Out_It> *enc, const uint32_t esi,
+	Symbol_Iterator (Encoder<Rnd_It, Fwd_It> *enc, const uint32_t esi,
 															const uint8_t sbn)
 		: _enc (enc), _esi (esi), _sbn (sbn) {}
-	Symbol<Rnd_It, Out_It> operator*()
+	Symbol<Rnd_It, Fwd_It> operator*()
 	{
-		return Symbol<Rnd_It, Out_It> (_enc, _esi, _sbn);
+		return Symbol<Rnd_It, Fwd_It> (_enc, _esi, _sbn);
 	}
-	Symbol_Iterator<Rnd_It, Out_It>& operator++()
+	Symbol_Iterator<Rnd_It, Fwd_It>& operator++()
 	{
 		++_esi;
 		return *this;
 	}
 	Symbol_Iterator operator++ (const int i) const
 	{
-		Symbol_Iterator<Rnd_It, Out_It> ret (_esi + i, _sbn);
+		Symbol_Iterator<Rnd_It, Fwd_It> ret (_esi + i, _sbn);
 		return ret;
 	}
-	bool operator== (const Symbol_Iterator<Rnd_It, Out_It> &it) const
+	bool operator== (const Symbol_Iterator<Rnd_It, Fwd_It> &it) const
 	{
 		return it._esi == _esi && it._sbn == _sbn;
 	}
-	bool operator!= (const Symbol_Iterator<Rnd_It, Out_It> &it) const
+	bool operator!= (const Symbol_Iterator<Rnd_It, Fwd_It> &it) const
 	{
 		return it._esi != _esi || it._sbn != _sbn;
 	}
 private:
-	Encoder<Rnd_It, Out_It> *_enc;
+	Encoder<Rnd_It, Fwd_It> *_enc;
 	uint32_t _esi;
 	const uint8_t _sbn;
 };
 
-template <typename Rnd_It, typename Out_It>
+template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Block
 {
 public:
-	Block (Encoder<Rnd_It, Out_It> *enc, const uint16_t symbols,
+	Block (Encoder<Rnd_It, Fwd_It> *enc, const uint16_t symbols,
 															const uint8_t sbn)
 		: _enc (enc), _symbols (symbols), _sbn (sbn) {}
 
-	Symbol_Iterator<Rnd_It, Out_It> begin_source() const
+	Symbol_Iterator<Rnd_It, Fwd_It> begin_source() const
 	{
-		return Symbol_Iterator<Rnd_It, Out_It> (_enc, 0, _sbn);
+		return Symbol_Iterator<Rnd_It, Fwd_It> (_enc, 0, _sbn);
 	}
-	Symbol_Iterator<Rnd_It, Out_It> end_source() const
+	Symbol_Iterator<Rnd_It, Fwd_It> end_source() const
 	{
-		return Symbol_Iterator<Rnd_It, Out_It> (_enc, _symbols, _sbn);
+		return Symbol_Iterator<Rnd_It, Fwd_It> (_enc, _symbols, _sbn);
 	}
-	Symbol_Iterator<Rnd_It, Out_It> begin_repair() const
+	Symbol_Iterator<Rnd_It, Fwd_It> begin_repair() const
 	{
-		return Symbol_Iterator<Rnd_It, Out_It> (_enc, _symbols, _sbn);
+		return Symbol_Iterator<Rnd_It, Fwd_It> (_enc, _symbols, _sbn);
 	}
-	Symbol_Iterator<Rnd_It, Out_It> end_repair (const uint32_t max_repair)
+	Symbol_Iterator<Rnd_It, Fwd_It> end_repair (const uint32_t max_repair)
 																		const
 	{
 		uint32_t max_r = max_repair;
@@ -132,7 +132,7 @@ public:
 		max_sym <<= 20;	// max_sym = 2^20
 		if (max_repair > std::pow (2, 20) - _symbols)
 			max_r = max_sym - _symbols;
-		return Symbol_Iterator<Rnd_It, Out_It> (_enc, _symbols + max_r,_sbn);
+		return Symbol_Iterator<Rnd_It, Fwd_It> (_enc, _symbols + max_r,_sbn);
 	}
 	uint32_t max_repair() const
 	{
@@ -148,24 +148,24 @@ public:
 	}
 
 private:
-	Encoder<Rnd_It, Out_It> * _enc;
+	Encoder<Rnd_It, Fwd_It> * _enc;
 	const uint16_t _symbols;
 	const uint8_t _sbn;
 };
 
-template <typename Rnd_It, typename Out_It>
+template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Block_Iterator :
-		public std::iterator<std::input_iterator_tag, Block<Rnd_It, Out_It>>
+		public std::iterator<std::input_iterator_tag, Block<Rnd_It, Fwd_It>>
 {
 public:
-	Block_Iterator (Encoder<Rnd_It, Out_It> *enc, const Impl::Partition part,
+	Block_Iterator (Encoder<Rnd_It, Fwd_It> *enc, const Impl::Partition part,
 																uint8_t sbn)
 		:_enc (enc), _part (part), _sbn (sbn) {}
-	Block<Rnd_It, Out_It> operator*()
+	Block<Rnd_It, Fwd_It> operator*()
 	{
 		if (_sbn < _part.num (0))
-			return Block<Rnd_It, Out_It> (_enc, _part.size (0), _sbn);
-		return Block<Rnd_It, Out_It> (_enc, _part.size (1), _sbn);
+			return Block<Rnd_It, Fwd_It> (_enc, _part.size (0), _sbn);
+		return Block<Rnd_It, Fwd_It> (_enc, _part.size (1), _sbn);
 	}
 	Block_Iterator& operator++()
 	{
@@ -187,7 +187,7 @@ public:
 		return it._sbn != _sbn;
 	}
 private:
-	Encoder<Rnd_It, Out_It> *_enc;
+	Encoder<Rnd_It, Fwd_It> *_enc;
 	const Impl::Partition _part;
 	uint8_t _sbn;
 };
@@ -198,7 +198,7 @@ static const uint64_t max_data = 946270874880;	// ~881 GB
 typedef uint64_t OTI_Common_Data;
 typedef uint32_t OTI_Scheme_Specific_Data;
 
-template <typename Rnd_It, typename Out_It>
+template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder
 {
 public:
@@ -212,7 +212,7 @@ public:
 											_min_subsymbol (min_subsymbol_size)
 	{
 		IS_RANDOM(Rnd_It, "RaptorQ::Encoder");
-		IS_OUTPUT(Out_It, "RaptorQ::Encoder");
+		IS_FORWARD(Fwd_It, "RaptorQ::Encoder");
 		auto _alignment = sizeof(typename
 									std::iterator_traits<Rnd_It>::value_type);
 		UNUSED(_alignment);	// used only for asserts
@@ -226,6 +226,8 @@ public:
 					"RaptorQ: minimum subsymbol must be at most symbol_size");
 		assert((min_subsymbol_size % _alignment) == 0 &&
 					"RaptorQ: minimum subsymbol must be multiple of alignment");
+		assert((_symbol_size % min_subsymbol_size == 0) &&
+					"RaptorQ: symbol size must be multiple of subsymbol size");
 		// max size: ~881 GB
 		if (static_cast<uint64_t> (data_to - data_from) *
 					sizeof(typename std::iterator_traits<Rnd_It>::value_type)
@@ -241,15 +243,15 @@ public:
 			interleave = nullptr;
 	}
 
-	Block_Iterator<Rnd_It, Out_It> begin ()
+	Block_Iterator<Rnd_It, Fwd_It> begin ()
 	{
-		return Block_Iterator<Rnd_It, Out_It> (this,
+		return Block_Iterator<Rnd_It, Fwd_It> (this,
 												interleave->get_partition(), 0);
 	}
-	const Block_Iterator<Rnd_It, Out_It> end ()
+	const Block_Iterator<Rnd_It, Fwd_It> end ()
 	{
 		auto part = interleave->get_partition();
-		return Block_Iterator<Rnd_It, Out_It> (this, part,
+		return Block_Iterator<Rnd_It, Fwd_It> (this, part,
 							static_cast<uint8_t> (part.num(0) + part.num(1)));
 	}
 
@@ -259,10 +261,10 @@ public:
 
 	void precompute (const uint8_t threads, const bool background);
 	size_t precompute_max_memory ();
-	uint64_t encode (Out_It &output, const Out_It end, const uint32_t esi,
+	uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
 															const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
-	uint64_t encode (Out_It &output, const Out_It end, const uint32_t &id);
+	uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
 	void free (const uint8_t sbn);
 	uint8_t blocks() const;
 	uint32_t block_size (const uint8_t sbn) const;
@@ -278,7 +280,7 @@ private:
 			:_enc (symbols, SBN)
 		{}
 		std::mutex _mtx;
-		Impl::Encoder<Rnd_It, Out_It> _enc;
+		Impl::Encoder<Rnd_It, Fwd_It> _enc;
 	};
 	std::unique_ptr<Impl::Interleaver<Rnd_It>> interleave = nullptr;
 	std::map<uint8_t, std::shared_ptr<Locked_Encoder>> encoders;
@@ -288,14 +290,14 @@ private:
 	const uint16_t _symbol_size;
 	const uint16_t _min_subsymbol;
 
-	static void precompute_block_all (Encoder<Rnd_It, Out_It> *obj,
+	static void precompute_block_all (Encoder<Rnd_It, Fwd_It> *obj,
 														const uint8_t threads);
-	static void precompute_thread (Encoder<Rnd_It, Out_It> *obj, uint8_t *sbn,
+	static void precompute_thread (Encoder<Rnd_It, Fwd_It> *obj, uint8_t *sbn,
 													const uint8_t single_sbn);
 };
 
 
-template <typename In_It, typename Out_It>
+template <typename In_It, typename Fwd_It>
 class RAPTORQ_API Decoder
 {
 public:
@@ -328,7 +330,7 @@ public:
 	Decoder (const OTI_Common_Data common,const OTI_Scheme_Specific_Data scheme)
 	{
 		IS_INPUT(In_It, "RaptorQ::Decoder");
-		IS_OUTPUT(Out_It, "RaptorQ::Decoder");
+		IS_FORWARD(Fwd_It, "RaptorQ::Decoder");
 
 		// see the above commented bitfields for quick reference
 		_symbol_size = static_cast<uint16_t> (common);
@@ -366,8 +368,8 @@ public:
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
 	}
 
-	uint64_t decode (Out_It &start, const Out_It end);
-	uint64_t decode (Out_It &start, const Out_It end, const uint8_t sbn);
+	uint64_t decode (Fwd_It &start, const Fwd_It end);
+	uint64_t decode (Fwd_It &start, const Fwd_It end, const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
 	bool add_symbol (In_It &start, const In_It end, const uint32_t id);
 	bool add_symbol (In_It &start, const In_It end, const uint32_t esi,
@@ -397,8 +399,8 @@ private:
 //
 /////////////////
 
-template <typename Rnd_It, typename Out_It>
-OTI_Common_Data Encoder<Rnd_It, Out_It>::OTI_Common() const
+template <typename Rnd_It, typename Fwd_It>
+OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
 {
 	if (interleave == nullptr)
 		return 0;
@@ -413,8 +415,8 @@ OTI_Common_Data Encoder<Rnd_It, Out_It>::OTI_Common() const
 	return ret;
 }
 
-template <typename Rnd_It, typename Out_It>
-OTI_Scheme_Specific_Data Encoder<Rnd_It, Out_It>::OTI_Scheme_Specific() const
+template <typename Rnd_It, typename Fwd_It>
+OTI_Scheme_Specific_Data Encoder<Rnd_It, Fwd_It>::OTI_Scheme_Specific() const
 {
 	if (interleave == nullptr)
 		return 0;
@@ -429,8 +431,8 @@ OTI_Scheme_Specific_Data Encoder<Rnd_It, Out_It>::OTI_Scheme_Specific() const
 	return ret;
 }
 
-template <typename Rnd_It, typename Out_It>
-size_t Encoder<Rnd_It, Out_It>::precompute_max_memory ()
+template <typename Rnd_It, typename Fwd_It>
+size_t Encoder<Rnd_It, Fwd_It>::precompute_max_memory ()
 {
 	// give a good estimate on the amount of memory neede for the precomputation
 	// of one block;
@@ -458,8 +460,8 @@ size_t Encoder<Rnd_It, Out_It>::precompute_max_memory ()
 	return matrix_cols * matrix_cols * 2 + _symbol_size * matrix_cols;
 }
 
-template <typename Rnd_It, typename Out_It>
-void Encoder<Rnd_It, Out_It>::precompute_thread (Encoder<Rnd_It, Out_It> *obj,
+template <typename Rnd_It, typename Fwd_It>
+void Encoder<Rnd_It, Fwd_It>::precompute_thread (Encoder<Rnd_It, Fwd_It> *obj,
 													uint8_t *sbn,
 													const uint8_t single_sbn)
 {
@@ -505,8 +507,8 @@ void Encoder<Rnd_It, Out_It>::precompute_thread (Encoder<Rnd_It, Out_It> *obj,
 	}
 }
 
-template <typename Rnd_It, typename Out_It>
-void Encoder<Rnd_It, Out_It>::precompute (const uint8_t threads,
+template <typename Rnd_It, typename Fwd_It>
+void Encoder<Rnd_It, Fwd_It>::precompute (const uint8_t threads,
 														const bool background)
 {
 	if (interleave == nullptr)
@@ -519,9 +521,9 @@ void Encoder<Rnd_It, Out_It>::precompute (const uint8_t threads,
 	}
 }
 
-template <typename Rnd_It, typename Out_It>
-void Encoder<Rnd_It, Out_It>::precompute_block_all (
-												Encoder<Rnd_It, Out_It> *obj,
+template <typename Rnd_It, typename Fwd_It>
+void Encoder<Rnd_It, Fwd_It>::precompute_block_all (
+												Encoder<Rnd_It, Fwd_It> *obj,
 												const uint8_t threads)
 {
 	// precompute all intermediate symbols, do it with more threads.
@@ -548,8 +550,8 @@ void Encoder<Rnd_It, Out_It>::precompute_block_all (
 		t[id].join();
 }
 
-template <typename Rnd_It, typename Out_It>
-uint64_t Encoder<Rnd_It, Out_It>::encode (Out_It &output, const Out_It end,
+template <typename Rnd_It, typename Fwd_It>
+uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 															const uint32_t &id)
 {
 	const uint32_t mask_8 = static_cast<uint32_t> (std::pow (2, 8)) - 1;
@@ -558,8 +560,8 @@ uint64_t Encoder<Rnd_It, Out_It>::encode (Out_It &output, const Out_It end,
 	return encode (output, end, id & mask, static_cast<uint8_t> (id & mask_8));
 }
 
-template <typename Rnd_It, typename Out_It>
-uint64_t Encoder<Rnd_It, Out_It>::encode (Out_It &output, const Out_It end,
+template <typename Rnd_It, typename Fwd_It>
+uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 															const uint32_t esi,
 															const uint8_t sbn)
 {
@@ -589,8 +591,8 @@ uint64_t Encoder<Rnd_It, Out_It>::encode (Out_It &output, const Out_It end,
 }
 
 
-template <typename Rnd_It, typename Out_It>
-void Encoder<Rnd_It, Out_It>::free (const uint8_t sbn)
+template <typename Rnd_It, typename Fwd_It>
+void Encoder<Rnd_It, Fwd_It>::free (const uint8_t sbn)
 {
 	_mtx.lock();
 	auto it = encoders.find (sbn);
@@ -599,40 +601,40 @@ void Encoder<Rnd_It, Out_It>::free (const uint8_t sbn)
 	_mtx.unlock();
 }
 
-template <typename Rnd_It, typename Out_It>
-uint8_t Encoder<Rnd_It, Out_It>::blocks() const
+template <typename Rnd_It, typename Fwd_It>
+uint8_t Encoder<Rnd_It, Fwd_It>::blocks() const
 {
 	if (interleave == nullptr)
 		return 0;
 	return interleave->blocks();
 }
 
-template <typename Rnd_It, typename Out_It>
-uint32_t Encoder<Rnd_It, Out_It>::block_size (const uint8_t sbn) const
+template <typename Rnd_It, typename Fwd_It>
+uint32_t Encoder<Rnd_It, Fwd_It>::block_size (const uint8_t sbn) const
 {
 	if (interleave == nullptr)
 		return 0;
 	return interleave->source_symbols (sbn) * interleave->symbol_size();
 }
 
-template <typename Rnd_It, typename Out_It>
-uint16_t Encoder<Rnd_It, Out_It>::symbol_size() const
+template <typename Rnd_It, typename Fwd_It>
+uint16_t Encoder<Rnd_It, Fwd_It>::symbol_size() const
 {
 	if (interleave == nullptr)
 		return 0;
 	return interleave->symbol_size();
 }
 
-template <typename Rnd_It, typename Out_It>
-uint16_t Encoder<Rnd_It, Out_It>::symbols (const uint8_t sbn) const
+template <typename Rnd_It, typename Fwd_It>
+uint16_t Encoder<Rnd_It, Fwd_It>::symbols (const uint8_t sbn) const
 {
 	if (interleave == nullptr)
 		return 0;
 	return interleave->source_symbols (sbn);
 }
 
-template <typename Rnd_It, typename Out_It>
-uint32_t Encoder<Rnd_It, Out_It>::max_repair (const uint8_t sbn) const
+template <typename Rnd_It, typename Fwd_It>
+uint32_t Encoder<Rnd_It, Fwd_It>::max_repair (const uint8_t sbn) const
 {
 	if (interleave == nullptr)
 		return 0;
@@ -645,8 +647,8 @@ uint32_t Encoder<Rnd_It, Out_It>::max_repair (const uint8_t sbn) const
 //
 /////////////////
 
-template <typename In_It, typename Out_It>
-void Decoder<In_It, Out_It>::free (const uint8_t sbn)
+template <typename In_It, typename Fwd_It>
+void Decoder<In_It, Fwd_It>::free (const uint8_t sbn)
 {
 	_mtx.lock();
 	auto it = decoders.find(sbn);
@@ -655,8 +657,8 @@ void Decoder<In_It, Out_It>::free (const uint8_t sbn)
 	_mtx.unlock();
 }
 
-template <typename In_It, typename Out_It>
-bool Decoder<In_It, Out_It>::add_symbol (In_It &start, const In_It end,
+template <typename In_It, typename Fwd_It>
+bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 															const uint32_t id)
 {
 	uint32_t esi = (id << 8 ) >> 8;
@@ -665,8 +667,8 @@ bool Decoder<In_It, Out_It>::add_symbol (In_It &start, const In_It end,
 	return add_symbol (start, end, esi, sbn);
 }
 
-template <typename In_It, typename Out_It>
-bool Decoder<In_It, Out_It>::add_symbol (In_It &start, const In_It end,
+template <typename In_It, typename Fwd_It>
+bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 															const uint32_t esi,
 															const uint8_t sbn)
 {
@@ -687,8 +689,8 @@ bool Decoder<In_It, Out_It>::add_symbol (In_It &start, const In_It end,
 	return dec->add_symbol (start, end, esi);
 }
 
-template <typename In_It, typename Out_It>
-uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
+template <typename In_It, typename Fwd_It>
+uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end)
 {
 	for (uint8_t sbn = 0; sbn < _blocks; ++sbn) {
 		_mtx.lock();
@@ -704,7 +706,10 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
 			return 0;
 	}
 	// everything has been decoded
+	// now try to decode all blocks. Some tricks are needed since the output
+	// alignment and the block size might not be the same.
 	uint64_t written = 0;
+	uint8_t skip = 0;
 	for (uint8_t sbn = 0; sbn < _blocks; ++sbn) {
 		_mtx.lock();
 		auto it = decoders.find (sbn);
@@ -712,15 +717,33 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end)
 			return written;
 		auto dec = it->second;
 		_mtx.unlock();
-		Impl::De_Interleaver<Out_It> de_interleaving (dec->get_symbols(),
+		Impl::De_Interleaver<Fwd_It> de_interleaving (dec->get_symbols(),
 													_sub_blocks, _alignment);
-		written += de_interleaving (start, end);
+		auto tmp_start = start;
+		uint64_t tmp_written = de_interleaving (tmp_start, end, skip);
+		if (tmp_written == 0)
+			return written;
+		written += tmp_written;
+		// did we end up in the middle of a Fwd_It now?
+		skip = block_size (sbn) %
+					sizeof(typename std::iterator_traits<Fwd_It>::value_type);
+		// if we ended decoding in the middle of a Fwd_It, do not advance
+		// start too much, or we will end up having additional zeros.
+		if (skip == 0) {
+			start = tmp_start;
+		} else {
+			// tmp_written > 0 due to earlier return
+			// moreover, RaptorQ handles at most 881GB per rfc, so
+			// casting uint64 to int64 is safe
+			// we can not do "--start" since it's a forward iterator
+			start += static_cast<int64_t> (tmp_written - 1);
+		}
 	}
 	return written;
 }
 
-template <typename In_It, typename Out_It>
-uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end,
+template <typename In_It, typename Fwd_It>
+uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end,
 															const uint8_t sbn)
 {
 	if (sbn >= _blocks)
@@ -738,25 +761,25 @@ uint64_t Decoder<In_It, Out_It>::decode (Out_It &start, const Out_It end,
 	if (!dec->decode())
 		return 0;
 
-	Impl::De_Interleaver<Out_It> de_interleaving (dec->get_symbols(),
+	Impl::De_Interleaver<Fwd_It> de_interleaving (dec->get_symbols(),
 													_sub_blocks, _alignment);
 	return de_interleaving (start, end);
 }
 
-template <typename In_It, typename Out_It>
-uint64_t Decoder<In_It, Out_It>::bytes() const
+template <typename In_It, typename Fwd_It>
+uint64_t Decoder<In_It, Fwd_It>::bytes() const
 {
 	return _size;
 }
 
-template <typename In_It, typename Out_It>
-uint8_t Decoder<In_It, Out_It>::blocks() const
+template <typename In_It, typename Fwd_It>
+uint8_t Decoder<In_It, Fwd_It>::blocks() const
 {
 	return static_cast<uint8_t> (part.num (0) + part.num (1));
 }
 
-template <typename In_It, typename Out_It>
-uint32_t Decoder<In_It, Out_It>::block_size (const uint8_t sbn) const
+template <typename In_It, typename Fwd_It>
+uint32_t Decoder<In_It, Fwd_It>::block_size (const uint8_t sbn) const
 {
 	if (sbn < part.num (0)) {
 		return part.size (0) * _symbol_size;
@@ -766,13 +789,13 @@ uint32_t Decoder<In_It, Out_It>::block_size (const uint8_t sbn) const
 	return 0;
 }
 
-template <typename In_It, typename Out_It>
-uint16_t Decoder<In_It, Out_It>::symbol_size() const
+template <typename In_It, typename Fwd_It>
+uint16_t Decoder<In_It, Fwd_It>::symbol_size() const
 {
 	return _symbol_size;
 }
-template <typename In_It, typename Out_It>
-uint16_t Decoder<In_It, Out_It>::symbols (const uint8_t sbn) const
+template <typename In_It, typename Fwd_It>
+uint16_t Decoder<In_It, Fwd_It>::symbols (const uint8_t sbn) const
 {
 	if (sbn < part.num (0)) {
 		return part.size (0);

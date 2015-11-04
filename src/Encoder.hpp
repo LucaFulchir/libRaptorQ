@@ -33,7 +33,7 @@
 namespace RaptorQ {
 namespace Impl {
 
-template <typename Rnd_It, typename Out_It>
+template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder
 {
 public:
@@ -42,10 +42,10 @@ public:
 		  _SBN(SBN)
 	{
 		IS_RANDOM(Rnd_It, "RaptorQ::Impl::Encoder");
-		IS_OUTPUT(Out_It, "RaptorQ::Impl::Encoder");
+		IS_FORWARD(Fwd_It, "RaptorQ::Impl::Encoder");
 		precode.gen(0);
 	}
-	uint64_t Enc (const uint32_t ESI, Out_It &output, const Out_It end) const;
+	uint64_t Enc (const uint32_t ESI, Fwd_It &output, const Fwd_It end) const;
 
 	bool generate_symbols ();
 	uint16_t padded() const;
@@ -63,14 +63,14 @@ private:
 //
 //
 
-template <typename Rnd_It, typename Out_It>
-uint16_t Encoder<Rnd_It, Out_It>::padded () const
+template <typename Rnd_It, typename Fwd_It>
+uint16_t Encoder<Rnd_It, Fwd_It>::padded () const
 {
 	return precode._params.K_padded;
 }
 
-template <typename Rnd_It, typename Out_It>
-bool Encoder<Rnd_It, Out_It>::generate_symbols ()
+template <typename Rnd_It, typename Fwd_It>
+bool Encoder<Rnd_It, Fwd_It>::generate_symbols ()
 {
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
 	// do not bother checing for multithread. that is done in RaptorQ.hpp
@@ -110,14 +110,14 @@ bool Encoder<Rnd_It, Out_It>::generate_symbols ()
 	return encoded_symbols.cols() != 0;
 }
 
-template <typename Rnd_It, typename Out_It>
-uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
-														const Out_It end) const
+template <typename Rnd_It, typename Fwd_It>
+uint64_t Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
+														const Fwd_It end) const
 {
 	// ESI means that the first _symbols.source_symbols() are the
 	// original symbols, and the next ones are repair symbols.
 
-	// The alignment of "Out_It" might *NOT* be the alignment of "Rnd_It"
+	// The alignment of "Fwd_It" might *NOT* be the alignment of "Rnd_It"
 
 	uint64_t written = 0;
 	auto non_repair = _symbols.source_symbols (_SBN);
@@ -127,7 +127,7 @@ uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
 		auto block = _symbols[_SBN];
 		auto requested_symbol = block[static_cast<uint16_t> (ESI)];
 
-		typedef typename std::iterator_traits<Out_It>::value_type out_al;
+		typedef typename std::iterator_traits<Fwd_It>::value_type out_al;
 		size_t byte = 0;
 		out_al tmp_out = 0;
 		for (auto al : requested_symbol) {
@@ -161,7 +161,7 @@ uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
 
 		// put "tmp" in output, but the alignment is different
 
-		using T = typename std::iterator_traits<Out_It>::value_type;
+		using T = typename std::iterator_traits<Fwd_It>::value_type;
 		T al = static_cast<T> (0);
 		uint8_t *p = reinterpret_cast<uint8_t *>  (&al);
 		for (ssize_t i = 0; i < tmp.cols(); ++i) {
@@ -178,7 +178,7 @@ uint64_t Encoder<Rnd_It, Out_It>::Enc (const uint32_t ESI, Out_It &output,
 			}
 		}
 		if (p != reinterpret_cast<uint8_t *>  (&al) + sizeof(T)) {
-			// symbol size is not aligned with Out_IT type
+			// symbol size is not aligned with Fwd_It type
 			while (p != reinterpret_cast<uint8_t *>  (&al) + sizeof(T))
 				*(p++) = 0;
 			*output = al;
