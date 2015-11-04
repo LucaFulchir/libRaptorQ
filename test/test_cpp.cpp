@@ -29,24 +29,29 @@
 // then encode, drop some packets (source and repair)
 // and finally decode everything.
 
+
 // mysize is bytes.
-bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
+template <typename in_enc_align, typename out_enc_align, typename out_dec_align>
+bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 														const uint8_t overhead);
-bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
+template <typename in_enc_align, typename out_enc_align, typename out_dec_align>
+bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 														const uint8_t overhead)
 {
 	// define the alignment of the input and output data, for
 	// decoder and encoder.
 	// note that this is independent from the "mysize" argument,
 	// which is always in bytes.
-	typedef uint8_t			in_enc_align;
-	typedef uint16_t			out_enc_align;
+	// used as template arguments
+	//typedef uint8_t			in_enc_align;
+	//typedef uint16_t			out_enc_align;
 	typedef out_enc_align	in_dec_align;
-	typedef uint32_t			out_dec_align;
+	//typedef uint32_t			out_dec_align;
 	// NOTE:  out_enc_align is the same as in_dec_align so that we
 	// can simulate data trnsmision just by passing along a vector, but
 	// they do not need to be the same.
 
+	//mysize = 684;
 
 	std::vector<in_enc_align> myvec;
 
@@ -59,6 +64,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	uint8_t shift = 0;
 	for (uint32_t i = 0; i < mysize; ++i) {
 		tmp += static_cast<in_enc_align> (distr(rnd)) << shift * 8;
+		//tmp += static_cast<in_enc_align> (i) << shift * 8;
 		++shift;
 		if (shift >= sizeof(in_enc_align)) {
 			myvec.push_back (tmp);
@@ -79,16 +85,24 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	std::vector<std::pair<uint32_t, std::vector<out_enc_align>>> encoded;
 
 	// symbol and sub-symbol sizes
-	const uint16_t subsymbol = 4;
-	const uint16_t symbol_size = 1444;
+	// sub symbol must be multiple of alignment,
+	// symbol must be multiple of subsymbol
+	std::uniform_int_distribution<uint16_t> sub_sym_distr (1, 16);
+	const uint16_t subsymbol = sizeof(in_enc_align) * sub_sym_distr(rnd);
+	std::uniform_int_distribution<uint16_t> sym_distr (1, 100);
+	const uint16_t symbol_size = subsymbol * sym_distr (rnd);
+	//const uint16_t subsymbol=18, symbol_size=54;
+	std::cout << "Subsymbol: " << subsymbol << " Symbol: " << symbol_size<<"\n";
 	size_t aligned_symbol_size = static_cast<size_t> (
 		std::ceil(static_cast<float> (symbol_size) / sizeof(out_enc_align)));
 	auto enc_it = myvec.begin();
-	// use multiple blocks
-	RaptorQ::Encoder<std::vector<in_enc_align>::iterator,
-									std::vector<out_enc_align>::iterator> enc (
-					enc_it, myvec.end(), subsymbol, symbol_size, 400);
-	std::cout << static_cast<int32_t>(enc.blocks()) << " blocks\n";
+
+	std::uniform_int_distribution<uint32_t> mem_distr (100, 200000);
+	RaptorQ::Encoder<typename std::vector<in_enc_align>::iterator,
+							typename std::vector<out_enc_align>::iterator> enc (
+				enc_it, myvec.end(), subsymbol, symbol_size, mem_distr(rnd));
+	std::cout << "Size: " << mysize << " Blocks: " <<
+									static_cast<int32_t>(enc.blocks()) << "\n";
 	if (!enc) {
 		std::cout << "Coud not initialize encoder.\n";
 		return false;
@@ -153,7 +167,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			// save the repair symbol
 			auto written = (*sym_it) (it, repair_sym.end());
 			if (written != aligned_symbol_size) {
-				std::cout << "Could not get the whole repair symbol!\n";
+				std::cout << written << "-" << aligned_symbol_size << "Could not get the whole repair symbol!\n";
 				return false;
 			}
 			// finally add it to the encoded vector
@@ -172,8 +186,8 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	// encoding done. now "encoded" is the vector with the trnasmitted data.
 	// let's decode it
 
-	RaptorQ::Decoder<std::vector<in_dec_align>::iterator,
-										std::vector<out_dec_align>::iterator>
+	RaptorQ::Decoder<typename std::vector<in_dec_align>::iterator,
+							typename std::vector<out_dec_align>::iterator>
 												dec (oti_common, oti_scheme);
 
 	std::vector<out_dec_align> received;
@@ -201,6 +215,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	if (decoded * sizeof(out_dec_align) < mysize) {
 		if (decoded == 0) {
 			std::cout << "Couldn't decode, RaptorQ Algorithm failure. Retry.\n";
+			return true;
 		} else {
 			std::cout << "Partial Decoding? This should not have happened: " <<
 					decoded * sizeof(out_dec_align) << " vs " << mysize << "\n";
@@ -219,7 +234,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 										<< drop_prob << " at " << i << ": " <<
 									static_cast<uint32_t> (in[i]) << "-vs-" <<
 									static_cast<uint32_t> (out[i]) << "\n";
-			//return false;
+			return false;
 		}
 	}
 
@@ -236,8 +251,119 @@ int main (void)
 	rand.close ();
 	rnd.seed (seed);
 
+	std::uniform_int_distribution<uint32_t> distr(1, 1000);
 	// encode and decode
-	bool ret = decode (50001, rnd, 20.0, 4);
+	for (size_t i = 0; i < 1000; ++i) {
+		std::cout << "08-08-08\n";
+		bool ret = decode<uint8_t, uint8_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "08-08-16\n";
+		ret = decode<uint8_t, uint8_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "08-08-32\n";
+		ret = decode<uint8_t, uint8_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "08-16-08\n";
+		ret = decode<uint8_t, uint16_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "08-16-16\n";
+		ret = decode<uint8_t, uint16_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "08-16-32\n";
+		ret = decode<uint8_t, uint16_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "08-32-08\n";
+		ret = decode<uint8_t, uint32_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "08-32-16\n";
+		ret = decode<uint8_t, uint32_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "08-32-32\n";
+		ret = decode<uint8_t, uint32_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "16-08-08\n";
+		ret = decode<uint16_t, uint8_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "16-08-16\n";
+		ret = decode<uint16_t, uint8_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "16-08-32\n";
+		ret = decode<uint16_t, uint8_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "16-16-08\n";
+		ret = decode<uint16_t, uint16_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "16-16-16\n";
+		ret = decode<uint16_t, uint16_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "16-16-32\n";
+		ret = decode<uint16_t, uint16_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "16-32-08\n";
+		ret = decode<uint16_t, uint32_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "16-32-16\n";
+		ret = decode<uint16_t, uint32_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "16-32-32\n";
+		ret = decode<uint16_t, uint32_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "32-08-08\n";
+		ret = decode<uint32_t, uint8_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "32-08-16\n";
+		ret = decode<uint32_t, uint8_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "32-08-32\n";
+		ret = decode<uint32_t, uint8_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "32-16-08\n";
+		ret = decode<uint32_t, uint16_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "32-16-16\n";
+		ret = decode<uint32_t, uint16_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "32-16-32\n";
+		ret = decode<uint32_t, uint16_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "32-32-08\n";
+		ret = decode<uint32_t, uint32_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "32-32-16\n";
+		ret = decode<uint32_t, uint32_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
+		std::cout << "32-32-32\n";
+		ret = decode<uint32_t, uint32_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		if (!ret)
+			return -1;
 
-	return (ret == true ? 0 : -1);
+	}
+	std::cout << "All tests succesfull!\n";
+	return 0;
 }
