@@ -95,7 +95,7 @@ uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
 				byte = sub_sym_size * sub_blk;
 			} else {
 				sub_sym_size = _sub_blocks.size (1) * _al;
-				byte = _sub_blocks.tot (0) +
+				byte = _sub_blocks.tot (0) * _al +
 								sub_sym_size * (sub_blk - _sub_blocks.num (0));
 			}
 		}
