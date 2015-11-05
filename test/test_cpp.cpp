@@ -32,10 +32,10 @@
 
 // mysize is bytes.
 template <typename in_enc_align, typename out_enc_align, typename out_dec_align>
-bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
+bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 														const uint8_t overhead);
 template <typename in_enc_align, typename out_enc_align, typename out_dec_align>
-bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
+bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 														const uint8_t overhead)
 {
 	// define the alignment of the input and output data, for
@@ -50,8 +50,6 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	// NOTE:  out_enc_align is the same as in_dec_align so that we
 	// can simulate data trnsmision just by passing along a vector, but
 	// they do not need to be the same.
-
-	//mysize = 684;
 
 	std::vector<in_enc_align> myvec;
 
@@ -72,10 +70,8 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			tmp = 0;
 		}
 	}
-	if (shift != 0) {
-		tmp <<= (sizeof(in_enc_align) - ++shift) * 8;
+	if (shift != 0)
 		myvec.push_back (tmp);
-	}
 
 	// done initializing random data.
 
@@ -91,7 +87,6 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	const uint16_t subsymbol = sizeof(in_enc_align) * sub_sym_distr(rnd);
 	std::uniform_int_distribution<uint16_t> sym_distr (1, 100);
 	const uint16_t symbol_size = subsymbol * sym_distr (rnd);
-	//const uint16_t subsymbol=18, symbol_size=54;
 	std::cout << "Subsymbol: " << subsymbol << " Symbol: " << symbol_size<<"\n";
 	size_t aligned_symbol_size = static_cast<size_t> (
 		std::ceil(static_cast<float> (symbol_size) / sizeof(out_enc_align)));
@@ -142,7 +137,8 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			// save the symbol
 			auto written = (*sym_it) (it, source_sym.end());
 			if (written != aligned_symbol_size) {
-				std::cout << "Could not get the whole source symbol!\n";
+				std::cout << written << "-vs-" << aligned_symbol_size <<
+									" Could not get the whole source symbol!\n";
 				return false;
 			}
 			// finally add it to the encoded vector
@@ -167,7 +163,8 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			// save the repair symbol
 			auto written = (*sym_it) (it, repair_sym.end());
 			if (written != aligned_symbol_size) {
-				std::cout << written << "-" << aligned_symbol_size << "Could not get the whole repair symbol!\n";
+				std::cout << written << "-vs-" << aligned_symbol_size <<
+									" bCould not get the whole repair symbol!\n";
 				return false;
 			}
 			// finally add it to the encoded vector
@@ -231,9 +228,7 @@ bool decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	for (uint64_t i = 0; i < mysize; ++i) {
 		if (in[i] != out[i]) {
 			std::cout << "FAILED, but we though otherwise! " << mysize << " - "
-										<< drop_prob << " at " << i << ": " <<
-									static_cast<uint32_t> (in[i]) << "-vs-" <<
-									static_cast<uint32_t> (out[i]) << "\n";
+											<< drop_prob << " at " << i << "\n";
 			return false;
 		}
 	}
