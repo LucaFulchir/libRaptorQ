@@ -60,7 +60,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	const uint16_t symbol_size = 16;
 
 	/*
-	 * Now start decoding things
+	 * Now start encoding things
 	 */
 
 	// use multiple blocks
@@ -295,4 +295,3 @@ int main (void)
 
 	return (ret == true ? 0 : -1);
 }
-
