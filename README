@@ -27,6 +27,13 @@ Windows *should* work too, provided you use a complier that understands C++11
 compiler anyway)
 
 
+##############
+#
+# Developers
+#
+##############
+
+See the "CONTRIBUTING.md" file.
 
 ##############
 #
@@ -44,7 +51,7 @@ $ git clone https://github.com/LucaFulchir/libRaptorQ.git
 
 you can also get it from our main server:
 
-$ git clone git://git.fenrirproject.org/libRaptorQ.git
+$ git clone https://www.fenrirproject.org/Luker/libRaptorQ.git
 
 
 -- GPG source check --
@@ -79,6 +86,8 @@ The important part is that you get something like this:
 And as long as you got the right key, and you find the "gpg: Goog signature",
 you can be sure you have the right code.
 
+TDB: The repository is using the maintainer private key for now,
+it will start using a dedicated key in the (near) future.
 
 
 ##############
@@ -136,7 +145,7 @@ LTO			yes/no: Default:yes. Activate or deactivate Link time Optimization
 				Only for gcc/clang.
 STDLIB		libc++,libstdc++. Choose the standard library to use.
 				Note: gcc can only use its own libstdc++
-CMAKE_C_COMPILER	used to compile examples
+CMAKE_C_COMPILER	gcc, clang...
 CMAKE_CXX_COMPILER	choose between g++ or clang++.
 CMAKE_BUILD_TYPE	Debug,MinSizeRel,Release,RelWithDebInfo
 CMAKE_INSTALL_PREFIX Default: /usr/local
