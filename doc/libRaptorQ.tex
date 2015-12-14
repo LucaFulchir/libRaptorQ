@@ -136,7 +136,7 @@ $ gpg2 --fingerprint D42DDF0A
  uid       [ unknown] Luca Fulchir (2015 key) <luker@fenrirproject.org>
 \end{verbbox}
 \theverbbox
- 
+
 
 Now you have the source, and the key, it's enough to check the signature of the
 last commit:
@@ -177,6 +177,7 @@ libRaptorQ uses the cMake build system, so things are fairly standard:
 \begin{verbatim}
 $ cd libRaptorQ.git
 $ mkdir build
+$ cd build
 $ cmake ../
 $ make -j 4
 \end{verbatim}
@@ -288,7 +289,7 @@ This is actually a lot. More benchmarks and optimizations will come later, for n
 \subsection{C++ interface}
 \index{Interface!C++}
 To use the C++ interface you only need to include the \textbf{RaptorQ.hpp} header, and link \textbf{libRaptorQ} and your threading library (usually
-\textit{libpthread}.
+\textit{libpthread}).
 
 To provide grater flexibility, the whole library uses iterators to read your data, and to write the data onto your data structures.\\
 This means that a big part of the library is a template, which adapts to the alignment of the data in the data structures you use.
@@ -313,7 +314,7 @@ and nothing more.
 
 \subsubsection{The Encoder}
 \index{Encoder!C++}
-You can instantiate a decoder for example by doing:
+You can instantiate a encoder for example by doing:
 
 \begin{lstlisting}[language=C++]
 std::vector<uint32_t> input, output;
@@ -445,7 +446,7 @@ Theere are two constructors for the Decoder:
  RaptorQ::Decoder<T_it, T_it> dec (
                  const OTI_Common_Data common,
                  const OTI_Scheme_Specific_Data scheme)
-                              
+
  RaptorQ::Decoder<T_it, T_it> dec (uint64_t size,
                                   uint16_t symbol_size,
                                   uint16_t sub_blocks,
@@ -497,7 +498,7 @@ You need to include the \textbf{cRaptorQ.h} header, and link the \textit{libRapt
 If you are working with the static version of libRaptorQ remember to link the C++ standard library used when
 compiling the library (\textit{libstdc++} for gcc or maybe \textit{libc++} for clang), your threding library (usually \textit{libpthread}), and the C math library (\textit{libm}).\\
 
-First of all, you need to build the encoder or the decoder:
+First of all, you need to build the encoder or the decoder.
 
 The C interface is just a wrapper around the C++ code, so you still have to specify the same things as before.
 A quick glance at the constructors should give you all the information you need:
@@ -610,7 +611,7 @@ uint64_t RaptorQ_encode (struct RaptorQ_ptr *enc,
 uint32_t RaptorQ_id (const uint32_t esi,
                                   const uint8_t sbn);
 \end{lstlisting}
-As for the C++ version, everything is thread-safe.
+Same as for the C++ version, everything is thread-safe.
 
 You can start the precomputation in background and not worry about it.\\
 If you request repair symbols before the computation is finished, the call will block until the data is available.
@@ -629,18 +630,18 @@ uint64_t RaptorQ_bytes (struct RaptorQ_ptr *dec);
 
 // decode all blocks.
 // returns the number of written alignments.
-// returns 0 if encoding of *everything* is not possible
+// returns 0 if decoding of *everything* is not possible
 uint64_t RaptorQ_decode (struct RaptorQ_ptr *dec,
                                    void **data,
                                    const size_t size);
 // decode only one block (if possible)
-// returns 0 if encoding of the block is not possible.
+// returns 0 if decoding of the block is not possible.
 uint64_t RaptorQ_decode_block (struct RaptorQ_ptr *dec,
                                    void **data,
                                    const size_t size,
                                    const uint8_t sbn);
 
-// add a received symbol the the structure.
+// add a received symbol to the structure.
 // either by using the `id' field
 bool RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec,
                                    void **data,
@@ -660,4 +661,3 @@ bool RaptorQ_add_symbol (struct RaptorQ_ptr *dec,
 
 \printindex
 \end{document}
-
