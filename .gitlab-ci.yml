@@ -4,7 +4,7 @@ stages:
 
 job2:
   stage: makedoc
-  script: git diff-tree --no-commit-id --name-only -r HEAD | grep ^doc/ || exit 0; mkdir build; cd build; make docs; cp doc/libRaptorQ.pdf ~/
+  script: mkdir build; cd build; cmake -DCMAKE_BUILD_TYPE=Release ../; make everything; cp doc/libRaptorQ.pdf ~/
   
 
 job3:
