@@ -116,7 +116,7 @@ $ git clone https://github.com/LucaFulchir/libRaptorQ.git
 You can also get it from our main server:
 
 \begin{verbatim}
-$ git clone git://git.fenrirproject.org/libRaptorQ.git
+$ git clone https://www.fenrirproject.org/Luker/libRaptorQ.git
 \end{verbatim}
 
 \index{GPG}\marginlabel{GPG verification:}
@@ -288,7 +288,7 @@ This is actually a lot. More benchmarks and optimizations will come later, for n
 \subsection{C++ interface}
 \index{Interface!C++}
 To use the C++ interface you only need to include the \textbf{RaptorQ.hpp} header, and link \textbf{libRaptorQ} and your threading library (usually
-\textit{libpthread}.
+\textit{libpthread}).
 
 To provide grater flexibility, the whole library uses iterators to read your data, and to write the data onto your data structures.\\
 This means that a big part of the library is a template, which adapts to the alignment of the data in the data structures you use.
@@ -296,24 +296,24 @@ This means that a big part of the library is a template, which adapts to the ali
 \index{Iterators}\marginlabel{Templates}
 There are two main classes you will use:
 \begin{verbatim}
-template <typename Rnd_It, typename Out_It>
+template <typename Rnd_It, typename Fwd_It>
 class Encoder
 
-template <typename In_It, typename Out_It>
+template <typename In_It, typename Fwd_It>
 class Decoder
 \end{verbatim}
 
 As you might guess, the classes for the encoder and decoder take two template parameters.\\
 For the \textbf{Encoder}, the first parameter \textit{MUST} be a \textit{random access iterator} to the input data, and the second parameter is an
-\textit{output iterator}. The random access iterator will be used to scan your input data, and perform an interleaving (if you did not set the same size the
-symbol and to the subsymbol). The output iterator will be used to write the data to your structure.\\
+\textit{forward iterator}. The random access iterator will be used to scan your input data, and perform an interleaving (if you did not set the same size the
+symbol and to the subsymbol). The forward iterator will be used to write the data to your structure.\\
 The same is done for the \textbf{Decoder}, but we do not need to do any interleaving on the input, so the first iterator can be just an input iterator,
 and nothing more.
 
 
 \subsubsection{The Encoder}
 \index{Encoder!C++}
-You can instantiate a decoder for example by doing:
+You can instantiate an encoder for example by doing:
 
 \begin{lstlisting}[language=C++]
 std::vector<uint32_t> input, output;
@@ -340,19 +340,19 @@ Keeps total \textbf{file size and symbol size}. You need to send this to the rec
 Keeps number of \textbf{source blocks, sub blocks, and alignment}. As for the OTI\_Common\_Data, you need to send this to the receiver to be able to
 properly decode the data.
 
-\item[encode] \textbf{Input: Out\_It \&output, const Out\_It end, const uint32\_t esi, const uint8\_t sbn}.\\
+\item[encode] \textbf{Input: Fwd\_It \&output, const Fwd\_It end, const uint32\_t esi, const uint8\_t sbn}.\\
 \textbf{return:uint64\_t}.\\
 Take as input the iterators to the data structure into where we have to save the encoded data, the \textbf{Encoding Symbol Id} and the
 \textbf{Source Block Number}. As you are writing in C++, you probably want to use the iterators begin/end, though. Returns the number of written
 iterators (\textbf{NOT} the bytes)
 
-\item[encode] \textbf{Input: Out\_It \&output, const Out\_It end, const uint32\_t id}.\\
+\item[encode] \textbf{Input: Fwd\_It \&output, const Fwd\_It end, const uint32\_t id}.\\
 \textbf{return:uint64\_t}.\\
 Exactly as before, but the \textbf{id} contains both the \textit{source block number} and the \textit{encoding symbol id}
 
-\item[begin()] \textbf{return: Block\_Iterator<Rnd\_It, Out\_It>}\\
+\item[begin()] \textbf{return: Block\_Iterator<Rnd\_It, Fwd\_It>}\\
 This returns an iterator to the blocks in which RaptorQ divided the input data. See later to understand how to use it.
-\item[end()] \textbf{return: const Block\_Iterator<Rnd\_It, Out\_It>}\\
+\item[end()] \textbf{return: const Block\_Iterator<Rnd\_It, Fwd\_It>}\\
 This returns an iterator to the end of the blocks in which RaptorQ divided the input data. See later to understand how to use it.
 
 \item[precompute] \textbf{Input:const uint8\_t threads, const bool background}\\
@@ -393,7 +393,7 @@ in a block
 \index{Blocks!C++}
 With the \textit{begin()/end()} calls you get \textit{Input iterators} to the blocks. a Block is has the following type:
 \begin{lstlisting}[language=C++]
-template <typename Rnd_It, typename Out_It>
+template <typename Rnd_It, typename Fwd_It>
 class Block
 \end{lstlisting}
 
@@ -418,16 +418,16 @@ The other functions are helpers for the details of the block.
 \index{Symbols!C++}
 Finally, through the \textit{Symbol\_Iterator} \textit{Input Iterator} we get the \textbf{Symbol} class:
 \begin{lstlisting}[language=C++]
-template <typename Rnd_It, typename Out_It>
+template <typename Rnd_It, typename Fwd_It>
 class Symbol
 \end{lstlisting}
 
 which exposes the 2 methods we need to get the symbol data:
 
 \begin{description}
-\item[operator*]\textbf{Input:Out\_It \&start, const Out\_It end}\\
+\item[operator*]\textbf{Input:Fwd\_It \&start, const Fwd\_It end}\\
 \textbf{return: uint64\_t}\\
-takes an output iterator, and fill it with the symbol data. returns the number of written iterators.
+takes a forward iterator, and fill it with the symbol data. returns the number of written iterators.
 \item[id()]\textbf{return: uint32\_t}\\
 return the id (\textit{$sbn + esi$}) of this symbol, that you need to include in every packet you send, before the symbols.
 \end{description}
@@ -456,11 +456,11 @@ Which should be pretty self-explanatory, once you understand how the encoder wor
 
 The remaining methods are:
 \begin{description}
-\item[decode]\textbf{Input: Out\_It \&start, const Out\_It end}\\
+\item[decode]\textbf{Input: Fwd\_It \&start, const Fwd\_It end}\\
 \textbf{return:uint64\_t}\\
 Write \textbf{all} the blocks into the iterator. refuses to write if the input has not been completely received. Return the number of iterators written.
 
-\item[decode]\textbf{Input: Out\_It \&start, const Out\_It end, const uint8\_t sbn}\\
+\item[decode]\textbf{Input: Fwd\_It \&start, const Fwd\_It end, const uint8\_t sbn}\\
 \textbf{return:uint64\_t}\\
 Write a specific block into the iterator. Refuses to write if the input for that block has not been completely received.
 
@@ -497,7 +497,7 @@ You need to include the \textbf{cRaptorQ.h} header, and link the \textit{libRapt
 If you are working with the static version of libRaptorQ remember to link the C++ standard library used when
 compiling the library (\textit{libstdc++} for gcc or maybe \textit{libc++} for clang), your threding library (usually \textit{libpthread}), and the C math library (\textit{libm}).\\
 
-First of all, you need to build the encoder or the decoder:
+First of all, you need to build the encoder or the decoder.
 
 The C interface is just a wrapper around the C++ code, so you still have to specify the same things as before.
 A quick glance at the constructors should give you all the information you need:
@@ -629,18 +629,18 @@ uint64_t RaptorQ_bytes (struct RaptorQ_ptr *dec);
 
 // decode all blocks.
 // returns the number of written alignments.
-// returns 0 if encoding of *everything* is not possible
+// returns 0 if decoding of *everything* is not possible
 uint64_t RaptorQ_decode (struct RaptorQ_ptr *dec,
                                    void **data,
                                    const size_t size);
 // decode only one block (if possible)
-// returns 0 if encoding of the block is not possible.
+// returns 0 if decoding of the block is not possible.
 uint64_t RaptorQ_decode_block (struct RaptorQ_ptr *dec,
                                    void **data,
                                    const size_t size,
                                    const uint8_t sbn);
 
-// add a received symbol the the structure.
+// add a received symbol to the structure.
 // either by using the `id' field
 bool RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec,
                                    void **data,
