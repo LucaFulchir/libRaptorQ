@@ -74,7 +74,8 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	}
 
 	// start background precomputation while we get the source symbols.
-	RaptorQ_precompute (enc, 1, true);
+	// Misbehaviour when precomputing in background detected. 
+	RaptorQ_precompute (enc, 1, false);
 
 	/* everything is encoded now.
 	 * well, it might be running in background, but don't worry:
