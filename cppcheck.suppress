@@ -1,5 +1,5 @@
 // Performance:
-//  Octet is a sinble byte. value is faster than reference.
+//  Octet is a single byte. value is faster than reference.
 passedByValue:src/Parameters.hpp:73
 passedByValue:src/Parameters.hpp:78
 passedByValue:src/Parameters.hpp:83
@@ -13,6 +13,11 @@ passedByValue:src/Parameters.hpp:132
 passedByValue:src/Interleaver.hpp:170
 passedByValue:src/Interleaver.hpp:263
 passedByValue:src/RaptorQ.hpp:143
+passedByValue:src/RaptorQ.hpp:161
+passedByValue:src/De_Interleaver.hpp:35
+
+// variable is read by different threads
+unreadVariable:test/rfc_test.cpp:569
 
 functionStatic:src/Parameters.hpp:116
 noExplicitConstructor:src/Parameters.hpp:69
@@ -20,6 +25,12 @@ noExplicitConstructor:src/Parameters.hpp:69
 // Initialization is wastful if we overwrite it anyway.
 // which we do, valgrind never gives us "uninitalized value"
 uninitMemberVar:src/Parameters.hpp:68
+
+unusedFunction:src/cRaptorQ.cpp:270
+unusedFunction:src/cRaptorQ.cpp:596
+unusedFunction:src/cRaptorQ.cpp:452
+unusedFunction:src/cRaptorQ.cpp:752
+unusedFunction:src/cRaptorQ.cpp:385
 
 missingIncludeSystem
 

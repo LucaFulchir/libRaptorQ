@@ -203,6 +203,7 @@ class RAPTORQ_API Encoder
 {
 public:
 
+	~Encoder();
 	Encoder (const Rnd_It data_from, const Rnd_It data_to,
 											const uint16_t min_subsymbol_size,
 											const uint16_t symbol_size,
@@ -282,6 +283,7 @@ private:
 		std::mutex _mtx;
 		Impl::Encoder<Rnd_It, Fwd_It> _enc;
 	};
+	std::vector<std::thread> background_work;
 	std::unique_ptr<Impl::Interleaver<Rnd_It>> interleave = nullptr;
 	std::map<uint8_t, std::shared_ptr<Locked_Encoder>> encoders;
 	std::mutex _mtx;
@@ -398,6 +400,12 @@ private:
 // Encoder
 //
 /////////////////
+template <typename Rnd_It, typename Fwd_It>
+Encoder<Rnd_It, Fwd_It>::~Encoder ()
+{
+	for (auto &thread: background_work)
+		thread.join();
+}
 
 template <typename Rnd_It, typename Fwd_It>
 OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
@@ -514,8 +522,7 @@ void Encoder<Rnd_It, Fwd_It>::precompute (const uint8_t threads,
 	if (interleave == nullptr)
 		return;
 	if (background) {
-		std::thread t (precompute_block_all, this, threads);
-		t.detach();
+		background_work.emplace_back (precompute_block_all, this, threads);
 	} else {
 		return precompute_block_all (this, threads);
 	}
@@ -531,7 +538,7 @@ void Encoder<Rnd_It, Fwd_It>::precompute_block_all (
 		return;
 	std::vector<std::thread> t;
 	ssize_t spawned = threads - 1;
-	if (spawned == -1)
+	if (spawned <= -1)
 		spawned = std::thread::hardware_concurrency();
 
 	if (spawned > 0)
@@ -575,8 +582,7 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 		bool success;
 		std::tie (it, success) = encoders.emplace (sbn,
 						std::make_shared<Locked_Encoder> (*interleave, sbn));
-		std::thread background (precompute_thread, this, nullptr, sbn);
-		background.detach();
+		background_work.emplace_back (precompute_thread, this, nullptr, sbn);
 	}
 	auto enc_ptr = it->second;
 	_mtx.unlock();

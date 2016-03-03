@@ -227,7 +227,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	out = reinterpret_cast<uint8_t *> (received.data());
 	for (uint64_t i = 0; i < mysize; ++i) {
 		if (in[i] != out[i]) {
-			std::cout << "FAILED, but we though otherwise! " << mysize << " - "
+			std::cout << "FAILED, but we thought otherwise! " << mysize << " - "
 											<< drop_prob << " at " << i << "\n";
 			return false;
 		}
@@ -246,7 +246,7 @@ int main (void)
 	rand.close ();
 	rnd.seed (seed);
 
-	std::uniform_int_distribution<uint32_t> distr(1, 1000);
+	std::uniform_int_distribution<uint32_t> distr(1, 10000);
 	// encode and decode
 	for (size_t i = 0; i < 1000; ++i) {
 		std::cout << "08-08-08\n";
