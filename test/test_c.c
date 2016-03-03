@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 
 
 // Demonstration of how to use the C interface.
@@ -40,7 +41,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 
 
 	srand((uint32_t)time(NULL));
-	//initialize vector with random data
+	// initialize vector with random data
 	myvec = (uint32_t *) malloc (mysize * sizeof(uint32_t));
 	for (uint32_t i = 0; i < mysize; ++i)
 		myvec[i] = (uint32_t)rand();
@@ -74,7 +75,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	}
 
 	// start background precomputation while we get the source symbols.
-	RaptorQ_precompute (enc, 1, true);
+	RaptorQ_precompute (enc, 2, true);
 
 	/* everything is encoded now.
 	 * well, it might be running in background, but don't worry:
@@ -233,19 +234,25 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 
 	// make sure that there's enough place in "received" to get the
 	// whole decoded data.
-	uint32_t *received = (uint32_t *) malloc (RaptorQ_bytes (dec));
+	// note: the length of the decoded data is in bytes and might not fit
+	// a whole uint32_t.
+	uint64_t decoded_size = ceil (RaptorQ_bytes (dec) / sizeof(uint32_t));
+	uint32_t *received = (uint32_t *) malloc (decoded_size * sizeof(uint32_t));
+
+	for (uint32_t *shit = received; shit != received + decoded_size; ++shit)
+		//*shit = 0xFF + (0xFF >> 8) + (0xFF >> 16) + (0xFF >> 24);
+		;//*shit = 0xFFFFFFFF;
 
 	uint32_t *rec = received;
 	// you can actually call "RaptorQ_decode" as many times as you want
 	// until you get enough data. it will wait until it has enough data
 	// to start the decoding.
-	uint64_t written = RaptorQ_decode (dec, (void **)&rec,
-									RaptorQ_bytes (dec) / sizeof(uint32_t));
-	// "rec" now points to "received + written
+	uint64_t written = RaptorQ_decode (dec, (void **)&rec, decoded_size);
+	// "rec" now points to "received + written"
 	// This might help you to call RaptorQ_decode_sbn multiple time
 	// on the same pointer.
 
-	if (written != RaptorQ_bytes (dec) / sizeof(uint32_t)) {
+	if ((written != decoded_size) || (decoded_size != mysize)) {
 		fprintf(stderr, "Couldn't decode: %i - %lu\n", mysize, written);
 		free (myvec);
 		free(received);

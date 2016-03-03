@@ -560,37 +560,40 @@ uint64_t RaptorQ_decode (RaptorQ_ptr *dec, void **data, const size_t size)
 	uint16_t *p_16;
 	uint32_t *p_32;
 	uint64_t *p_64;
+	uint64_t ret = 0;
 	switch (dec->type) {
 	case RaptorQ_type::DEC_8:
 		p_8 = reinterpret_cast<uint8_t*> (*data);
-		return (reinterpret_cast<RaptorQ::Decoder<uint8_t*, uint8_t*>*> (
+		ret = (reinterpret_cast<RaptorQ::Decoder<uint8_t*, uint8_t*>*> (
 										dec->ptr))->decode (p_8, p_8 + size);
+		*data = p_8;
+		break;
 	case RaptorQ_type::DEC_16:
 		p_16 = reinterpret_cast<uint16_t*> (*data);
-		return (reinterpret_cast<RaptorQ::Decoder<uint16_t*, uint16_t*>*> (
+		ret = (reinterpret_cast<RaptorQ::Decoder<uint16_t*, uint16_t*>*> (
 										dec->ptr))->decode (p_16, p_16 + size);
+		*data = p_16;
+		break;
 	case RaptorQ_type::DEC_32:
 		p_32 = reinterpret_cast<uint32_t*> (*data);
-		return (reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
+		ret = (reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
 										dec->ptr))->decode (p_32, p_32 + size);
+		*data = p_32;
+		break;
 	case RaptorQ_type::DEC_64:
 		p_64 = reinterpret_cast<uint64_t*> (*data);
-		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
+		ret = (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
 										dec->ptr))->decode (p_64, p_64 + size);
+		*data = p_64;
+		break;
 	case RaptorQ_type::ENC_8:
 	case RaptorQ_type::ENC_16:
 	case RaptorQ_type::ENC_32:
 	case RaptorQ_type::ENC_64:
 	case RaptorQ_type::NONE:
-		return false;
+		break;
 	}
-#ifndef USING_CLANG
-	// uncomment the return and:
-	// clang: WARN: will never be executed (exaustive switch)
-	// if commented, GCC: warn: control reaches end of non-void
-	// ...make up your mind, guys?
-	return false;
-#endif
+	return ret;
 }
 
 uint64_t RaptorQ_decode_block (RaptorQ_ptr *dec, void **data, const size_t size,
@@ -604,37 +607,40 @@ uint64_t RaptorQ_decode_block (RaptorQ_ptr *dec, void **data, const size_t size,
 	uint16_t *p_16;
 	uint32_t *p_32;
 	uint64_t *p_64;
+	uint64_t ret = 0;
 	switch (dec->type) {
 	case RaptorQ_type::DEC_8:
 		p_8 = reinterpret_cast<uint8_t*> (*data);
-		return (reinterpret_cast<RaptorQ::Decoder<uint8_t*, uint8_t*>*> (
+		ret = (reinterpret_cast<RaptorQ::Decoder<uint8_t*, uint8_t*>*> (
 									dec->ptr))->decode (p_8, p_8 + size, sbn);
+		*data = p_8;
+		break;
 	case RaptorQ_type::DEC_16:
 		p_16 = reinterpret_cast<uint16_t*> (*data);
-		return (reinterpret_cast<RaptorQ::Decoder<uint16_t*, uint16_t*>*> (
+		ret = (reinterpret_cast<RaptorQ::Decoder<uint16_t*, uint16_t*>*> (
 									dec->ptr))->decode (p_16, p_16 + size, sbn);
+		*data = p_16;
+		break;
 	case RaptorQ_type::DEC_32:
 		p_32 = reinterpret_cast<uint32_t*> (*data);
-		return (reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
+		ret = (reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
 									dec->ptr))->decode (p_32, p_32 + size, sbn);
+		*data = p_32;
+		break;
 	case RaptorQ_type::DEC_64:
 		p_64 = reinterpret_cast<uint64_t*> (*data);
-		return (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
+		ret = (reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
 									dec->ptr))->decode (p_64, p_64 + size, sbn);
+		*data = p_64;
+		break;
 	case RaptorQ_type::ENC_8:
 	case RaptorQ_type::ENC_16:
 	case RaptorQ_type::ENC_32:
 	case RaptorQ_type::ENC_64:
 	case RaptorQ_type::NONE:
-		return false;
+		break;
 	}
-#ifndef USING_CLANG
-	// uncomment the return and:
-	// clang: WARN: will never be executed (exaustive switch)
-	// if commented, GCC: warn: control reaches end of non-void
-	// ...make up your mind, guys?
-	return false;
-#endif
+	return ret;
 }
 
 bool RaptorQ_add_symbol_id (RaptorQ_ptr *dec, void **data, const uint32_t size,

@@ -64,11 +64,12 @@ uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
 	// to (start-1) during the decoding of the previous block.
 	uint8_t offset_al = skip;
 	using T = typename std::iterator_traits<Fwd_It>::value_type;
-	T element;
+	T element = static_cast<T> (0);
 	if (skip != 0) {
-		element = static_cast<T> (0);
-	} else {
-		element = *start;
+		uint8_t *p = reinterpret_cast<uint8_t *> (&start);
+		for (size_t keep = 0; keep < skip; ++keep) {
+			element += static_cast<T> (*(p++)) << keep * 8;
+		}
 	}
 	while (start != end && sub_blk < (_sub_blocks.num(0) + _sub_blocks.num(1))){
 		element += static_cast<T> (static_cast<uint8_t>((*_symbols)(esi, byte)))
