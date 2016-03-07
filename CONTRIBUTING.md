@@ -4,6 +4,9 @@
 
 Third-party patches are always welcome, for any purpose.
 
+Although the repository is available from GitHub, please
+use the main site for bug reporting/merges/discussions.
+
 Please be aware that libRaptorQ is a dual-licensed software,
 and thus it's required that all contributors sign a CLA agreement.
 The agreement lets us relicense the code and protect us from patents,

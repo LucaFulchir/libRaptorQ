@@ -125,7 +125,7 @@ where:
 	docs: LATEX documentation.
 
 or simply:
-$ make everything
+$ make -j 4 everything
 
 finally, install everything
 $ make install
@@ -140,16 +140,16 @@ currently is the clang + profiling one. It probably can not
 be fixed.
 
 You can customize the CMake build with tthe following variables:
-PROFILING	yes/no: Default:yes. Activate or deactivate profiling.
+PROFILING	ON/OFF: Default:ON. Activate or deactivate profiling.
 				Profiling compiles everything, then runs a test to see
 				which code paths are more used. Then it recompiles everything
 				but optimizing for for those code paths.
 				Only for gcc/clang.
-LTO			yes/no: Default:yes. Activate or deactivate Link time Optimization
+LTO			ON/OFF: Default:ON. Activate or deactivate Link time Optimization
 				Makes the library smaller and better optimized.
 				Only for gcc/clang.
-STDLIB		libc++,libstdc++. Choose the standard library to use.
-				Note: gcc can only use its own libstdc++
+CLANG_STDLIB ON/OFF: Default:OFF. use clang's libc++
+				Note: only clang can use its standard library
 CMAKE_C_COMPILER	gcc, clang...
 CMAKE_CXX_COMPILER	choose between g++ or clang++.
 CMAKE_BUILD_TYPE	Debug,MinSizeRel,Release,RelWithDebInfo
@@ -166,7 +166,7 @@ Compile the documentation:
 $ make docs
 
 or simply visit:
-https://www.fenrirproject.org/projects/libraptorq/documents
+https://www.fenrirproject.org/Luker/libRaptorQ/wikis/libRaptorQ.pdf
 
 for the full up-to-date documentation.
 
