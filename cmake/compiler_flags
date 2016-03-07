@@ -1,0 +1,133 @@
+#
+# Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+#
+# This file is part of "libRaptorQ".
+#
+# libRaptorQ is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as
+# published by the Free Software Foundation, either version 3
+# of the License, or (at your option) any later version.
+#
+# libRaptorQ is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# and a copy of the GNU Lesser General Public License
+# along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
+
+
+#gnu options
+set(RQ_GNU_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv )
+set(RQ_GNU_CXX_OPTIONS ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv )
+
+set(RQ_GNU_C_DEBUG   -O0 -g -Wno-aggressive-loop-optimizations -ftrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute )
+set(RQ_GNU_CXX_DEBUG -O0 -g -Wno-aggressive-loop-optimizations -ftrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute )
+set(RQ_GNU_C_MINSIZEREL   -Os )
+set(RQ_GNU_CXX_MINSIZEREL -Os )
+set(RQ_GNU_C_RELEASE   -O4 -DNDEBUG -fwrapv )
+set(RQ_GNU_CXX_RELEASE -O4 -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fwrapv )
+set(RQ_GNU_C_RELWITHDEBINFO   ${RQ_GNU_C_RELEASE} -g )
+set(RQ_GNU_CXX_RELWITHDEBINFO ${RQ_GNU_CXX_RELEASE} -g )
+
+# clang options
+set(RQ_CLANG_C_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security )
+set(RQ_CLANG_CXX_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security )
+
+set(RQ_CLANG_C_DEBUG   -O0 -g )
+set(RQ_CLANG_CXX_DEBUG -O0 -g )
+set(RQ_CLANG_C_MINSIZEREL   -Os )
+set(RQ_CLANG_CXX_MINSIZEREL -Os )
+set(RQ_CLANG_C_RELEASE   -Ofast -DNDEBUG -fwrapv )
+set(RQ_CLANG_CXX_RELEASE -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fwrapv )
+set(RQ_CLANG_C_RELWITHDEBINFO   ${RQ_CLANG_C_RELEASE} -g )
+set(RQ_CLANG_CXX_RELWITHDEBINFO ${RQ_CLANG_CXX_RELEASE} -g )
+
+# msvc flags. todo?
+set(MSVC_C_OPTIONS )
+set(MSVC_CXX_OPTIONS )
+
+# combine the above
+# note: generator expansions do not work on "set(..)"
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_CLANG_CXX_OPTIONS})
+    if(CMAKE_BUILD_TYPE MATCHES "Debug")
+        set(LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_CLANG_CXX_DEBUG})
+    elseif(CMAKE_BUILD_TYPE MATCHES "MinSizeRel")
+        set(LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_CLANG_CXX_MINSIZEREL})
+    elseif(CMAKE_BUILD_TYPE MATCHES "Release")
+        set(LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_CLANG_CXX_RELEASE})
+    elseif(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
+        set(LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_CLANG_CXX_RELWITHDEBINFO})
+    endif()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_GNU_CXX_OPTIONS})
+    if(CMAKE_BUILD_TYPE MATCHES "Debug")
+        set(LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_GNU_CXX_DEBUG})
+    elseif(CMAKE_BUILD_TYPE MATCHES "MinSizeRel")
+        set(LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_GNU_CXX_MINSIZEREL})
+    elseif(CMAKE_BUILD_TYPE MATCHES "Release")
+        set(LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_GNU_CXX_RELEASE})
+    elseif(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
+        set(LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_GNU_CXX_RELWITHDEBINFO})
+    endif()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_MSVC_CXX_OPTIONS})
+endif()
+
+
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    set(RQ_LIST_C_COMPILER_FLAGS ${RQ_CLANG_CXX_OPTIONS})
+    if(CMAKE_BUILD_TYPE MATCHES "Debug")
+        set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_CLANG_C_DEBUG})
+    elseif(CMAKE_BUILD_TYPE MATCHES "MinSizeRel")
+        set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_CLANG_C_MINSIZEREL})
+    elseif(CMAKE_BUILD_TYPE MATCHES "Release")
+        set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_CLANG_C_RELEASE})
+    elseif(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
+        set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_CLANG_C_RELWITHDEBINFO})
+    endif()
+elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    set(RQ_LIST_C_COMPILER_FLAGS ${RQ_GNU_C_OPTIONS})
+    if(CMAKE_BUILD_TYPE MATCHES "Debug")
+        set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_GNU_C_DEBUG})
+    elseif(CMAKE_BUILD_TYPE MATCHES "MinSizeRel")
+        set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_GNU_C_MINSIZEREL})
+    elseif(CMAKE_BUILD_TYPE MATCHES "Release")
+        set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_GNU_C_RELEASE})
+    elseif(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
+        set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_GNU_C_RELWITHDEBINFO})
+    endif()
+elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
+    set(RQ_LIST_C_COMPILER_FLAGS ${RQ_MSVC_C_OPTIONS})
+endif()
+
+
+include(CheckCCompilerFlag)
+include(CheckCXXCompilerFlag)
+
+set(RQ_C_COMPILER_FLAGS "")
+set(RQ_CXX_COMPILER_FLAGS "")
+
+# check each C flag
+foreach(flag ${LIST_C_COMPILER_FLAGS})
+    check_c_compiler_flag(${flag} RQ_FLAG_C_${flag})
+    if(RQ_FLAG_C_${flag})
+        set(C_COMPILER_FLAGS ${C_COMPILER_FLAGS} ${flag})
+    else()
+        message(WARNING "flag \"${flag}\" can't be used in your C compiler")
+    endif()
+endforeach()
+
+# check each c++ flag
+foreach(flag ${LIST_CXX_COMPILER_FLAGS})
+    check_cxx_compiler_flag(${flag} RQ_FLAG_CXX_${flag})
+    if(RQ_FLAG_CXX_${flag})
+        set(CXX_COMPILER_FLAGS ${CXX_COMPILER_FLAGS} ${flag})
+    else()
+        message(WARNING "flag \"${flag}\" can't be used in your CXX compiler")
+    endif()
+endforeach()
+
+

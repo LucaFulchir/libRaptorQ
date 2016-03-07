@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+# Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
 #
 # This file is part of "libRaptorQ".
 #
@@ -17,187 +17,99 @@
 # and a copy of the GNU Lesser General Public License
 # along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
 
-PROJECT(libRaptorQ)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
-AUX_SOURCE_DIRECTORY(. SRC_LIST)
+cmake_minimum_required (VERSION 2.8.11)
+project (libRaptorQ)
+enable_language(CXX)
+enable_language(C)
 
-SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build mode") # default build type
-SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
 
-MESSAGE(STATUS "Build selected: ${CMAKE_BUILD_TYPE}")
+# default values
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
 
-# easy compiler choice...
-SET(CMAKE_CXX_COMPILER "g++" CACHE STRING "C++ Compiler") # default compiler
-SET(CMAKE_C_COMPILER "gcc" CACHE STRING "C Compiler") # default compiler
-SET(STDLIB "libstdc++" CACHE STRING "Standard library to use")
-SET_PROPERTY(CACHE CMAKE_CXX_COMPILER PROPERTY STRINGS clang++ g++ c++)
-SET_PROPERTY(CACHE CMAKE_C_COMPILER PROPERTY STRINGS clang gcc cc)
-SET_PROPERTY(CACHE STDLIB PROPERTY STRINGS libc++ libstdc++)
-MARK_AS_ADVANCED(CLEAR
-	CMAKE_CXX_COMPILER
-	CMAKE_C_COMPILER
-)
 
-# Link time optimization: smaller, better optimized libraries
-SET(LTO "yes" CACHE STRING "Link Time Optimization")
-SET_PROPERTY(CACHE LTO PROPERTY STRINGS yes no)
+include(GNUInstallDirs)
 
-# profiling support: optimize the library
-SET(PROFILING "yes" CACHE STRING "Optimize library assembly")
-SET_PROPERTY(CACHE PROFILING PROPERTY STRINGS yes no)
+option(DYNAMIC_LIB "Build dynamic library" ON)
+option(STATIC_LIB "Build static library" ON)
+option(LTO	"Link Time Optimization" ON)
+option(PROFILING "Profile: speedup library" ON)
+option(CLANG_STDLIB "Use clang's libc++" OFF)
 
-SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
 
-FIND_PACKAGE(Threads REQUIRED)
-FIND_PACKAGE(git)
-FIND_PACKAGE(eigen REQUIRED)
-INCLUDE_DIRECTORIES(SYSTEM ${EIGEN3_INCLUDE_DIR})
+message(STATUS "Build selected: ${CMAKE_BUILD_TYPE}")
 
-#This only works if *FIRST* you checkout a commit and *THEN* you run cmake
-IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/.git/)
-MESSAGE(STATUS "directory found")
-IF(GIT_FOUND)
-    EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} rev-parse --sq HEAD OUTPUT_VARIABLE SEED)
-    SET(DETERMINISTIC "-frandom-seed=${SEED}")
-ENDIF()
-ELSE()
-    SET(DETERMINISTIC "-frandom-seed=RaptorQ_nongit")
-    MESSAGE(WARNING "Not inside a git repository. compiler seed is now constant.")
-ENDIF()
+if(NOT (STATIC_LIB MATCHES "ON"))
+    if (NOT (DYNAMIC_LIB MATCHES "ON"))
+        message(FATAL_ERROR "Do you want to actually build the library?")
+    endif()
+endif()
 
-IF("${LTO}" STREQUAL "yes")
-	MESSAGE(STATUS "Link Time Optimization activated")
-ELSE()
-	MESSAGE(STATUS "Link Time Optimization deactivated")
-ENDIF()
-#activate profiling if requested.
-# profiling needs to build a test, which needs threading.
-IF (PROFILING STREQUAL "yes")
-	MESSAGE(STATUS "Profiling activated")
-ELSE()
-	MESSAGE(STATUS "Profiling deactivated")
-	SET (PROFILING	"no")
-ENDIF()
+# with LTO each compiler needs its own AR/NM/RANLIB?
+if(LTO MATCHES "ON")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            find_program(RQ_AR "llvm-ar")
+            find_program(RQ_NM "llvm-nm")
+            find_program(RQ_RANLIB "llvm-ranlib")
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+            find_program(RQ_AR "gcc-ar")
+            find_program(RQ_NM "gcc-nm")
+            find_program(RQ_RANLIB "gcc-ranlib")
+        endif()
+        set(CMAKE_AR ${RQ_AR})
+        set(CMAKE_NM ${RQ_NM})
+        set(CMAKE_RANLIB ${RQ_RANLIB})
+        mark_as_advanced(FORCE RQ_AR RQ_NM RQ_RANLIB)
+	    message(STATUS "Link Time Optimization activated")
+    else()
+        message(FATAL_ERROR "Sorry, don't know how to do LTO with your compiler")
+    endif()
+else()
+	message(STATUS "Link Time Optimization deactivated")
+endif()
 
-# setup the compiler and the standard library
-IF(STDLIB)
-	IF(${STDLIB} STREQUAL "libc++" AND NOT (${CMAKE_CXX_COMPILER} MATCHES "^.*c[+][+]$" OR ${CMAKE_CXX_COMPILER} MATCHES "^(.*/)g[+][+]$"))
-		# gcc is particoularly unhappy with libc++ headers...
-		INCLUDE_DIRECTORIES(SYSTEM ${CLANG_C_INCLUDE_DIR})
-		FIND_PACKAGE(std_clang REQUIRED)
-		INCLUDE_DIRECTORIES(SYSTEM ${CLANG_STD_INCLUDE_DIR})
-	ENDIF()
-	IF(${STDLIB} STREQUAL "libstdc++" OR (${CMAKE_CXX_COMPILER} MATCHES "^.*c[+][+]$" OR ${CMAKE_CXX_COMPILER} MATCHES "^(.*/)g[+][+]$"))
-		INCLUDE_DIRECTORIES(SYSTEM ${GCC_C_INCLUDE_DIR})
-		FIND_PACKAGE(std_gcc REQUIRED)
-		INCLUDE_DIRECTORIES(SYSTEM ${GCC_STD_INCLUDE_DIR})
-	ENDIF()
-ENDIF(STDLIB)
-# generic standard library support, put it as compiler option:
-IF(${STDLIB} MATCHES "^.+$")
-	SET(STDLIB_FLAG		"-stdlib=${STDLIB}")
-ENDIF()
+# Profiling is pretty compiler-specific....
+if(PROFILING MATCHES "ON")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+        message(STATUS "Profiling activated")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            message(WARNING "Clang's profile support breaks deterministic builds!")
+        endif()
+    else()
+        message(FATAL_ERROR "Sorry, don't know how to profile with your compiler")
+    endif()
+else()
+    message(STATUS "Profiling deactivated")
+endif()
 
-#
-# C++ options
-#
-IF(${CMAKE_CXX_COMPILER} MATCHES ".*clang.*")
-	IF (PROFILING STREQUAL "yes")
-		MESSAGE(WARNING		"Profiling and clang breaks deterministic builds")
-		SET (PROFILE_GET           "-fprofile-instr-generate -g")
-		SET (PROFILE_GET_FILE      "RaptorQ.profraw")
-		SET (PROFILE_SET_FILE      "RaptorQ.profdata")
-		SET (PROFILE_SET           "-fprofile-instr-use=${PROFILE_SET_FILE}")
-	ENDIF()
-	IF("${LTO}" STREQUAL "yes")
-		SET(CMAKE_CXX_FLAGS		"${CMAKE_CXX_FLAGS} -flto -fuse-ld=gold")
-		SET(CMAKE_C_FLAGS		"${CMAKE_C_FLAGS} -flto -fuse-ld=gold")
-		FIND_PROGRAM(LLVM_AR "llvm-ar")
-		FIND_PROGRAM(LLVM_NM "llvm-nm")
-		FIND_PROGRAM(LLVM_RANLIB "llvm-ranlib")
-		SET(CMAKE_AR ${LLVM_AR})
-		SET(LINK_FLAGS "-rng-seed=${SEED} --build-id=none")
-		SET(CMAKE_NM ${LLVM_NM})
-		SET(CMAKE_RANLIB ${LLVM_RANLIB})
-	ENDIF()
-	SET(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -O0 -g -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -Os -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
-	SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS} ${STDLIB_FLAG} ${DETERMINISTIC} -std=c++11 -Ofast -g -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
-	ADD_DEFINITIONS(-DUSING_CLANG)
-	SET(USE_CLANG 1)
-ELSE()
-	# warn: clang+ and g++ get the same *g++ regexp, keep the "else" above or match the "/" in the regexp
-	IF(${CMAKE_CXX_COMPILER} MATCHES "^.*c[+][+]$" OR ${CMAKE_CXX_COMPILER} MATCHES "^(.*/)g[+][+]$")
-	IF (PROFILING STREQUAL "yes")
-		SET (PROFILE_GET           "-fprofile-generate")
-		# gcc creates a couple more files than clang for prifiling. Track them.
-		SET (PROFILE_GET_FILE
-CMakeFiles/RaptorQ_static_profiling.dir/src/Graph.cpp.gcda
-CMakeFiles/RaptorQ_static_profiling.dir/src/Parameters.cpp.gcda
-CMakeFiles/RaptorQ_static_profiling.dir/src/Rand.cpp.gcda
-CMakeFiles/RaptorQ_static_profiling.dir/src/Precode_Matrix.cpp.gcda
-CMakeFiles/RaptorQ_static_profiling.dir/src/Precode_Matrix_solver.cpp.gcda
-CMakeFiles/RaptorQ_static_profiling.dir/src/cRaptorQ.cpp.gcda
-CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
-		SET (PROFILE_SET_FILE      ${PROFILE_GET_FILE})
-		SET (PROFILE_SET           "-fprofile-use")
-	ENDIF()
-	IF("${LTO}" STREQUAL "yes")
-		SET(CMAKE_CXX_FLAGS		"${CMAKE_CXX_FLAGS} -flto -fuse-ld=gold")
-		SET(CMAKE_C_FLAGS		"${CMAKE_C_FLAGS} -flto -fuse-ld=gold")
-		FIND_PROGRAM(GCC_AR "gcc-ar")
-		FIND_PROGRAM(GCC_NM "gcc-nm")
-		FIND_PROGRAM(GCC_RANLIB "gcc-ranlib")
-		SET(CMAKE_AR ${GCC_AR})
-		SET(LINK_FLAGS "-D")
-		SET(CMAKE_NM ${GCC_NM})
-	SET(CMAKE_RANLIB ${GCC_RANLIB})
-	ENDIF()
-	SET(CMAKE_CXX_FLAGS		   "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv")
-# FIXME: some of these are gcc4.9+ only
-	SET(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -O0 -g -Wall -pedantic -Wno-padded -fstack-protector-all -Wno-aggressive-loop-optimizations -fstrict-aliasing -ftrapv -fwrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute ")
-	SET(CMAKE_CXX_FLAGS_MINSIZEREL     "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Os -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -O4 -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
-	SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS} -std=c++11 ${DETERMINISTIC} -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Ofast -g -fvisibility=hidden -fvisibility-inlines-hidden -O4 -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
-	ENDIF()
-	# else I do not know your compiler options :)
-ENDIF()
-#
-# We hae a C interface example to build.
-# set the proper options for that, too
-#
-IF(${CMAKE_C_COMPILER} MATCHES ".*clang.*")
-	SET(CMAKE_C_FLAGS                "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wno-disabled-macro-expansion ")
-	SET(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -O0 -g -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wno-disabled-macro-expansion ")
-	SET(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Os    -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC -Wno-disabled-macro-expansion ")
-	SET(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS} ${DETERMINISTIC} -std=c11 -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC -Wno-disabled-macro-expansion ")
-	ADD_DEFINITIONS(-DUSING_CLANG)
-ELSE()
-	# warn: clang+ and g++ get the same *g++ regexp, keep the "else" above or match the "/" in the regexp
-	IF(${CMAKE_C_COMPILER} MATCHES "^.*cc$" OR ${CMAKE_C_COMPILER} MATCHES "^(.*/)gcc$")
+if(CLANG_STDLIB MATCHES "ON")
+    if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+        message(FATAL_ERROR "libc++ is only supported by clang")
+    endif()
+endif()
 
-	SET(CMAKE_C_FLAGS		   "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv")
-# FIXME: some of these are gcc4.9+ only
-	SET(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -O0 -g -Wall -pedantic -Wno-padded -fstack-protector-all -Wno-aggressive-loop-optimizations -fstrict-aliasing -ftrapv -fwrapv -fsanitize=undefined -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=null -fsanitize=return -fsanitize=signed-integer-overflow -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute ")
-	SET(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -Os -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing ")
-	SET(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS} -std=c11 ${DETERMINISTIC} -Wno-unknown-pragmas -Ofast -fvisibility=hidden -DNDEBUG -Wall -pedantic -Wno-padded -fstack-protector-all -fstrict-aliasing -fwrapv -Wformat -Wformat-security -fPIE -fPIC ")
-	ENDIF()
-	# else I do not know your compiler options :)
-ENDIF()
 
-IF(APPLE)
-  MESSAGE(STATUS "MacOSX system found. WARN: not tested!")
-  ADD_DEFINITIONS(-DUNIX)
-ENDIF()
-IF(UNIX)
-  MESSAGE(STATUS "UNIX system found")
-  ADD_DEFINITIONS(-DUNIX)
-ELSEIF(WIN32)
-  MESSAGE(STATUS "Wndows system found. WARN: not tested!")
-  ADD_DEFINITION(-DWIN32)
-ENDIF()
+
+find_package(Threads REQUIRED)
+find_package(git)
+find_package(eigen REQUIRED)
+include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
+
+# LATEX documentation
+add_subdirectory(${CMAKE_SOURCE_DIR}/doc)
+
+
+if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/.git/ AND GIT_FOUND)
+    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --sq HEAD OUTPUT_VARIABLE SEED)
+    set(DETERMINISTIC -frandom-seed=${SEED})
+else()
+    set(DETERMINISTIC -frandom-seed=RaptorQ_nongit)
+    message(WARNING "Not inside a git repository. Compiler seed is now constant.")
+endif()
+
 
 
 SET(SOURCES	src/Precode_Matrix_solver.cpp
@@ -222,142 +134,211 @@ SET(HEADERS	src/Interleaver.hpp
 		src/RaptorQ.hpp
 		src/cRaptorQ.h)
 
-SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
-# LATEX documentation
-add_subdirectory(${CMAKE_SOURCE_DIR}/doc)
+include(cmake/compiler_flags)
 
-IF(PROFILING STREQUAL "yes")
-	# we need to build a profiling version of the static library.
-	# then we will run the profiling,  and then finally rebuild
-	# everything with the profiling optimizations
 
-	# build the static library for profiling
-	ADD_LIBRARY(RaptorQ_static_profiling STATIC ${SOURCES} ${HEADERS})
-	# ar: add deterministic build
-	SET_TARGET_PROPERTIES (
-		RaptorQ_static_profiling
-		PROPERTIES
-		LINK_FLAGS "-Wl,-z,now,-z,relro -pie"
-	)
-	TARGET_LINK_LIBRARIES(RaptorQ_static_profiling  stdc++)
-	SET_TARGET_PROPERTIES(RaptorQ_static_profiling PROPERTIES COMPILE_FLAGS ${PROFILE_GET})
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_definitions(-DUSING_CLANG)
+    set(LD_OPT "-flto -fuse-ld=gold")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    set(LD_OPT "")
+endif()
 
-	# build the C example test for profiling
-	ADD_EXECUTABLE(test_c_profiled test/test_c.c)
-	ADD_DEPENDENCIES(test_c_profiled RaptorQ_static_profiling)
-	SET_TARGET_PROPERTIES(test_c_profiled PROPERTIES COMPILE_FLAGS ${PROFILE_GET})
-	TARGET_LINK_LIBRARIES(test_c_profiled ${LIBRARY_OUTPUT_PATH}/libRaptorQ_static_profiling.a)
-	STRING(SUBSTRING ${STDLIB} 3 -1 STDLIB_NAME)
-	TARGET_LINK_LIBRARIES(test_c_profiled ${STDLIB_NAME})
-	TARGET_LINK_LIBRARIES(test_c_profiled m) # math library
-	TARGET_LINK_LIBRARIES(test_c_profiled ${CMAKE_THREAD_LIBS_INIT})
-	SET_TARGET_PROPERTIES(test_c_profiled PROPERTIES LINK_FLAGS "${PROFILE_GET}")
 
-	# run the profiling and create the profile
-	IF(USE_CLANG)
-		add_custom_command(
-			OUTPUT ${PROFILE_GET_FILE}
-			COMMAND LLVM_PROFILE_FILE=${PROFILE_GET_FILE} ./test_c_profiled
-			DEPENDS test_c_profiled
-			COMMENT "Running profiling test..."
-			VERBATIM
-		)
-	ELSE()
-		add_custom_command(
-			OUTPUT ${PROFILE_GET_FILE}
-			COMMAND ./test_c_profiled
-			DEPENDS test_c_profiled
-			COMMENT "Running profiling test..."
-			VERBATIM
-		)
-	ENDIF()
-	IF(USE_CLANG)
-		# the profile must be translated into readable form
-		add_custom_command(
-			OUTPUT ${PROFILE_SET_FILE}
-			COMMAND llvm-profdata merge -output=${PROFILE_SET_FILE} ${PROFILE_GET_FILE}
-			DEPENDS ${PROFILE_GET_FILE}
-			COMMENT "Creating profile data..."
-			VERBATIM
-		)
-	ENDIF()
-	add_custom_target(
-		profile ALL
-		DEPENDS ${PROFILE_SET_FILE}
-	)
-	# now we can rebuild the test, the static library with the profiling optimizations.
-ENDIF()
+#######################################
 
-ADD_LIBRARY(RaptorQ_static STATIC ${SOURCES} ${HEADERS})
-SET_TARGET_PROPERTIES (
-	RaptorQ_static
-	PROPERTIES
-	LINK_FLAGS "-Wl,-z,now,-z,relro -pie"
-)
-IF(PROFILING STREQUAL "yes")
-	ADD_DEPENDENCIES(RaptorQ_static profile)
-	SET_TARGET_PROPERTIES(RaptorQ_static PROPERTIES COMPILE_FLAGS ${PROFILE_SET})
-ENDIF()
 
-ADD_EXECUTABLE(make_deterministic src/deterministic.cpp)
-add_custom_command(
-  OUTPUT deterministic.run
-  COMMAND make_deterministic ${LIBRARY_OUTPUT_PATH}/libRaptorQ_static.a
-  DEPENDS RaptorQ_static
-  COMMENT "Removing creation date from library..."
-  VERBATIM
-)
+if(PROFILING MATCHES "ON")
+    if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+        set(PROFILE_GET           "-fprofile-instr-generate -g")
+        set(PROFILE_GET_FILE      RaptorQ.profraw)
+        set(PROFILE_SET_FILE      RaptorQ.profdata)
+        set(PROFILE_SET           "-fprofile-instr-use=${PROFILE_SET_FILE}")
+    elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
+        set(PROFILE_GET           -fprofile-generate)
+        # gcc creates a couple more files than clang for prifiling. Track them.
+        set(PROFILE_GET_FILE
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/Graph.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/Parameters.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/Rand.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/Precode_Matrix.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/Precode_Matrix_solver.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/cRaptorQ.cpp.gcda
+CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
+        set(PROFILE_SET_FILE      ${PROFILE_GET_FILE})
+        set(PROFILE_SET           -fprofile-use)
+    endif()
+
+    if(CLANG_STDLIB MATCHES "ON")
+		set(STDLIB "c++")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+        set(STDLIB "stdc++")
+    endif()
+    # PRE-run: build a library, generate the profile.
+    add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS})
+    target_link_libraries(RaptorQ_Static_Profiling ${STDLIB})
+    set(CMAKE_CXX_FLAGS )
+    target_compile_options(
+        RaptorQ_Static_Profiling PRIVATE
+        ${CXX_COMPILER_FLAGS}
+    )
+    set_target_properties(RaptorQ_Static_Profiling PROPERTIES COMPILER_FLAGS ${PROFILE_GET})
+
+    # build the C example test for profiling
+    add_executable(test_c_profiled test/test_c.c)
+    add_dependencies(test_c_profiled RaptorQ_Static_Profiling)
+    set(CMAKE_C_FLAGS )
+    set(CMAKE_CXX_FLAGS )
+    target_compile_options(
+        test_c_profiled PRIVATE
+        ${C_COMPILER_FLAGS}
+    )
+    target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB} m ${CMAKE_THREAD_LIBS_INIT})
+    set_target_properties(test_c_profiled PROPERTIES LINK_FLAGS ${PROFILE_GET})
+
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+        add_custom_command(
+            OUTPUT ${PROFILE_GET_FILE}
+            COMMAND LLVM_PROFILE_FILE=${PROFILE_GET_FILE} ./test_c_profiled
+            DEPENDS test_c_profiled
+            COMMENT "Running profiling test..."
+            VERBATIM
+        )
+    elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
+        add_custom_command(
+            OUTPUT ${PROFILE_GET_FILE}
+            COMMAND ./test_c_profiled
+            DEPENDS test_c_profiled
+            COMMENT "Running profiling test..."
+            VERBATIM
+        )
+    endif()
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+        # the profile must be translated into readable form
+        add_custom_command(
+            OUTPUT ${PROFILE_SET_FILE}
+            COMMAND llvm-profdata merge -output=${PROFILE_SET_FILE} ${PROFILE_GET_FILE}
+            DEPENDS ${PROFILE_GET_FILE}
+            COMMENT "Creating profile data..."
+            VERBATIM
+        )
+    endif()
+    add_custom_target(
+        profile ALL
+        DEPENDS ${PROFILE_SET_FILE}
+    )
+endif()
+
+
+
+
+# build the static library
+if(STATIC_LIB MATCHES "ON")
+    add_library(RaptorQ_Static STATIC ${SOURCES} ${HEADERS})
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
+        set_target_properties(RaptorQ_Static PROPERTIES OUTPUT_NAME RaptorQ)
+    endif()
+    target_compile_options(
+        RaptorQ_Static PRIVATE
+        ${CXX_COMPILER_FLAGS}
+    )
+    if(LTO MATCHES "ON")
+        target_compile_options(RaptorQ_Static PRIVATE -flto -fuse-ld=gold)
+    endif()
+    if(PROFILING MATCHES "ON")
+        add_dependencies(RaptorQ_Static profile)
+        target_compile_options(RaptorQ_Static PRIVATE ${PROFILE_SET})
+    endif()
+    set_target_properties (
+        RaptorQ_Static
+        PROPERTIES
+        LINK_FLAGS "-Wl,-z,now,-z,relro -pie ${LD_OPT}"
+    )
+    set_property(TARGET RaptorQ_Static PROPERTY ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
+
+	# make the library deterministic (only on *nix)
+    add_executable(make_deterministic src/deterministic.cpp)
+    target_compile_options(
+        make_deterministic PRIVATE
+        ${CXX_COMPILER_FLAGS}
+    )
+    add_custom_command(
+        OUTPUT deterministic.run
+        COMMAND make_deterministic ${CMAKE_SOURCE_DIR}/lib/libRaptorQ.a
+        DEPENDS RaptorQ_Static
+        COMMENT "Removing creation date from library..."
+        VERBATIM
+    )
+
 add_custom_target(
-  Make_static_deterministic ALL
-  DEPENDS deterministic.run
+    Make_static_deterministic ALL
+    DEPENDS deterministic.run
 )
+endif()
 
-ADD_DEFINITIONS(-DRAPTORQ_DLL)
-ADD_DEFINITIONS(-DRAPTORQ_DLL_EXPORTS)
+#build dynamic library
+if(DYNAMIC_LIB MATCHES "ON")
+    add_definitions(-DRAPTORQ_DLL)
+    add_definitions(-DRAPTORQ_DLL_EXPORTS)
 
-ADD_LIBRARY(RaptorQ SHARED ${SOURCES} ${HEADERS})
-# add profiling dependency if requested
-IF(PROFILING STREQUAL "yes")
-	ADD_DEPENDENCIES(RaptorQ profile)
-	SET_TARGET_PROPERTIES(RaptorQ PROPERTIES COMPILE_FLAGS ${PROFILE_SET})
-ENDIF()
-SET_TARGET_PROPERTIES (
-	RaptorQ
-	PROPERTIES
-	LINK_FLAGS "-Wl,-z,now,-z,relro"
-)
+    add_library(RaptorQ SHARED ${SOURCES} ${HEADERS})
+    target_compile_options(
+        RaptorQ PRIVATE
+        ${CXX_COMPILER_FLAGS}
+    )
+    if(LTO MATCHES "ON")
+        target_compile_options(RaptorQ PRIVATE -flto -fuse-ld=gold)
+    endif()
+    if(PROFILING MATCHES "ON")
+        add_dependencies(RaptorQ profile)
+        target_compile_options(RaptorQ PRIVATE ${PROFILE_SET})
+    endif()
+    set_target_properties (
+        RaptorQ
+        PROPERTIES
+        LINK_FLAGS "-Wl,-z,now,-z,relro ${LD_OPT}"
+    )
+    set_property(TARGET RaptorQ PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
+endif()
 
 
 # add main tests
-ADD_EXECUTABLE(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
-ADD_DEPENDENCIES(libRaptorQ-test RaptorQ)
-TARGET_LINK_LIBRARIES(libRaptorQ-test ${CMAKE_THREAD_LIBS_INIT})
-# link the library we just built, too
-TARGET_LINK_LIBRARIES(libRaptorQ-test ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
-INSTALL(TARGETS libRaptorQ-test RUNTIME DESTINATION bin/ OPTIONAL)
-ADD_CUSTOM_TARGET(tests DEPENDS libRaptorQ-test)
+add_executable(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
+    target_compile_options(
+        libRaptorQ-test PRIVATE
+        ${CXX_COMPILER_FLAGS}
+    )
+add_dependencies(libRaptorQ-test RaptorQ)
+target_link_libraries(libRaptorQ-test ${CMAKE_THREAD_LIBS_INIT} RaptorQ)
+add_custom_target(tests DEPENDS libRaptorQ-test)
 
 # build examples
 # C interface
-ADD_EXECUTABLE(test_c EXCLUDE_FROM_ALL test/test_c.c)
-ADD_DEPENDENCIES(test_c RaptorQ)
-TARGET_LINK_LIBRARIES(test_c ${CMAKE_THREAD_LIBS_INIT})
-# link the library we just built, too
-TARGET_LINK_LIBRARIES(test_c ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so m)
+add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
+    target_compile_options(
+        test_c PRIVATE
+        ${C_COMPILER_FLAGS}
+    )
+add_dependencies(test_c RaptorQ)
+target_link_libraries(test_c ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} RaptorQ m)
+
 # CPP interface
-ADD_EXECUTABLE(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
-ADD_DEPENDENCIES(test_cpp RaptorQ)
-TARGET_LINK_LIBRARIES(test_cpp ${CMAKE_THREAD_LIBS_INIT})
-# link the library we just built, too
-TARGET_LINK_LIBRARIES(test_cpp ${LIBRARY_OUTPUT_PATH}/libRaptorQ.so)
-ADD_CUSTOM_TARGET(examples DEPENDS test_c test_cpp)
+add_executable(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
+    target_compile_options(
+        test_cpp PRIVATE
+        ${CXX_COMPILER_FLAGS}
+    )
+add_dependencies(test_cpp RaptorQ)
+target_link_libraries(test_cpp ${CMAKE_THREAD_LIBS_INIT} RaptorQ)
+add_custom_target(examples DEPENDS test_c test_cpp)
 
-ADD_CUSTOM_TARGET(everything DEPENDS Make_static_deterministic tests examples docs)
+add_custom_target(everything DEPENDS Make_static_deterministic tests examples docs)
 
 
-INSTALL(FILES ${HEADERS} DESTINATION include/RaptorQ/)
-INSTALL(TARGETS RaptorQ RaptorQ_static
-	 LIBRARY DESTINATION lib COMPONENT libraries
-	 ARCHIVE DESTINATION lib COMPONENT libraries)
+install(FILES ${HEADERS} DESTINATION include/RaptorQ/)
+install(TARGETS RaptorQ RaptorQ_Static
+     LIBRARY DESTINATION lib COMPONENT libraries
+     ARCHIVE DESTINATION lib COMPONENT libraries)
+
 

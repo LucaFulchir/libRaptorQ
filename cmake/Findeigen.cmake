@@ -21,13 +21,14 @@
 FIND_PATH(EIGEN3_INCLUDE_DIR
   NAMES Eigen
   PATH_SUFFIXES include/ include/eigen3/ eigen3/
-  PATHS "${PROJECT_SOURCE_DIR}"
+  PATHS
   ${EIGEN3_ROOT}
   $ENV{EIGEN3_ROOT}
   /usr/
+  ${PROJECT_SOURCE_DIR}/external/eigen3
 )
 
-message("Found eigen3 at: ${EIGEN3_INCLUDE_DIR}.")
+message(STATUS "Found eigen3 at: ${EIGEN3_INCLUDE_DIR}.")
 
 IF(EIGEN3_INCLUDE_DIR)
   SET(EIGEN3_FOUND TRUE)
