@@ -322,6 +322,10 @@ add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
     )
 add_dependencies(test_c RaptorQ)
 target_link_libraries(test_c ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} RaptorQ m)
+# cmake 2.8.12 seems to have problems understanding to link pthread...
+if(USE_PTHREADS_INIT)
+    target_link_libraries(test_c pthread)
+endif()
 
 # CPP interface
 add_executable(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
