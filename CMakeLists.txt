@@ -17,7 +17,7 @@
 # and a copy of the GNU Lesser General Public License
 # along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
 
-cmake_minimum_required (VERSION 2.8.11)
+cmake_minimum_required (VERSION 2.8.12)
 project (libRaptorQ)
 enable_language(CXX)
 enable_language(C)
@@ -34,10 +34,16 @@ include(GNUInstallDirs)
 
 option(DYNAMIC_LIB "Build dynamic library" ON)
 option(STATIC_LIB "Build static library" ON)
-option(LTO	"Link Time Optimization" ON)
-option(PROFILING "Profile: speedup library" ON)
 option(CLANG_STDLIB "Use clang's libc++" OFF)
 
+# defaults: only enable LTO/PROFILING with known compielrs
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+   option(LTO "Link Time Optimization" ON)
+   option(PROFILING "Profiling: speedup library" ON)
+else()
+   option(LTO "Link Time Optimization" OFF)
+   option(PROFILING "Profiling: speedup library" OFF)
+endif()
 
 message(STATUS "Build selected: ${CMAKE_BUILD_TYPE}")
 
@@ -46,6 +52,7 @@ if(NOT (STATIC_LIB MATCHES "ON"))
         message(FATAL_ERROR "Do you want to actually build the library?")
     endif()
 endif()
+
 
 # with LTO each compiler needs its own AR/NM/RANLIB?
 if(LTO MATCHES "ON")
