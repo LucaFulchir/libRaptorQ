@@ -65,7 +65,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	 */
 
 	// use multiple blocks
-	struct RaptorQ_ptr *enc = RaptorQ_Enc (ENC_32, myvec, mysize, subsymbol,
+	struct RaptorQ_ptr *enc = RaptorQ_Enc (RQ_ENC_32, myvec, mysize, subsymbol,
 															symbol_size, 200);
 
 	if (enc == NULL) {
@@ -196,7 +196,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	 * Now start decoding things
 	 */
 
-	struct RaptorQ_ptr *dec = RaptorQ_Dec (DEC_32, oti_common, oti_scheme);
+	struct RaptorQ_ptr *dec = RaptorQ_Dec (RQ_DEC_32, oti_common, oti_scheme);
 
 	if (dec == NULL) {
 		fprintf(stderr, "Could not initialize decoder!\n");

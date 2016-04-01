@@ -33,9 +33,9 @@ extern "C"
 	typedef uint64_t RaptorQ_OTI_Common_Data;
 	typedef uint32_t RaptorQ_OTI_Scheme_Specific_Data;
 
-	typedef enum { NONE = 0, ENC_8 = 1, ENC_16 = 2, ENC_32 = 3, ENC_64 = 4,
-								DEC_8 = 5, DEC_16 = 6, DEC_32 = 7, DEC_64 = 8}
-				 RaptorQ_type;
+	typedef enum { RQ_NONE = 0, RQ_ENC_8 = 1, RQ_ENC_16 = 2, RQ_ENC_32 = 3,
+					RQ_ENC_64 = 4, RQ_DEC_8 = 5, RQ_DEC_16 = 6, RQ_DEC_32 = 7,
+					RQ_DEC_64 = 8 } RaptorQ_type;
 
 	struct RAPTORQ_LOCAL RaptorQ_ptr;
 
