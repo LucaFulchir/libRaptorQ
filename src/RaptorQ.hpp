@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -373,8 +373,8 @@ public:
 	}
 
 	Impl::DenseMtx precompute ();
-	uint64_t decode (Out_It &start, const Out_It end);
-	uint64_t decode (Out_It &start, const Out_It end, const uint8_t sbn);
+	uint64_t decode (Fwd_It &start, const Fwd_It end);
+	uint64_t decode (Fwd_It &start, const Fwd_It end, const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
 	bool add_symbol (In_It &start, const In_It end, const uint32_t id);
 	bool add_symbol (In_It &start, const In_It end, const uint32_t esi,
@@ -547,9 +547,9 @@ void Encoder<Rnd_It, Fwd_It>::precompute_block_all (
 	if (obj->interleave == nullptr)
 		return;
 	std::vector<std::thread> t;
-	ssize_t spawned = threads - 1;
+	int32_t spawned = threads - 1;
 	if (spawned <= -1)
-		spawned = std::thread::hardware_concurrency();
+		spawned = static_cast<int32_t> (std::thread::hardware_concurrency());
 
 	if (spawned > 0)
 		t.reserve (static_cast<size_t> (spawned));
@@ -567,8 +567,8 @@ void Encoder<Rnd_It, Fwd_It>::precompute_block_all (
 		t[id].join();
 }
 
-template <typename Rnd_It, typename Out_It>
-Impl::DenseMtx Encoder<Rnd_It, Out_It>::precompute ()
+template <typename Rnd_It, typename Fwd_It>
+Impl::DenseMtx Encoder<Rnd_It, Fwd_It>::precompute ()
 {
 	Impl::DenseMtx ret;
 	precompute_thread (this, nullptr, 0, &ret);
@@ -715,8 +715,8 @@ bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 	return dec->add_symbol (start, end, esi);
 }
 
-template <typename In_It, typename Out_It>
-Impl::DenseMtx Decoder<In_It, Out_It>::precompute ()
+template <typename In_It, typename Fwd_It>
+Impl::DenseMtx Decoder<In_It, Fwd_It>::precompute ()
 {
 	_mtx.lock();
 	auto it = decoders.find (0);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -46,7 +46,7 @@ public:
 	virtual DenseMtx to_Matrix (const uint16_t size) const = 0;
 	virtual void build_mtx (DenseMtx &mtx) const = 0;
 	virtual uint64_t size() const = 0;
-	friend std::ostream &operator<< (std::ostream &os, Operation const &op) {
+	friend std::ostream &operator<< (std::ostream &os, const Operation &op) {
 		return op.print (os);
 	}
 private:

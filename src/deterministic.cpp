@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -67,7 +67,7 @@ uint64_t erase (const size_t offset, std::fstream &lib)
 	lib.seekg (static_cast<int64_t> (offset + 48));
 	char size[10];
 	lib.read (size, 10);
-	for (ssize_t i = 9; i >= 0; --i) {
+	for (int32_t i = 9; i >= 0; --i) {
 		if (size[i] == pad)
 			size[i] = '\0';
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -70,7 +70,7 @@ void Bitmask::add (const size_t id)
 		--holes;
 }
 
-bool Bitmask::exists (const size_t id ) const
+bool Bitmask::exists (const size_t id) const
 {
 	size_t element = static_cast<size_t> (div_floor (id, sizeof(size_t)));
 	if (element >= mask.size())

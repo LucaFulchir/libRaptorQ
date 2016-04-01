@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -76,7 +76,7 @@ uint16_t Encoder<Rnd_It, Fwd_It>::padded () const
 }
 
 template <typename Rnd_It, typename Fwd_It>
-bool Encoder<Rnd_It, Fwd_It>::generate_symbols ()
+bool Encoder<Rnd_It, Fwd_It>::generate_symbols (DenseMtx &res)
 {
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
 	// do not bother checing for multithread. that is done in RaptorQ.hpp
@@ -187,7 +187,7 @@ uint64_t Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
 		using T = typename std::iterator_traits<Fwd_It>::value_type;
 		T al = static_cast<T> (0);
 		uint8_t *p = reinterpret_cast<uint8_t *>  (&al);
-		for (ssize_t i = 0; i < tmp.cols(); ++i) {
+		for (uint32_t i = 0; i < tmp.cols(); ++i) {
 			*p = static_cast<uint8_t> (tmp (0, i));
 			++p;
 			if (p == reinterpret_cast<uint8_t *>  (&al) + sizeof(T)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -219,6 +219,7 @@ bool Decoder<In_It>::decode (DenseMtx &res)
 		for (auto &op : ops)
 			op->build_mtx (res);
 	}
+// FIXME: useless
 	uint32_t zeros = 0;
 	for (uint16_t row = 0; row < res.rows(); ++row) {
 		for (uint16_t col = 0; col < res.cols(); ++col) {
@@ -226,8 +227,8 @@ bool Decoder<In_It>::decode (DenseMtx &res)
 				++zeros;
 		}
 	}
-	std::cout << "mat: " << size << " = " << size * size << "0: " << zeros <<
-																		"\n";
+	std::cout << "compress? mat: " << size << " = " << size * size << ". 0: " <<
+																zeros << "\n";
 
 	if (missing.rows() == 0)
 		return mask.get_holes() == 0; // did other threads do something?

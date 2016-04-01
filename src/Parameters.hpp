@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -27,11 +27,6 @@
 #include <cmath>
 #include <Eigen/Core>
 #include <vector>
-
-//
-// This implements both phase 1 and phase 2 of the encoding
-// algorithm. Phase2 was so small it made no sense splitting them.
-//
 
 namespace RaptorQ {
 namespace Impl {
@@ -142,8 +137,6 @@ public:
 	}
 
 	friend std::ostream &operator<< (std::ostream &os, const Octet m) {
-		// used to print
-		//os << std::hex << static_cast<ssize_t> (m.data) << std::dec;
 		// used to save to file
 		os << static_cast<uint8_t> (m.data);
 		return os;
