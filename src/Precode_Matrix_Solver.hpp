@@ -280,7 +280,7 @@ std::tuple<bool, uint16_t, uint16_t>
 			}
 		}
 		if (non_zero == V.cols() + 1)
-			return std::make_tuple (false, 0, 0);	// failure
+			return std::tuple<bool,uint16_t,uint16_t> (false, 0, 0); // failure
 		// search for r.
 		if (non_zero != 2) {
 			// search for row with minimum original degree.
