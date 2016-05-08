@@ -32,7 +32,7 @@ set(RQ_GNU_C_RELWITHDEBINFO   ${RQ_GNU_C_RELEASE} -g )
 set(RQ_GNU_CXX_RELWITHDEBINFO ${RQ_GNU_CXX_RELEASE} -g )
 
 # clang options
-set(RQ_CLANG_C_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security )
+set(RQ_CLANG_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security )
 set(RQ_CLANG_CXX_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security )
 
 set(RQ_CLANG_C_DEBUG   -O0 -g )

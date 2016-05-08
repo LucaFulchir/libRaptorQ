@@ -93,9 +93,19 @@ else()
 endif()
 
 if(CLANG_STDLIB MATCHES "ON")
-    if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
-        message(FATAL_ERROR "libc++ is only supported by clang")
-    endif()
+	if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+	    message(FATAL_ERROR "libc++ is only supported by clang")
+	endif()
+endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+	set(STDLIB stdc++)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	if(CLANG_STDLIB MATCHES "ON")
+		set(RQ_STDLIB_FLAG -stdlib=libc++)
+		set(STDLIB c++)
+	else()
+		set(STDLIB stdc++)
+	endif()
 endif()
 
 
@@ -179,11 +189,6 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
         set(PROFILE_SET           -fprofile-use)
     endif()
 
-    if(CLANG_STDLIB MATCHES "ON")
-		set(STDLIB "c++")
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        set(STDLIB "stdc++")
-    endif()
     # PRE-run: build a library, generate the profile.
     add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS})
     target_link_libraries(RaptorQ_Static_Profiling ${STDLIB})
@@ -202,6 +207,7 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
     target_compile_options(
         test_c_profiled PRIVATE
         ${C_COMPILER_FLAGS}
+		-Wno-disabled-macro-expansion
     )
     target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB} m ${CMAKE_THREAD_LIBS_INIT})
     set_target_properties(test_c_profiled PROPERTIES LINK_FLAGS ${PROFILE_GET})
@@ -272,6 +278,7 @@ if(STATIC_LIB MATCHES "ON")
         make_deterministic PRIVATE
         ${CXX_COMPILER_FLAGS}
     )
+	target_link_libraries(make_deterministic ${STDLIB})
     add_custom_command(
         OUTPUT deterministic.run
         COMMAND make_deterministic ${CMAKE_SOURCE_DIR}/lib/libRaptorQ.a
@@ -280,10 +287,10 @@ if(STATIC_LIB MATCHES "ON")
         VERBATIM
     )
 
-add_custom_target(
-    Make_static_deterministic ALL
-    DEPENDS deterministic.run
-)
+	add_custom_target(
+	    Make_static_deterministic ALL
+	    DEPENDS deterministic.run
+	)
 endif()
 
 #build dynamic library
@@ -319,7 +326,7 @@ add_executable(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
         ${CXX_COMPILER_FLAGS}
     )
 add_dependencies(libRaptorQ-test RaptorQ)
-target_link_libraries(libRaptorQ-test ${CMAKE_THREAD_LIBS_INIT} RaptorQ)
+target_link_libraries(libRaptorQ-test ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} RaptorQ)
 add_custom_target(tests DEPENDS libRaptorQ-test)
 
 # build examples
@@ -328,6 +335,7 @@ add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
     target_compile_options(
         test_c PRIVATE
         ${C_COMPILER_FLAGS}
+		-Wno-disabled-macro-expansion
     )
 add_dependencies(test_c RaptorQ)
 target_link_libraries(test_c ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} RaptorQ m)
@@ -340,10 +348,10 @@ endif()
 add_executable(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
     target_compile_options(
         test_cpp PRIVATE
-        ${CXX_COMPILER_FLAGS}
+		${CXX_COMPILER_FLAGS}
     )
 add_dependencies(test_cpp RaptorQ)
-target_link_libraries(test_cpp ${CMAKE_THREAD_LIBS_INIT} RaptorQ)
+target_link_libraries(test_cpp ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} RaptorQ)
 add_custom_target(examples DEPENDS test_c test_cpp)
 
 add_custom_target(everything DEPENDS Make_static_deterministic tests examples docs)
