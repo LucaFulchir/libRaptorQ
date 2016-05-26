@@ -93,7 +93,6 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D, Op_Vec &ops,
 	return C;
 }
 
-// Used in decoding
 template <Save_Computation IS_OFFLINE>
 DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D,
 										const Bitmask &mask,
@@ -115,7 +114,7 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D,
 		if (mask.exists (hole))
 			continue;
 		DenseMtx ret = encode (C, hole);
-		missing.row (row) = ret.row(0);
+		missing.row (row) = ret.row (0);
 		++row;
 		--holes;
 	}

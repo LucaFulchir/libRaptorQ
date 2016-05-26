@@ -34,6 +34,7 @@
 #include "De_Interleaver.hpp"
 #include "Encoder.hpp"
 #include "Decoder.hpp"
+#include "Shared_Computation/Decaying_LF.hpp"
 #include <map>
 #include <mutex>
 #include <thread>
@@ -193,6 +194,12 @@ private:
 };
 
 
+uint64_t shared_cache_size (const uint64_t shared_cache);
+bool local_cache_size (const uint64_t local_cache);
+uint64_t get_shared_cache_size();
+uint64_t get_local_cache_size();
+
+
 static const uint64_t max_data = 946270874880;	// ~881 GB
 
 typedef uint64_t OTI_Common_Data;
@@ -260,7 +267,6 @@ public:
 	OTI_Common_Data OTI_Common() const;
 	OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
-	Impl::DenseMtx precompute ();
 	void precompute (const uint8_t threads, const bool background);
 	size_t precompute_max_memory ();
 	uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
@@ -296,8 +302,7 @@ private:
 	static void precompute_block_all (Encoder<Rnd_It, Fwd_It> *obj,
 														const uint8_t threads);
 	static void precompute_thread (Encoder<Rnd_It, Fwd_It> *obj, uint8_t *sbn,
-													const uint8_t single_sbn,
-													Impl::DenseMtx *result);
+													const uint8_t single_sbn);
 };
 
 
@@ -305,10 +310,6 @@ template <typename In_It, typename Fwd_It>
 class RAPTORQ_API Decoder
 {
 public:
-	// using shared pointers to avoid locking too much or
-	// worrying about deleting used stuff.
-	using Dec_ptr = std::shared_ptr<RaptorQ::Impl::Decoder<In_It>>;
-
 	// rfc 6330, pg 6
 	// easy explanation for OTI_* comes next.
 	// we do NOT use bitfields as compilators are not actually forced to put
@@ -372,7 +373,7 @@ public:
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
 	}
 
-	Impl::DenseMtx precompute ();
+	bool precompute ();
 	uint64_t decode (Fwd_It &start, const Fwd_It end);
 	uint64_t decode (Fwd_It &start, const Fwd_It end, const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
@@ -386,6 +387,9 @@ public:
 	uint16_t symbol_size() const;
 	uint16_t symbols (const uint8_t sbn) const;
 private:
+	// using shared pointers to avoid locking too much or
+	// worrying about deleting used stuff.
+	using Dec_ptr = std::shared_ptr<RaptorQ::Impl::Decoder<In_It>>;
 	uint64_t _size;
 	Impl::Partition part, _sub_blocks;
 	uint16_t _symbol_size;
@@ -474,8 +478,7 @@ size_t Encoder<Rnd_It, Fwd_It>::precompute_max_memory ()
 template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::precompute_thread (Encoder<Rnd_It, Fwd_It> *obj,
 													uint8_t *sbn,
-													const uint8_t single_sbn,
-													Impl::DenseMtx *result)
+													const uint8_t single_sbn)
 {
 	if (obj->interleave == nullptr)
 		return;
@@ -512,12 +515,7 @@ void Encoder<Rnd_It, Fwd_It>::precompute_thread (Encoder<Rnd_It, Fwd_It> *obj,
 		if (locked) {	// if not locked, someone else is already waiting
 						// on this. so don't do the same work twice.
 			// result can be nullptr. in that case, disregard the result.
-			Impl::DenseMtx *p = result;
-			if (result == nullptr)
-				p = new Impl::DenseMtx();
-			enc_ptr->_enc.generate_symbols(*p);
-			if (result == nullptr)
-				delete p;
+			enc_ptr->_enc.generate_symbols();
 			enc_ptr->_mtx.unlock();
 		}
 		if (sbn == nullptr)
@@ -557,22 +555,14 @@ void Encoder<Rnd_It, Fwd_It>::precompute_block_all (
 
 	// spawn n-1 threads
 	for (int8_t id = 0; id < spawned; ++id)
-		t.emplace_back (precompute_thread, obj, &sbn, 0, nullptr);
+		t.emplace_back (precompute_thread, obj, &sbn, 0);
 
 	// do the work ourselves
-	precompute_thread (obj, &sbn, 0, nullptr);
+	precompute_thread (obj, &sbn, 0);
 
 	// join other threads
 	for (uint8_t id = 0; id < spawned; ++id)
 		t[id].join();
-}
-
-template <typename Rnd_It, typename Fwd_It>
-Impl::DenseMtx Encoder<Rnd_It, Fwd_It>::precompute ()
-{
-	Impl::DenseMtx ret;
-	precompute_thread (this, nullptr, 0, &ret);
-	return ret;
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -600,16 +590,14 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 		bool success;
 		std::tie (it, success) = encoders.emplace (sbn,
 						std::make_shared<Locked_Encoder> (*interleave, sbn));
-		background_work.emplace_back (precompute_thread, this, nullptr, sbn,
-																	nullptr);
+		background_work.emplace_back (precompute_thread, this, nullptr, sbn);
 	}
 	auto enc_ptr = it->second;
 	_mtx.unlock();
 	if (esi >= interleave->source_symbols (sbn)) {
 		// make sure we generated the intermediate symbols
 		enc_ptr->_mtx.lock();
-		Impl::DenseMtx res;
-		enc_ptr->_enc.generate_symbols (res);
+		enc_ptr->_enc.generate_symbols();
 		enc_ptr->_mtx.unlock();
 	}
 
@@ -716,22 +704,18 @@ bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 }
 
 template <typename In_It, typename Fwd_It>
-Impl::DenseMtx Decoder<In_It, Fwd_It>::precompute ()
+bool Decoder<In_It, Fwd_It>::precompute ()
 {
 	_mtx.lock();
 	auto it = decoders.find (0);
 	if (it == decoders.end()) {
 		_mtx.unlock();
-		return Impl::DenseMtx();
+		return false;
 	}
 	auto dec = it->second;
 	_mtx.unlock();
 
-	Impl::DenseMtx res;
-	bool test = dec->decode(res);
-	if (!test)
-		return Impl::DenseMtx();
-	return res;
+	return dec->decode();
 }
 
 template <typename In_It, typename Fwd_It>
@@ -747,8 +731,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end)
 		auto dec = it->second;
 		_mtx.unlock();
 
-		Impl::DenseMtx res;
-		if (!dec->decode(res))
+		if (!dec->decode())
 			return 0;
 	}
 	// everything has been decoded
@@ -804,8 +787,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end,
 	auto dec = it->second;
 	_mtx.unlock();
 
-	Impl::DenseMtx res;
-	if (!dec->decode(res))
+	if (!dec->decode())
 		return 0;
 
 	Impl::De_Interleaver<Fwd_It> de_interleaving (dec->get_symbols(),

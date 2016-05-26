@@ -23,6 +23,9 @@ enable_language(CXX)
 enable_language(C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
+set(RQ_VERSION 0.2-prealpha)
+
+message(STATUS "libRaptorQ version ${RQ_VERSION}")
 
 # default values
 if(NOT CMAKE_BUILD_TYPE)
@@ -97,6 +100,7 @@ if(CLANG_STDLIB MATCHES "ON")
 	    message(FATAL_ERROR "libc++ is only supported by clang")
 	endif()
 endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 	set(STDLIB stdc++)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -108,23 +112,34 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 	endif()
 endif()
 
-
-
 find_package(Threads REQUIRED)
 find_package(git)
 find_package(eigen REQUIRED)
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
+find_package(LZ4 REQUIRED)
+include_directories(SYSTEM ${RQ_LZ4_INCLUDE_DIR})
+#lz4 build if necessary
+set(RQ_LZ4_DEP "lz4")
+add_subdirectory(${CMAKE_SOURCE_DIR}/external)
 
 # LATEX documentation
 add_subdirectory(${CMAKE_SOURCE_DIR}/doc)
 
 
 if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/.git/ AND GIT_FOUND)
-    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --sq HEAD OUTPUT_VARIABLE SEED)
-    set(DETERMINISTIC -frandom-seed=${SEED})
+    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --sq HEAD OUTPUT_VARIABLE RQ_SEED)
 else()
-    set(DETERMINISTIC -frandom-seed=RaptorQ_nongit)
+    set(RQ_SEED RaptorQ_nongit_v${RQ_VERSION})
     message(WARNING "Not inside a git repository. Compiler seed is now constant.")
+endif()
+set(DETERMINISTIC -frandom-seed=${RQ_SEED})
+
+if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+    add_definitions(-DRQ_WINDOWS)
+else()
+    add_definitions(-DRQ_UNIX)
+    # used by ftok to get a key. Track both the file and the version
+    add_definitions(-DRQ_SHMPATH="${CMAKE_INSTALL_PREFIX}/lib/libRaptorQ.so-${RQ_VERSION}")
 endif()
 
 
@@ -133,6 +148,7 @@ SET(SOURCES src/Operation.cpp
 		src/Rand.cpp
 		src/Parameters.cpp
 		src/Graph.cpp
+		src/Shared_Computation/Decaying_LF.cpp
 		src/Precode_Matrix_Instantiation.cpp
 		src/cRaptorQ.cpp)
 
@@ -152,6 +168,7 @@ SET(HEADERS	src/Interleaver.hpp
 		src/Graph.hpp
 		src/De_Interleaver.hpp
 		src/RaptorQ.hpp
+		src/Shared_Computation/Decaying_LF.hpp
 		src/cRaptorQ.h)
 
 
@@ -191,7 +208,7 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
 
     # PRE-run: build a library, generate the profile.
     add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS})
-    target_link_libraries(RaptorQ_Static_Profiling ${STDLIB})
+    target_link_libraries(RaptorQ_Static_Profiling ${STDLIB} ${RQ_LZ4_DEP})
     set(CMAKE_CXX_FLAGS )
     target_compile_options(
         RaptorQ_Static_Profiling PRIVATE
@@ -252,7 +269,7 @@ endif()
 if(STATIC_LIB MATCHES "ON")
     add_library(RaptorQ_Static STATIC ${SOURCES} ${HEADERS})
     if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
-        set_target_properties(RaptorQ_Static PROPERTIES OUTPUT_NAME RaptorQ)
+        set_target_properties(RaptorQ_Static PROPERTIES OUTPUT_NAME RaptorQ-${RQ_VERSION})
     endif()
     target_compile_options(
         RaptorQ_Static PRIVATE
@@ -270,7 +287,7 @@ if(STATIC_LIB MATCHES "ON")
         PROPERTIES
         LINK_FLAGS "-Wl,-z,now,-z,relro -pie ${LD_OPT}"
     )
-    set_property(TARGET RaptorQ_Static PROPERTY ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
+    set_property(TARGET RaptorQ_Static PROPERTY ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
 	# make the library deterministic (only on *nix)
     add_executable(make_deterministic src/deterministic.cpp)
@@ -281,7 +298,7 @@ if(STATIC_LIB MATCHES "ON")
 	target_link_libraries(make_deterministic ${STDLIB})
     add_custom_command(
         OUTPUT deterministic.run
-        COMMAND make_deterministic ${CMAKE_SOURCE_DIR}/lib/libRaptorQ.a
+        COMMAND make_deterministic ${CMAKE_BINARY_DIR}/lib/libRaptorQ-${RQ_VERSION}.a
         DEPENDS RaptorQ_Static
         COMMENT "Removing creation date from library..."
         VERBATIM
@@ -303,6 +320,9 @@ if(DYNAMIC_LIB MATCHES "ON")
         RaptorQ PRIVATE
         ${CXX_COMPILER_FLAGS}
     )
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
+        set_target_properties(RaptorQ PROPERTIES OUTPUT_NAME RaptorQ-${RQ_VERSION})
+    endif()
     if(LTO MATCHES "ON")
         target_compile_options(RaptorQ PRIVATE -flto -fuse-ld=gold)
     endif()
@@ -315,7 +335,7 @@ if(DYNAMIC_LIB MATCHES "ON")
         PROPERTIES
         LINK_FLAGS "-Wl,-z,now,-z,relro ${LD_OPT}"
     )
-    set_property(TARGET RaptorQ PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib")
+    set_property(TARGET RaptorQ PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 endif()
 
 
@@ -326,7 +346,7 @@ add_executable(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
         ${CXX_COMPILER_FLAGS}
     )
 add_dependencies(libRaptorQ-test RaptorQ)
-target_link_libraries(libRaptorQ-test ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} RaptorQ)
+target_link_libraries(libRaptorQ-test ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP} RaptorQ)
 add_custom_target(tests DEPENDS libRaptorQ-test)
 
 # build examples
@@ -338,7 +358,7 @@ add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
 		-Wno-disabled-macro-expansion
     )
 add_dependencies(test_c RaptorQ)
-target_link_libraries(test_c ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} RaptorQ m)
+target_link_libraries(test_c ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP} RaptorQ m)
 # cmake 2.8.12 seems to have problems understanding to link pthread...
 if(USE_PTHREADS_INIT)
     target_link_libraries(test_c pthread)
@@ -351,7 +371,7 @@ add_executable(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
 		${CXX_COMPILER_FLAGS}
     )
 add_dependencies(test_cpp RaptorQ)
-target_link_libraries(test_cpp ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} RaptorQ)
+target_link_libraries(test_cpp ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP} RaptorQ)
 add_custom_target(examples DEPENDS test_c test_cpp)
 
 add_custom_target(everything DEPENDS Make_static_deterministic tests examples docs)

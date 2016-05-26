@@ -22,9 +22,10 @@
 #define RAPTORQ_DECODER_HPP
 
 #include "common.hpp"
+#include "Graph.hpp"
 #include "Parameters.hpp"
 #include "Precode_Matrix.hpp"
-#include "Graph.hpp"
+#include "Shared_Computation/Decaying_LF.hpp"
 #include <memory>
 #include <mutex>
 #include <tuple>
@@ -46,30 +47,60 @@ class RAPTORQ_API Decoder
 	using T_in = typename std::iterator_traits<In_It>::value_type;
 public:
 	Decoder (const uint16_t symbols, const uint16_t symbol_size)
-		:_symbols (symbols),
-				precode (Parameters(symbols)), mask (_symbols)
+		:_symbols (symbols), type (test_computation()),
+			precode_on  (init_precode_on  (symbols)),
+			precode_off (init_precode_off (symbols)),
+			mask (_symbols)
 	{
-
 		IS_INPUT(In_It, "RaptorQ::Impl::Decoder");
-
 		// symbol size is in octets, but we save it in "T" sizes.
 		// so be aware that "symbol_size" != "_symbol_size" for now
 		source_symbols = DenseMtx (_symbols, symbol_size);
 	}
 
 	bool add_symbol (In_It &start, const In_It end, const uint32_t esi);
-	bool decode (DenseMtx &res);
+	bool decode();
 	DenseMtx* get_symbols();
 	//std::vector<T> get (const uint16_t symbol) const;
 
 private:
 	std::mutex lock;
 	const uint16_t _symbols;
-	Precode_Matrix<Save_Computation::OFF> precode;
+	const Save_Computation type;
+	const std::unique_ptr<Precode_Matrix<Save_Computation::ON>> precode_on;
+	const std::unique_ptr<Precode_Matrix<Save_Computation::OFF>> precode_off;
 	Bitmask mask;
 	DenseMtx source_symbols;
 
 	std::vector<std::pair<uint32_t, Vect>> received_repair;
+
+	// to help making things const
+	static Save_Computation test_computation()
+	{
+		if (DLF<std::vector<uint8_t>, Cache_Key>::get()->get_size() != 0)
+			return Save_Computation::ON;
+		return Save_Computation::OFF;
+	}
+	// to help making things const
+	Precode_Matrix<Save_Computation::ON> *init_precode_on (
+												const uint16_t symbols) const
+	{
+		if (type == Save_Computation::ON) {
+			return new Precode_Matrix<Save_Computation::ON> (
+														Parameters(symbols));
+		}
+		return nullptr;
+	}
+	// to help making things const
+	Precode_Matrix<Save_Computation::OFF> *init_precode_off(
+												const uint16_t symbols) const
+	{
+		if (type == Save_Computation::OFF) {
+			return new Precode_Matrix<Save_Computation::OFF> (
+														Parameters(symbols));
+		}
+		return nullptr;
+	}
 };
 
 
@@ -142,7 +173,7 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 }
 
 template <typename In_It>
-bool Decoder<In_It>::decode (DenseMtx &res)
+bool Decoder<In_It>::decode()
 {
 	// rfc 6330: can decode when received >= K_padded
 	// actually: (K_padded - K) are padding and thus constant and NOT
@@ -153,17 +184,45 @@ bool Decoder<In_It>::decode (DenseMtx &res)
 	if (received_repair.size() < mask.get_holes())
 		return false;
 
-	precode.gen (static_cast<uint32_t> (received_repair.size() -
+	if (type == Save_Computation::ON) {
+		precode_on->gen (static_cast<uint32_t> (received_repair.size() -
 															mask.get_holes()));
+	} else {
+		precode_off->gen (static_cast<uint32_t> (received_repair.size() -
+															mask.get_holes()));
+	}
 
+	uint16_t S_H;
+	uint16_t K_S_H;
+	bool DO_NOT_SAVE = false;
+	std::vector<bool> bitmask_repair;
+	if (type == Save_Computation::ON) {
+		S_H = precode_on->_params.S + precode_on->_params.H;
+		K_S_H = precode_on->_params.K_padded + S_H;
+		const auto it = received_repair.rend();
+		if (it->first >= std::pow(2,16)) {
+			DO_NOT_SAVE = true;
+		} else {
+			bitmask_repair.reserve (it->first);
+			uint32_t idx = 0;
+			for (auto rep = received_repair.begin();
+								rep != received_repair.end(); ++rep, ++idx) {
+				for (;idx < rep->first; ++idx)
+					bitmask_repair.push_back (false);
+				bitmask_repair.push_back (true);
+			}
+		}
+	} else {
+		S_H = precode_off->_params.S + precode_off->_params.H;
+		K_S_H = precode_off->_params.K_padded + S_H;
+	}
+	const Cache_Key key (K_S_H - S_H, mask.get_holes(), bitmask_repair);
 
-	DenseMtx D = DenseMtx (precode._params.S + precode._params.H +
-								precode._params.K_padded +
-								(received_repair.size() - mask.get_holes()),
+	DenseMtx D = DenseMtx (K_S_H + (received_repair.size() - mask.get_holes()),
 														source_symbols.cols());
 
 	// initialize D
-	for (uint16_t row = 0; row < precode._params.S + precode._params.H; ++row) {
+	for (uint16_t row = 0; row < S_H; ++row) {
 		for (uint16_t col = 0; col < D.cols(); ++col)
 			D (row, col) = 0;
 	}
@@ -171,7 +230,7 @@ bool Decoder<In_It>::decode (DenseMtx &res)
 	lock.lock();
 	if (mask.get_holes() == 0)	// other thread completed its work before us?
 		return true;
-	D.block (precode._params.S + precode._params.H, 0,
+	D.block (S_H, 0,
 							source_symbols.rows(), D.cols()) = source_symbols;
 
 	// mask must be copied to avoid threading problems, same with tracking
@@ -188,20 +247,17 @@ bool Decoder<In_It>::decode (DenseMtx &res)
 																	++hole) {
 		if (mask_safe.exists (hole))
 			continue;
-		const uint16_t row = precode._params.S + precode._params.H + hole;
+		const uint16_t row = S_H + hole;
 		D.row (row) = symbol->second;
 		++symbol;
 	}
 	// fill the padding symbols (always zero)
-	for (uint16_t row = precode._params.S + precode._params.H + _symbols;
-								row < precode._params.S + precode._params.H +
-											precode._params.K_padded; ++row) {
+	for (uint16_t row = S_H + _symbols; row < K_S_H; ++row) {
 		for (uint16_t col = 0; col < D.cols(); ++col)
 			D (row, col) = 0;
 	}
 	// fill the remaining (redundant) repair symbols
-	for (uint16_t row =
-			precode._params.S + precode._params.H + precode._params.K_padded;
+	for (uint16_t row = K_S_H;
 							symbol != received_repair.end(); ++symbol, ++row) {
 		D.row (row) = symbol->second;
 	}
@@ -210,25 +266,47 @@ bool Decoder<In_It>::decode (DenseMtx &res)
 	std::deque<std::unique_ptr<Operation>> ops;
 
 	// do not lock this part, as it's the expensive part
-	DenseMtx missing = precode.intermediate (D, mask_safe, repair_esi, ops,
+	DenseMtx missing;
+	if (type == Save_Computation::ON && !DO_NOT_SAVE) {
+		std::vector<uint8_t> compressed =DLF<std::vector<uint8_t>, Cache_Key>::
+															get()->get (key);
+		auto uncompressed = compress_to_raw (compressed);
+		DenseMtx precomputed = raw_to_Mtx (uncompressed, key._mt_size);
+		if (precomputed.rows() != 0) {
+			missing = precomputed * D;
+			DO_NOT_SAVE = true;
+		} else {
+			missing = precode_on->intermediate (D, mask_safe, repair_esi, ops,
 																		size);
-	D = DenseMtx();	// free some memory;
-	if (missing.rows() != 0) {
-		res = DenseMtx ();	// make sure there isn't other data
-		res.setIdentity (size, size);
-		for (auto &op : ops)
-			op->build_mtx (res);
-	}
-// FIXME: useless
-	uint32_t zeros = 0;
-	for (uint16_t row = 0; row < res.rows(); ++row) {
-		for (uint16_t col = 0; col < res.cols(); ++col) {
-			if (static_cast<uint8_t> (res (row, col)) == 0)
-				++zeros;
 		}
+	} else {
+		missing = precode_off->intermediate (D, mask_safe, repair_esi, ops,
+																		size);
 	}
-	std::cout << "compress? mat: " << size << " = " << size * size << ". 0: " <<
-																zeros << "\n";
+	D = DenseMtx();	// free some memory;
+	if (type == Save_Computation::ON && !DO_NOT_SAVE) {
+		DenseMtx res;
+		if (missing.rows() != 0) {
+			res.setIdentity (size, size);
+			for (auto &op : ops)
+				op->build_mtx (res);
+			const auto raw_mtx = Mtx_to_raw (res);
+			auto compressed_mtx = raw_compress (raw_mtx);
+			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed_mtx,
+																		key);
+		}
+
+		// FIXME: useless
+		uint32_t zeros = 0;
+		for (uint16_t row = 0; row < res.rows(); ++row) {
+			for (uint16_t col = 0; col < res.cols(); ++col) {
+				if (static_cast<uint8_t> (res (row, col)) == 0)
+					++zeros;
+			}
+		}
+		std::cout << "compress? mat: " << size << " = " << size * size <<
+													". 0: " << zeros << "\n";
+	}
 
 	if (missing.rows() == 0)
 		return mask.get_holes() == 0; // did other threads do something?

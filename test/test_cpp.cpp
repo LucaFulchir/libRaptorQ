@@ -103,9 +103,9 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 		return false;
 	}
 
-	enc.precompute(1, false);
+	enc.precompute(4, false);
 
-	if (drop_prob > 90.0)
+	if (drop_prob > static_cast<float> (90.0))
 		drop_prob = 90.0;	// this is still too high probably.
 	std::uniform_real_distribution<float> drop (0.0, 100.0);
 
