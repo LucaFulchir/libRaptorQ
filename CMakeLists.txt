@@ -172,6 +172,7 @@ SET(HEADERS	src/Interleaver.hpp
 		src/cRaptorQ.h)
 
 
+set(RQ_DBG_LINK "")
 include(cmake/compiler_flags)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -208,7 +209,7 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
 
     # PRE-run: build a library, generate the profile.
     add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS})
-    target_link_libraries(RaptorQ_Static_Profiling ${STDLIB} ${RQ_LZ4_DEP})
+    target_link_libraries(RaptorQ_Static_Profiling ${STDLIB} ${RQ_LZ4_DEP} ${RQ_DBG_LINK})
     set(CMAKE_CXX_FLAGS )
     target_compile_options(
         RaptorQ_Static_Profiling PRIVATE
@@ -264,7 +265,6 @@ endif()
 
 
 
-
 # build the static library
 if(STATIC_LIB MATCHES "ON")
     add_library(RaptorQ_Static STATIC ${SOURCES} ${HEADERS})
@@ -295,7 +295,7 @@ if(STATIC_LIB MATCHES "ON")
         make_deterministic PRIVATE
         ${CXX_COMPILER_FLAGS}
     )
-	target_link_libraries(make_deterministic ${STDLIB})
+	target_link_libraries(make_deterministic ${STDLIB} ${RQ_DBG_LINK})
     add_custom_command(
         OUTPUT deterministic.run
         COMMAND make_deterministic ${CMAKE_BINARY_DIR}/lib/libRaptorQ-${RQ_VERSION}.a
@@ -358,7 +358,7 @@ add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
 		-Wno-disabled-macro-expansion
     )
 add_dependencies(test_c RaptorQ)
-target_link_libraries(test_c ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP} RaptorQ m)
+target_link_libraries(test_c ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP} ${RQ_DBG_LINK} RaptorQ m)
 # cmake 2.8.12 seems to have problems understanding to link pthread...
 if(USE_PTHREADS_INIT)
     target_link_libraries(test_c pthread)

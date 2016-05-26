@@ -203,7 +203,7 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
 		std::cout << "mat: " << size << " = " << size * size << "0: " <<
 																zeros << "\n";
 	} else {
-		encoded_symbols = precode_on->intermediate (D, ops, size);
+		encoded_symbols = precode_off->intermediate (D, ops, size);
 	}
 	return encoded_symbols.cols() != 0;
 }
