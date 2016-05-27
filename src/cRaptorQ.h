@@ -49,6 +49,15 @@ extern "C"
 								const RaptorQ_OTI_Common_Data common,
 								const RaptorQ_OTI_Scheme_Specific_Data scheme);
 
+	///////////////////////////
+	// Precomputation caching
+	///////////////////////////
+	uint64_t RAPTORQ_API RaptorQ_shared_cache_size(const uint64_t shared_cache);
+	bool RAPTORQ_API RaptorQ_local_cache_size (const uint64_t local_cache);
+	uint64_t RAPTORQ_API RaptorQ_get_shared_cache_size ();
+	uint64_t RAPTORQ_API RaptorQ_get_local_cache_size ();
+
+
 	///////////
 	// Encoding
 	///////////

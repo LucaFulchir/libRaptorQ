@@ -150,6 +150,7 @@ SET(SOURCES src/Operation.cpp
 		src/Graph.cpp
 		src/Shared_Computation/Decaying_LF.cpp
 		src/Precode_Matrix_Instantiation.cpp
+		src/RaptorQ.cpp
 		src/cRaptorQ.cpp)
 
 SET(HEADERS	src/Interleaver.hpp
@@ -169,6 +170,7 @@ SET(HEADERS	src/Interleaver.hpp
 		src/De_Interleaver.hpp
 		src/RaptorQ.hpp
 		src/Shared_Computation/Decaying_LF.hpp
+		src/Shared_Computation/LZ4_Wrapper.hpp
 		src/cRaptorQ.h)
 
 

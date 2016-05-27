@@ -38,41 +38,6 @@ std::vector<uint8_t> Mtx_to_raw (const DenseMtx &mtx)
 	return ret;
 }
 
-std::vector<uint8_t> raw_compress(const std::vector<uint8_t> &raw)
-{
-	std::vector<uint8_t> ret;
-	// lz4 implementation has 2GB size limit.
-	if (raw.size() >= std::pow(2, 31))
-		return ret;
-
-	LZ4_stream_t* stream = LZ4_createStream();
-	if (stream == nullptr)
-		return ret;
-
-	auto max_size = LZ4_compressBound (static_cast<int32_t> (raw.size()));
-	ret.resize (static_cast<size_t> (max_size));
-
-	auto written = LZ4_compress_default (
-									reinterpret_cast<const char *> (raw.data()),
-									reinterpret_cast<char *> (ret.data()),
-									static_cast<int32_t> (raw.size()),max_size);
-	ret.resize (static_cast<size_t> (written));
-	return ret;
-}
-
-std::vector<uint8_t> compress_to_raw (const std::vector<uint8_t> &compressed)
-{
-	std::vector<uint8_t> ret;
-	auto max_size = LZ4_compressBound (static_cast<int32_t>(compressed.size()));
-
-	auto written = LZ4_decompress_safe (
-							reinterpret_cast<const char *> (compressed.data()),
-							reinterpret_cast<char *> (ret.data()),
-							static_cast<int32_t> (compressed.size()), max_size);
-	ret.resize (static_cast<size_t> (written));
-	return ret;
-}
-
 DenseMtx raw_to_Mtx (const std::vector<uint8_t> &raw, const uint16_t cols)
 {
 	uint16_t rows = static_cast<uint16_t> (raw.size() / cols);

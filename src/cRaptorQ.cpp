@@ -119,6 +119,31 @@ struct RaptorQ_ptr *RaptorQ_Dec (const RaptorQ_type type,
 	return ret.release();
 }
 
+///////////////////////////
+// Precomputation caching
+///////////////////////////
+
+uint64_t RaptorQ_shared_cache_size (const uint64_t shared_cache)
+{
+	return RaptorQ::shared_cache_size (shared_cache);
+}
+
+bool RaptorQ_local_cache_size (const uint64_t local_cache)
+{
+	return RaptorQ::local_cache_size (local_cache);
+}
+
+uint64_t RaptorQ_get_shared_cache_size ()
+{
+	return RaptorQ::get_shared_cache_size();
+}
+
+uint64_t RaptorQ_get_local_cache_size ()
+{
+	return RaptorQ::get_local_cache_size();
+}
+
+
 ///////////
 // Encoding
 ///////////

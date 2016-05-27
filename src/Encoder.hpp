@@ -28,10 +28,10 @@
 #include "Precode_Matrix.hpp"
 #include "Rand.hpp"
 #include "Shared_Computation/Decaying_LF.hpp"
+#include "Shared_Computation/LZ4_Wrapper.hpp"
 #include <Eigen/Dense>
 #include <Eigen/SparseLU>
 #include <memory>
-#include <iostream>
 
 namespace RaptorQ {
 namespace Impl {
@@ -163,17 +163,20 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
 	uint16_t size;
 	std::deque<std::unique_ptr<Operation>> ops;
 	if (type == Save_Computation::ON) {
-		const Cache_Key key (precode_on->_params.K_padded, 0,
-														std::vector<bool>());
-		std::vector<uint8_t> compressed =DLF<std::vector<uint8_t>, Cache_Key>::
+		const Cache_Key key (precode_on->_params.L, 0, std::vector<bool>());
+		std::vector<uint8_t> compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
-		auto uncompressed = compress_to_raw (compressed);
-		DenseMtx precomputed = raw_to_Mtx (uncompressed, key._mt_size);
-		if (precomputed.rows() != 0) {
-			// we have a precomputed matrix! let's use that!
-			encoded_symbols = precomputed * D;
-			// result is granted. we only save matrices that work
-			return true;
+		if (compressed.size() != 0) {
+			LZ4<LZ4_t::DECODER> lz4;
+			auto uncompressed = lz4.decode (compressed);
+			DenseMtx precomputed = raw_to_Mtx (uncompressed, key._mt_size);
+			if (precomputed.rows() != 0) {
+				// we have a precomputed matrix! let's use that!
+				encoded_symbols = precomputed * D;
+				// result is granted. we only save matrices that work
+				return true;
+			}
+			return false;
 		}
 		encoded_symbols = precode_on->intermediate (D, ops, size);
 		if (encoded_symbols.cols() == 0)
@@ -186,22 +189,10 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
 			for (auto &op : ops)
 				op->build_mtx (res);
 			const auto raw_mtx = Mtx_to_raw (res);
-			auto compressed_mtx = raw_compress (raw_mtx);
-			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed_mtx,
-																		key);
+			LZ4<LZ4_t::ENCODER> lz4;
+			compressed = lz4.encode (raw_mtx);
+			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed, key);
 		}
-
-		// FIXME: useless. I just wanted to understand if it could
-		// be compressed.
-		uint32_t zeros = 0;
-		for (row = 0; row < res.rows(); ++row) {
-			for (uint16_t col = 0; col < res.cols(); ++col) {
-				if (static_cast<uint8_t> (res (row, col)) == 0)
-					++zeros;
-			}
-		}
-		std::cout << "mat: " << size << " = " << size * size << "0: " <<
-																zeros << "\n";
 	} else {
 		encoded_symbols = precode_off->intermediate (D, ops, size);
 	}

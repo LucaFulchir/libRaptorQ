@@ -128,7 +128,7 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase0 (const Bitmask &mask,
 	// D was built as follows:
 	// - non-repair esi in their place
 	// - for each hole in non-repair esi, put the *first available* repair esi
-	//		in its place
+	//		in its place. they are already ordered anyway
 	// - compact remaining repair esis
 
 
@@ -185,7 +185,7 @@ std::tuple<bool, uint16_t, uint16_t>
 	Precode_Matrix<IS_OFFLINE>::decode_phase1 (DenseMtx &X, DenseMtx &D,
 										std::vector<uint16_t> &c, Op_Vec &ops)
 {
-	//rfc6330, page 33
+	// rfc6330, page 33
 
 	std::vector<std::pair<bool, size_t>> tracking;	// is_hdpc, row_degree
 

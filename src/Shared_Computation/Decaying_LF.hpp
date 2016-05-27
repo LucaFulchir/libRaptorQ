@@ -37,10 +37,6 @@ namespace Impl {
 
 // easy compress from/to eigen matrix
 std::vector<uint8_t> RAPTORQ_API Mtx_to_raw (const DenseMtx &mtx);
-std::vector<uint8_t> RAPTORQ_API raw_compress (
-											const std::vector<uint8_t> &raw);
-std::vector<uint8_t> RAPTORQ_API compress_to_raw (
-										const std::vector<uint8_t> &compressed);
 DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
 														const uint16_t cols);
 
@@ -103,7 +99,7 @@ public:
 
     static DLF *get()
     {
-		// just drop the cache on exit time. don't bother destroying
+		// just drop the cache on exit time. Don't bother destroying
 		// it correctly
         static DLF<User_Data, Key> *instance = new DLF<User_Data, Key>();
         return instance;
@@ -180,6 +176,7 @@ template<typename User_Data, typename Key>
 DLF<User_Data, Key>::DLF()
 {
 	global_tick = 0;
+	actual_size = 0;
 	max_size = 0;
 }
 
@@ -198,7 +195,9 @@ bool DLF<User_Data, Key>::resize (const size_t new_size)
         if (item == 0)
             break;
         --item;
-        data.erase (data.begin() + item);
+		auto it = data.begin() + item;
+		actual_size -= sizeof(DLF_Data) + it->raw.size();
+        data.erase (it);
     }
     max_size = new_size;
     return true;
@@ -232,14 +231,13 @@ bool DLF<User_Data, Key>::add (User_Data &raw, const Key &key)
         }
     }
     // key not present.
-    if (max_size < sizeof(DLF_Data) + raw.size()) {
+    if (max_size - actual_size > sizeof(DLF_Data) + raw.size()) {
         auto tmp_tick = global_tick.load();
 		//DLF_Data tmp (key, tmp_tick + 1, tmp_tick, raw);
 		//data.push_back(tmp);
 		data.emplace_back (key, tmp_tick + 1, tmp_tick, raw);
-        max_size += raw.size() + sizeof (DLF_Data);
         std::sort (data.begin(), data.end());
-        actual_size += sizeof(RaptorQ::Impl::DLF<User_Data, Key>) + raw.size();
+        actual_size += sizeof(DLF_Data) + raw.size();
         return true;
     } else {
         auto last_item = data.size();

@@ -26,13 +26,13 @@
 #include "Parameters.hpp"
 #include "Precode_Matrix.hpp"
 #include "Shared_Computation/Decaying_LF.hpp"
+#include "Shared_Computation/LZ4_Wrapper.hpp"
 #include <memory>
 #include <mutex>
 #include <tuple>
 #include <utility>
 #include <vector>
 #include <Eigen/Dense>
-#include <iostream>
 
 namespace RaptorQ {
 namespace Impl {
@@ -133,8 +133,8 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 	UNUSED(guard);
 
 	if (mask.get_holes() == 0)
-		return false;	// not even needed;
-	if (mask.exists(esi))
+		return false;	// not even needed.
+	if (mask.exists (esi))
 		return false;	// already present.
 
 	uint16_t col = 0;
@@ -166,6 +166,23 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 		if (col != v.cols())
 			return false;
 		received_repair.emplace_back (esi, std::move(v));
+		// reorder the received_repair:
+		// ordering the repair packets lets us have more deterministic
+		// matrices, that we can use for precomputation.
+		// this *should* not be a big performance hit as the repair symbols
+		// should already be *almost* in order.
+		// TODO: b-tree?
+		int32_t idx = static_cast<int32_t> (received_repair.size()) - 1;
+		while (idx >= 1) {
+			const uint32_t idx_u = static_cast<uint32_t> (idx);
+			const uint32_t prev = idx_u - 1;
+			if (received_repair[idx_u].first < received_repair[prev].first) {
+				std::swap (received_repair[idx_u], received_repair[prev]);
+				--idx;
+			} else {
+				break;
+			}
+		}
 	}
 	mask.add (esi);
 
@@ -194,17 +211,20 @@ bool Decoder<In_It>::decode()
 
 	uint16_t S_H;
 	uint16_t K_S_H;
+	uint16_t L_rows;
 	bool DO_NOT_SAVE = false;
 	std::vector<bool> bitmask_repair;
 	if (type == Save_Computation::ON) {
+		L_rows = precode_on->_params.L;
 		S_H = precode_on->_params.S + precode_on->_params.H;
 		K_S_H = precode_on->_params.K_padded + S_H;
+		// repair.rend() is the highest repair symbol
 		const auto it = received_repair.rend();
 		if (it->first >= std::pow(2,16)) {
 			DO_NOT_SAVE = true;
 		} else {
-			bitmask_repair.reserve (it->first);
-			uint32_t idx = 0;
+			bitmask_repair.reserve (it->first - L_rows);
+			uint32_t idx = L_rows;
 			for (auto rep = received_repair.begin();
 								rep != received_repair.end(); ++rep, ++idx) {
 				for (;idx < rep->first; ++idx)
@@ -213,10 +233,11 @@ bool Decoder<In_It>::decode()
 			}
 		}
 	} else {
+		L_rows = precode_off->_params.L;
 		S_H = precode_off->_params.S + precode_off->_params.H;
 		K_S_H = precode_off->_params.K_padded + S_H;
 	}
-	const Cache_Key key (K_S_H - S_H, mask.get_holes(), bitmask_repair);
+	const Cache_Key key (L_rows, mask.get_holes(), bitmask_repair);
 
 	DenseMtx D = DenseMtx (K_S_H + (received_repair.size() - mask.get_holes()),
 														source_symbols.cols());
@@ -228,10 +249,11 @@ bool Decoder<In_It>::decode()
 	}
 	// put non-repair symbols (source symbols) in place
 	lock.lock();
-	if (mask.get_holes() == 0)	// other thread completed its work before us?
+	if (mask.get_holes() == 0) { // other thread completed its work before us?
+		lock.unlock();
 		return true;
-	D.block (S_H, 0,
-							source_symbols.rows(), D.cols()) = source_symbols;
+	}
+	D.block (S_H, 0, source_symbols.rows(), D.cols()) = source_symbols;
 
 	// mask must be copied to avoid threading problems, same with tracking
 	// the repair esi.
@@ -261,16 +283,18 @@ bool Decoder<In_It>::decode()
 							symbol != received_repair.end(); ++symbol, ++row) {
 		D.row (row) = symbol->second;
 	}
+
+	// do not lock this part, as it's the expensive part
 	lock.unlock();
 	uint16_t size = 0;
 	std::deque<std::unique_ptr<Operation>> ops;
 
-	// do not lock this part, as it's the expensive part
 	DenseMtx missing;
-	if (type == Save_Computation::ON && !DO_NOT_SAVE) {
-		std::vector<uint8_t> compressed =DLF<std::vector<uint8_t>, Cache_Key>::
+	if (type == Save_Computation::ON) {
+		std::vector<uint8_t> compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
-		auto uncompressed = compress_to_raw (compressed);
+		LZ4<LZ4_t::DECODER> lz4;
+		auto uncompressed = lz4.decode (compressed);
 		DenseMtx precomputed = raw_to_Mtx (uncompressed, key._mt_size);
 		if (precomputed.rows() != 0) {
 			missing = precomputed * D;
@@ -290,30 +314,19 @@ bool Decoder<In_It>::decode()
 			res.setIdentity (size, size);
 			for (auto &op : ops)
 				op->build_mtx (res);
+			// TODO: lots of wasted ram? how to compress things directly?
 			const auto raw_mtx = Mtx_to_raw (res);
-			auto compressed_mtx = raw_compress (raw_mtx);
-			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed_mtx,
-																		key);
+			LZ4<LZ4_t::ENCODER> lz4;
+			auto compressed = lz4.encode (raw_mtx);
+			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed, key);
 		}
-
-		// FIXME: useless
-		uint32_t zeros = 0;
-		for (uint16_t row = 0; row < res.rows(); ++row) {
-			for (uint16_t col = 0; col < res.cols(); ++col) {
-				if (static_cast<uint8_t> (res (row, col)) == 0)
-					++zeros;
-			}
-		}
-		std::cout << "compress? mat: " << size << " = " << size * size <<
-													". 0: " << zeros << "\n";
 	}
-
-	if (missing.rows() == 0)
-		return mask.get_holes() == 0; // did other threads do something?
 
 	std::lock_guard<std::mutex> dec_lock (lock);
 	UNUSED(dec_lock);
 
+	if (missing.rows() == 0)
+		return mask.get_holes() == 0; // did other threads do something?
 	if (mask.get_holes() == 0)
 		return true;			// other thread did something
 

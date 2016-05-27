@@ -75,7 +75,8 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	}
 
 	// start background precomputation while we get the source symbols.
-	RaptorQ_precompute (enc, 2, true);
+	//RaptorQ_precompute (enc, 2, true);
+	RaptorQ_precompute (enc, 1, false);
 
 	/* everything is encoded now.
 	 * well, it might be running in background, but don't worry:
@@ -298,6 +299,9 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 
 int main (void)
 {
+	// set local cache size to 100MB
+	// do not enable. precomputation not ywt working
+	//RaptorQ_local_cache_size (100*1024*1024);
 	// encode and decode
 	bool ret = decode (501, 20.0, 4);
 
