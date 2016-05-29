@@ -43,16 +43,6 @@ void RaptorQ::Impl::Operation_Swap::build_mtx (RaptorQ::Impl::DenseMtx &mtx)
 	mtx.row(_row_1).swap (mtx.row(_row_2));
 }
 
-RaptorQ::Impl::DenseMtx RaptorQ::Impl::Operation_Swap::to_Matrix (
-													const uint16_t size) const
-{
-	DenseMtx ret;
-	ret.setIdentity (size, size);
-	ret.row(_row_1).swap (ret.row(_row_2));
-
-	return ret;
-}
-
 /////////////////////
 // Operation_Add_Mul
 /////////////////////
@@ -72,22 +62,8 @@ std::ostream &RaptorQ::Impl::Operation_Add_Mul::print (std::ostream &os) const
 void RaptorQ::Impl::Operation_Add_Mul::build_mtx (RaptorQ::Impl::DenseMtx &mtx)
 																		const
 {
-	// rationale:
-	//   no data -> insert the _scalar as it is.
-	//   data -> multiply data by scalar, so that previous data is conserved.
-	if (static_cast<uint8_t> (mtx (_row_1, _row_2)) == 0)
-		mtx (_row_1, _row_2) = 1;
-	mtx (_row_1, _row_2) *= _scalar;
-}
-
-RaptorQ::Impl::DenseMtx RaptorQ::Impl::Operation_Add_Mul::to_Matrix (
-													const uint16_t size) const
-{
-	DenseMtx ret;
-	ret.setIdentity (size, size);
-	ret (_row_1, _row_2) = _scalar;
-
-	return ret;
+	const auto row = mtx.row (_row_2) * _scalar;
+	mtx.row (_row_1) += row;
 }
 
 /////////////////////
@@ -109,22 +85,7 @@ std::ostream &RaptorQ::Impl::Operation_Div::print (std::ostream &os) const
 void RaptorQ::Impl::Operation_Div::build_mtx (RaptorQ::Impl::DenseMtx &mtx)
 																		const
 {
-	// rationale:
-	//   no data -> insert the _scalar as it is.
-	//   data -> divide data by scalar, so that previous data is conserved.
-	if (static_cast<uint8_t> (mtx (_row_1, _row_1)) == 0)
-		mtx (_row_1, _row_1) = 1;
-	mtx (_row_1, _row_1) /= _scalar;
-}
-
-RaptorQ::Impl::DenseMtx RaptorQ::Impl::Operation_Div::to_Matrix (
-													const uint16_t size) const
-{
-	DenseMtx ret;
-	ret.setIdentity (size, size);
-	ret (_row_1, _row_1) = _scalar.inverse();
-
-	return ret;
+	mtx.row (_row_1) /= _scalar;
 }
 
 /////////////////////
@@ -152,19 +113,8 @@ std::ostream &RaptorQ::Impl::Operation_Block::print (std::ostream &os) const
 void RaptorQ::Impl::Operation_Block::build_mtx (RaptorQ::Impl::DenseMtx &mtx)
 																		const
 {
-	DenseMtx ret;
-	ret.setIdentity(mtx.rows(), mtx.cols());
-	ret.block (0, 0, _block.rows(), _block.cols()) = _block;
-	mtx *= ret;
-}
-
-RaptorQ::Impl::DenseMtx RaptorQ::Impl::Operation_Block::to_Matrix (
-													const uint16_t size) const
-{
-	DenseMtx ret;
-	ret.setIdentity(size, size);
-	ret.block (0, 0, _block.rows(), _block.cols()) = _block;
-	return ret;
+	const auto orig = mtx.block (0,0, _block.cols(), mtx.cols());
+	mtx.block (0, 0, _block.cols(), mtx.cols()) = _block * orig;
 }
 
 /////////////////////
@@ -193,18 +143,5 @@ void RaptorQ::Impl::Operation_Reorder::build_mtx (RaptorQ::Impl::DenseMtx &mtx)
 	uint16_t row = 0;
 	for (const uint16_t pos : _order)
 		ret.row (pos) = mtx.row (row++);
+	mtx = ret;
 }
-
-RaptorQ::Impl::DenseMtx RaptorQ::Impl::Operation_Reorder::to_Matrix (
-													const uint16_t size) const
-{
-	DenseMtx ret = DenseMtx (size, size);
-	ret.setZero ();
-
-	uint16_t row = 0;
-	for (uint16_t pos : _order)
-		ret (row++, pos) = 1;
-
-	return ret;
-}
-

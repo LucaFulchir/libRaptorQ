@@ -184,7 +184,8 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
 		// RaptorQ succeded.
 		// build the precomputed matrix.
 		DenseMtx res;
-		if (encoded_symbols.cols() != 0) {
+		// don't save  really small matrices.
+		if (encoded_symbols.cols() != 0 && size > 100) {
 			res.setIdentity (size, size);
 			for (auto &op : ops)
 				op->build_mtx (res);

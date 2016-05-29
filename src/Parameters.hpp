@@ -137,8 +137,8 @@ public:
 	}
 
 	friend std::ostream &operator<< (std::ostream &os, const Octet m) {
-		// used to save to file
-		os << static_cast<uint8_t> (m.data);
+		// used to print
+		os << static_cast<uint32_t> (m.data);
 		return os;
 	}
 private:

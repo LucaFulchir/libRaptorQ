@@ -458,17 +458,18 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase3 (const DenseMtx &X, DenseMtx &D,
 	//	intersection of the first i rows and columns equals to X, whereas the
 	//	matrix U_upper is transformed to a sparse form.
 	const auto sub_X = X.block (0, 0, i, i);
+	if (IS_OFFLINE == Save_Computation::ON)
+		ops.emplace_back (new Operation_Block (sub_X));
+
 	auto sub_A = A.block (0, 0, i, A.cols());
 	sub_A = sub_X * sub_A;
 
 	// Now fix D, too
 	DenseMtx D_2 = D;
 
-	if (IS_OFFLINE == Save_Computation::ON)
-		ops.emplace_back (new Operation_Block (sub_X));
-	for (uint16_t row = 0; row < sub_X.rows(); ++row) {
-		D.row (row) = sub_X.row (row) * D_2.block (0,0, sub_X.cols(), D.cols());
-	}
+	D.block (0, 0, sub_X.cols(), D.cols()) = sub_X *
+										D_2.block (0,0, sub_X.cols(), D.cols());
+
 }
 
 template<Save_Computation IS_OFFLINE>

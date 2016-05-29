@@ -43,7 +43,6 @@ class RAPTORQ_LOCAL Operation
 {
 public:
 	virtual ~Operation ();
-	virtual DenseMtx to_Matrix (const uint16_t size) const = 0;
 	virtual void build_mtx (DenseMtx &mtx) const = 0;
 	virtual uint64_t size() const = 0;
 	friend std::ostream &operator<< (std::ostream &os, const Operation &op) {
@@ -60,7 +59,6 @@ class RAPTORQ_LOCAL Operation_Swap : public Operation
 public:
 	Operation_Swap (const uint16_t row_1, const uint16_t row_2)
 		: _row_1 (row_1), _row_2 (row_2) {}
-	DenseMtx to_Matrix (const uint16_t size) const override;
 	void build_mtx (DenseMtx &mtx) const override;
 	uint64_t size () const override;
 private:
@@ -75,7 +73,6 @@ public:
 	Operation_Add_Mul (const uint16_t row_1, const uint16_t row_2,
 															const Octet scalar)
 		: _row_1 (row_1), _row_2 (row_2), _scalar (scalar) {}
-	DenseMtx to_Matrix (const uint16_t size) const override;
 	void build_mtx (DenseMtx &mtx) const override;
 	uint64_t size () const override;
 private:
@@ -90,7 +87,6 @@ class RAPTORQ_LOCAL Operation_Div : public Operation
 public:
 	Operation_Div (const uint16_t row_1, const Octet scalar)
 		: _row_1 (row_1), _scalar (scalar) {}
-	DenseMtx to_Matrix (const uint16_t size) const override;
 	void build_mtx (DenseMtx &mtx) const override;
 	uint64_t size () const override;
 private:
@@ -106,7 +102,6 @@ class RAPTORQ_LOCAL Operation_Block : public Operation
 public:
 	Operation_Block (const DenseMtx &block)
 		: _block (block) {}
-	DenseMtx to_Matrix (const uint16_t size) const override;
 	void build_mtx (DenseMtx &mtx) const override;
 	uint64_t size () const override;
 private:
@@ -121,7 +116,6 @@ class RAPTORQ_LOCAL Operation_Reorder : public Operation
 public:
 	Operation_Reorder (const std::vector<uint16_t> &order)
 		: _order (order) {}
-	DenseMtx to_Matrix (const uint16_t size) const override;
 	void build_mtx (DenseMtx &mtx) const override;
 	uint64_t size () const override;
 private:

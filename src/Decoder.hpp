@@ -310,7 +310,8 @@ bool Decoder<In_It>::decode()
 	D = DenseMtx();	// free some memory;
 	if (type == Save_Computation::ON && !DO_NOT_SAVE) {
 		DenseMtx res;
-		if (missing.rows() != 0) {
+		// don't save really small matrices
+		if (missing.rows() != 0 && size > 100) {
 			res.setIdentity (size, size);
 			for (auto &op : ops)
 				op->build_mtx (res);
