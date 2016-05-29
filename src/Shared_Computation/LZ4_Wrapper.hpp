@@ -100,11 +100,11 @@ template<LZ4_t type>
 std::vector<uint8_t> LZ4<type>::decode (const std::vector<uint8_t> &in)
 {
     std::vector<uint8_t> ret;
-    if (type == LZ4_t::ENCODER || in.size() < sizeof(uint32_t))
-        return ret;
+	if (type == LZ4_t::ENCODER || in.size() < sizeof(uint32_t))
+		return ret;
 
 	if (stream == nullptr)
-        return ret;
+		return ret;
 
 	// get the original uncompresseed size:
 	int32_t *orig_size = reinterpret_cast<int32_t *> (
