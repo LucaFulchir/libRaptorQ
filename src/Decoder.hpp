@@ -201,12 +201,12 @@ bool Decoder<In_It>::decode()
 	if (received_repair.size() < mask.get_holes())
 		return false;
 
+	const uint16_t overhead = static_cast<uint16_t> (received_repair.size() -
+															mask.get_holes());
 	if (type == Save_Computation::ON) {
-		precode_on->gen (static_cast<uint32_t> (received_repair.size() -
-															mask.get_holes()));
+		precode_on->gen (static_cast<uint32_t> (overhead));
 	} else {
-		precode_off->gen (static_cast<uint32_t> (received_repair.size() -
-															mask.get_holes()));
+		precode_off->gen (static_cast<uint32_t> (overhead));
 	}
 
 	uint16_t S_H;
@@ -286,7 +286,6 @@ bool Decoder<In_It>::decode()
 
 	// do not lock this part, as it's the expensive part
 	lock.unlock();
-	uint16_t size = 0;
 	std::deque<std::unique_ptr<Operation>> ops;
 
 	DenseMtx missing;
@@ -300,19 +299,17 @@ bool Decoder<In_It>::decode()
 			missing = precomputed * D;
 			DO_NOT_SAVE = true;
 		} else {
-			missing = precode_on->intermediate (D, mask_safe, repair_esi, ops,
-																		size);
+			missing = precode_on->intermediate (D, mask_safe, repair_esi, ops);
 		}
 	} else {
-		missing = precode_off->intermediate (D, mask_safe, repair_esi, ops,
-																		size);
+		missing = precode_off->intermediate (D, mask_safe, repair_esi, ops);
 	}
 	D = DenseMtx();	// free some memory;
 	if (type == Save_Computation::ON && !DO_NOT_SAVE) {
 		DenseMtx res;
 		// don't save really small matrices
-		if (missing.rows() != 0 && size > 100) {
-			res.setIdentity (size, size);
+		if (missing.rows() != 0 && L_rows > 100) {
+			res.setIdentity (L_rows + overhead, L_rows);
 			for (auto &op : ops)
 				op->build_mtx (res);
 			// TODO: lots of wasted ram? how to compress things directly?

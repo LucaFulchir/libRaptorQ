@@ -160,10 +160,10 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
 			D (row, col) = 0;
 	}
 
-	uint16_t size;
 	std::deque<std::unique_ptr<Operation>> ops;
 	if (type == Save_Computation::ON) {
-		const Cache_Key key (precode_on->_params.L, 0, std::vector<bool>());
+		const uint16_t size = precode_on->_params.L;
+		const Cache_Key key (size, 0, std::vector<bool>());
 		std::vector<uint8_t> compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
 		if (compressed.size() != 0) {
@@ -178,7 +178,7 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
 			}
 			return false;
 		}
-		encoded_symbols = precode_on->intermediate (D, ops, size);
+		encoded_symbols = precode_on->intermediate (D, ops);
 		if (encoded_symbols.cols() == 0)
 			return false;
 		// RaptorQ succeded.
@@ -195,7 +195,7 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
 			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed, key);
 		}
 	} else {
-		encoded_symbols = precode_off->intermediate (D, ops, size);
+		encoded_symbols = precode_off->intermediate (D, ops);
 	}
 	return encoded_symbols.cols() != 0;
 }

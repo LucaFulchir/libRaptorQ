@@ -38,8 +38,7 @@ namespace Impl {
 // or we can avoid saving it, and thus be faster and more memory efficient.
 
 template <Save_Computation IS_OFFLINE>
-DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D, Op_Vec &ops,
-																uint16_t &size)
+DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D, Op_Vec &ops)
 {
 	// rfc 6330, pg 32
 	// "c" and "d" are used to track row and columns exchange.
@@ -60,7 +59,6 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D, Op_Vec &ops,
 		c.emplace_back (i);
 
 	std::tie (success, i, u) = decode_phase1 (X, D, c ,ops);
-	size = static_cast<uint16_t> (X.rows());
 
 	if (!success)
 		return C;
@@ -97,10 +95,10 @@ template <Save_Computation IS_OFFLINE>
 DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D,
 										const Bitmask &mask,
 										const std::vector<uint32_t> &repair_esi,
-										Op_Vec &ops, uint16_t &size)
+										Op_Vec &ops)
 {
 	decode_phase0 (mask, repair_esi);
-	DenseMtx C = intermediate (D, ops, size);
+	DenseMtx C = intermediate (D, ops);
 
 	if (C.rows() == 0) {
 		// error somewhere

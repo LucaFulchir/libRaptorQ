@@ -72,10 +72,10 @@ public:
 
 	void gen (const uint32_t repair_overhead);
 
-	DenseMtx intermediate (DenseMtx &D, Op_Vec &ops, uint16_t &size);
+	DenseMtx intermediate (DenseMtx &D, Op_Vec &ops);
 	DenseMtx intermediate (DenseMtx &D, const Bitmask &mask,
 										const std::vector<uint32_t> &repair_esi,
-										Op_Vec &ops, uint16_t &size);
+										Op_Vec &ops);
 	DenseMtx encode (const DenseMtx &C, const uint32_t iSI) const;
 
 private:
