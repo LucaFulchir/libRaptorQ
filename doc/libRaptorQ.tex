@@ -90,10 +90,10 @@ Free Documentation License".
 \section{Contacts}\index{Contacts}
 
 The main development and dicussions on the project, along with bug reporting, happens on
-\href{https://www.fenrirproject.org/projects/libraptorq/}{the main website}.
+\href{https://www.fenrirproject.org/Luker/libRaptorQ}{the main website}.
 
 \marginlabel{Mailing Lists} Mailing lists are available at \href{https://www.fenrirproject.org/lists}{https://www.fenrirproject.org/lists}\\
-The two mailing lists are for development and announcments, but due to the low traffic of the development mailing list, it
+The two mailing lists are for development and announcements, but due to the low traffic of the development mailing list, it
 can also be used by users for questions on the project.
 
 \marginlabel{IRC} Since there are not many developers for now, the main irc channel is \textbf{\#fenrirproject} on freenode
@@ -124,16 +124,17 @@ Once you have cloned it, it's always a good thing to check the repository gpg
 signatures, so you can import my key with:
 
 \begin{verbatim}
-$ gpg --keyserver pgp.mit.edu --recv-key D42DDF0A
+$ gpg --keyserver pgp.mit.edu --recv-key F61F6137
 \end{verbatim}
 
 please check the full fingerprint, it should be this:
 
 \begin{verbbox}[\footnotesize]
-$ gpg2 --fingerprint D42DDF0A
- pub   rsa3072/D42DDF0A 2015-01-01 [expires: 2016-01-01]
-       Key fingerprint = AB35 E45F 5CA5 E35B 8B55  818F 0157 D133 D42D DF0A
- uid       [ unknown] Luca Fulchir (2015 key) <luker@fenrirproject.org>
+$ gpg2 --fingerprint F61F6137
+pub   rsa2048/F61F6137 2016-01-11 [SC] [expires: 2017-01-25]
+      Key fingerprint = 95EB 6FA4 03D7 29A7 13C2  FC9F F85A DA1C F61F 6137
+uid         [ultimate] Luca Fulchir (2016 key) <luker@fenrirproject.org>
+sub   rsa2048/0B37F4EE 2016-01-11 [E] [expires: 2017-01-25]
 \end{verbbox}
 \theverbbox
  
@@ -148,13 +149,13 @@ $ git log -n 1 --show-signature
 The important part is that you get something like this:
 
 \begin{verbbox}[\footnotesize]
- gpg: Signature made Fri 27 Mar 2015 20:59:59 CET using RSA key ID D42DDF0A
- gpg: Good signature from "Luca Fulchir (2015 key) <luker@fenrirproject.org>"
+gpg: Signature made Mon 30 May 2016 18:38:43 CEST using RSA key ID F61F6137
+gpg: Good signature from "Luca Fulchir (2016 key) <luker@fenrirproject.org>"
  [unknown]
  gpg: WARNING: This key is not certified with a trusted signature!
  gpg:          There is no indication that the signature belongs to the owner.
- Primary key fingerprint: AB35 E45F 5CA5 E35B 8B55  818F 0157 D133 D42D DF0A
- Author: Luca Fulchir <luker@fenrirproject.org>
+ Primary key fingerprint: 95EB 6FA4 03D7 29A7 13C2  FC9F F85A DA1C F61F 6137
+ Author: Luca Fulchir (2016 key) <luker@fenrirproject.org>
 \end{verbbox}
 \theverbbox
 
@@ -163,12 +164,22 @@ you can be sure you have the right code.
 
 \subsection{Dependencies}\index{dependencies}
 
-libRaptorQ has only 2 dependencies:
+libRaptorQ has 3 dependencies:
 \begin{description}
 \item[\textbf{Eigen3}] This is used for matrix manipulation, which is a big part of RaptorQ.
+\item[\textbf{lz4}] Used to compress cached precomputations.
 \item[\textbf{git}] This is used not only to get the source, but also by the build system. We get the last git commit id and feed it to clang or gcc as seed for their
 internal random number generator. This makes it possible to have reproducible builds.
 \end{description}
+
+All dependencies are included in the sources, so you do not need to download and compile them.\\
+Eigen3 is only needed at build time, so there is no need to download it again. we use the 3.2.8 version.\\
+LZ4 is included as a git submodule. if you do not have it, run:
+\begin{verbatim}
+$ git submodule init
+$ git submodule update
+\end{verbatim}
+and LZ4 will be build statically in the library (it will not be installed on the system)
 
 \subsection{Build \& Install}
 
@@ -193,14 +204,13 @@ You can always use the cmake-gui or ccmake commands to have the list of possible
 The ones we recognize are:
 
 \begin{description}
-\item[LTO] yes/no. Default:\textbf{yes}. Enable \textit{Link Time Optimizatios} for clang or gcc. Makes libraries smaller and better optimized.
-\item[PROFILING] yes/no. Default:\textbf{yes}. \textit{WARN: breaks deterministic builds with clang.}
+\item[LTO] ON/OFF. Default:\textbf{ON}. Enables \textit{Link Time Optimizatios} for clang or gcc. Makes libraries smaller and better optimized.
+\item[PROFILING] ON/OFF. Default:\textbf{ON}.
 Profiling compiles everything once, then runs a test to see which code paths are used more, and then
 recompiles everything again, but making sure that the binary is optimized for those paths. Works with clang and gcc. Provides a slight speedup.
 \item[CMAKE\_C\_COMPILER] gcc and clang are directly supported. other should work, too. This is only used if you want to build the C example.
 \item[CMAKE\_CXX\_COMPILER] g++, clang++ are directly supported. other should work, too.
-\item[STDLIB] change the c++ standard library. ``libstdc++'' for the (default) gcc one, ``libc++'' for the clang/llvm one. Note that it seems you can't use libc++ with gcc yet.
-\item[CMAKE\_CXX\_FLAGS] Additional compiler flags you might want to pass.
+\item[CLANG\_STDLIB] use clang's libc++ standard library. Only available with clang.
 \item[CMAKE\_BUILD\_TYPE] Type of build. you can choose between ``Debug'', ``Release'', ``MinSizeRel'' or ``RelWithDebInfo''
 \item[CMAKE\_INSTALL\_PREFIX] Default to \textit{/usr/local}. Change it to fit your distribution guidelines.
 \end{description}
@@ -256,6 +266,10 @@ number of symbols. Which is a completely different thing.
 It is still very quick. On a core i7, 2.4Ghz, you need to wait \textit{0.4ms} for $10$ symbols, \textit{280ms} for 1.000 symbols, but it can take an hour for $27.000$ symbols.
 RaptorQ handles up to $56.403$ symbols.
 
+\marginlabel{\textbf{Caching}} libRaptorQ can work with big matrices that take a lot of time to compute. For this reason the matrices can be saved once they have
+been computed the first time. libRaptorQ uses a \textbf{shared} and a \textbf{local} cache. In both cases the matrix is compressed with LZ4.\\
+Shared cache uses shared memory and is thus shared with all processes that use the save version of libRaptorQ. Local cache is only local to the same process.
+
 \subsection{Blocks \& Symbols}
 
 To understand how to properly use and tune libRaptorQ, you first need to understand how RaptorQ handles its inputs, outputs, and what the time and memory
@@ -309,6 +323,35 @@ For the \textbf{Encoder}, the first parameter \textit{MUST} be a \textit{random 
 symbol and to the subsymbol). The forward iterator will be used to write the data to your structure.\\
 The same is done for the \textbf{Decoder}, but we do not need to do any interleaving on the input, so the first iterator can be just an input iterator,
 and nothing more.
+
+\subsection{Caching precomputations}
+\index{Cache!C++'}
+libRaptorQ can now cache the most used matrices for a quicker reference.\\
+There are two level of caching: \textit{local} and \textit{global}.\\
+
+\textbf{Global} caching will cache precomputed matrices for all programs who use your version of libRaptorQ in the system.
+This uses shared memory to store the matrices. The shared memory is automatically increased to the maximum size any program requires,
+and automatically scaled down once the program is not being executed anymore.
+
+\textbf{Local} caching instead works only in the program, and is not shared with any other application. Once the shared cache is checked,
+local caches is checked. The cache can be scaled up or down as needed dynamically.
+
+\begin{description}
+\item[shared\_cache\_size] \textbf{Input: const uint64\_t shared\_cache}\\
+\textbf{return: uint64\_t}\\
+Set the maximum shared cache size for this process. Default: 0 (do not use shared cache)
+
+\item[local\_cache\_size] \textbf{const uint64\_t local\_cache}\\
+\textbf{return: bool}\\
+Set the local cache size. returns false on error.
+
+\item[get\_shared\_cache\_size()] \textbf{return: uint64\_t}\\
+get the size of our shared memory requirement. \textit{NOTE: the actual size might be larger,
+since other processes might have requested more}
+
+\item[get\_local\_cache\_size()] \textbf{return: uint64\_t}\\
+get the size of our local cache
+\end{description}
 
 
 \subsubsection{The Encoder}
@@ -364,7 +407,7 @@ If \textit{threads} is $0$, try to guess the maximum threads from the number of 
 Each precomputation can take a lot of memory, depending on the configuration, so you might want to limit the number of precomputations run in parallel
 depending on the memory used. This method returns the amount of memory taken by \textbf{ONE} precomputation.
 
-\item [free] \textbf{Input: const uint8\_t sbn)}\\
+\item [free] \textbf{Input: const uint8\_t sbn}\\
 \textbf{return: void}\\
 Each block takes some memory, (a bit more than $symbols * symbol_size$), so once you are done sending source and repair symbols for one block,
 you might want to free the memory of that block.
@@ -497,19 +540,33 @@ You need to include the \textbf{cRaptorQ.h} header, and link the \textit{libRapt
 If you are working with the static version of libRaptorQ remember to link the C++ standard library used when
 compiling the library (\textit{libstdc++} for gcc or maybe \textit{libc++} for clang), your threding library (usually \textit{libpthread}), and the C math library (\textit{libm}).\\
 
-First of all, you need to build the encoder or the decoder.
+As for the C++11 interface, you can get and set the shared and local memory cache.\\
+Shared cache uses shared memory, while local cache can be used only be the current process.
+
+\index{Cache!C}
+\marginlabel{Cache settings}
+\begin{lstlisting}[language=C]
+uint64_t RaptorQ_shared_cache_size(
+                           const uint64_t shared_cache);
+bool RaptorQ_local_cache_size (
+                           const uint64_t local_cache);
+uint64_t RaptorQ_get_shared_cache_size ();
+uint64_t RaptorQ_get_local_cache_size ();
+\end{lstlisting}
+
+To use libRaptorQ you need to build the encoder or the decoder.
 
 The C interface is just a wrapper around the C++ code, so you still have to specify the same things as before.
 A quick glance at the constructors should give you all the information you need:
 
 \marginlabel{C Constructors}
 \begin{lstlisting}[language=C]
-typedef enum { NONE = 0,
-         ENC_8 = 1, ENC_16 = 2, ENC_32 = 3, ENC_64 = 4,
-         DEC_8 = 5, DEC_16 = 6, DEC_32 = 7, DEC_64 = 8}
+typedef enum { RQ_NONE = 0, RQ_ENC_8 = 1, RQ_ENC_16 = 2,
+            RQ_ENC_32 = 3, RQ_ENC_64 = 4, RQ_DEC_8 = 5,
+            RQ_DEC_16 = 6, RQ_DEC_32 = 7, RQ_DEC_64 = 8}
               RaptorQ_type;
 
-struct RAPTORQ_LOCAL RaptorQ_ptr
+struct RaptorQ_ptr
 {
   void *ptr = nullptr;
   const RaptorQ_type type;
@@ -533,7 +590,6 @@ alignments for the input and output, while in C things are a bit more strict as 
 all the possible cases. So you only get the same data alignment for both input and output.\\
 Still, you don't lose anything in performance.\\
 
-\newpage
 
 \subsubsection{Common functions for (de/en)coding}
 
@@ -561,8 +617,6 @@ Finally, when you are done working with a block, you can free the memory associa
 and just free the whole (en/de)coder when you are done. Freeing the whole (en/de)coder will obviously free
 also all the blocks.
 
-
-\newpage
 \subsubsection{Encoding}
 
 \marginlabel{OTI Data}

@@ -300,7 +300,6 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 int main (void)
 {
 	// set local cache size to 100MB
-	// do not enable. precomputation not ywt working
 	RaptorQ_local_cache_size (100*1024*1024);
 	// encode and decode
 	bool ret = decode (501, 20.0, 4);
