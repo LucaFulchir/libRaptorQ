@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_DEGREE_HPP
-#define RAPTORQ_DEGREE_HPP
+#pragma once
 
 #include <array>
 
@@ -43,6 +42,3 @@ static const std::array<uint32_t, 31> degree_distribution = {
 
 }	// namespace Impl
 }	// namespace RaptorQ
-
-#endif
-

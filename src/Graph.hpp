@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_GRAPH_HPP
-#define RAPTORQ_GRAPH_HPP
+#pragma once
 
 #include "common.hpp"
 #include <vector>
@@ -44,6 +43,3 @@ private:
 
 }	// namespace Impl
 }	// namespace RaptorQ
-
-#endif
-

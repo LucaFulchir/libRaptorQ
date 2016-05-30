@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_C_H
-#define RAPTORQ_C_H
+#pragma once
 
 #include "common.hpp"
 #include <stdbool.h>
@@ -123,6 +122,4 @@ extern "C"
 
 #ifdef __cplusplus
 }	// extern "C"
-#endif
-
 #endif

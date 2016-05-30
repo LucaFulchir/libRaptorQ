@@ -26,8 +26,7 @@
  * unsigned integers.
  */
 
-#ifndef RAPTORQ_RAND_H
-#define RAPTORQ_RAND_H
+#pragma once
 
 #include <array>
 #include "common.hpp"
@@ -50,5 +49,3 @@ private:
 
 }	// namespace Impl
 }	// namespace RaptorQ
-
-#endif

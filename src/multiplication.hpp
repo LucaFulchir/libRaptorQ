@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_MULTIPLICATION_HPP
-#define RAPTORQ_MULTIPLICATION_HPP
+#pragma once
 
 #include <cstdint>
 #include <array>
@@ -93,6 +92,3 @@ static const std::array<uint8_t, 255> oct_log = {
 
 }	// namespace Impl
 }	// namespace RaptorQ
-
-#endif
-

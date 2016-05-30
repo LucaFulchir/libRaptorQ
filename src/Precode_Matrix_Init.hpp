@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_PRECODE_MATRIX_INIT_HPP
-#define RAPTORQ_PRECODE_MATRIX_INIT_HPP
+#pragma once
 
 #include "Rand.hpp"
 #include "Precode_Matrix.hpp"
@@ -197,5 +196,3 @@ void Precode_Matrix<IS_OFFLINE>::add_G_ENC ()
 
 }	// namespace RaptorQ
 }	// namespace Impl
-
-#endif

@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_ENCODER_HPP
-#define RAPTORQ_ENCODER_HPP
+#pragma once
 
 #include "common.hpp"
 #include "Interleaver.hpp"
@@ -291,5 +290,3 @@ uint64_t Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
 
 }	// namespace Impl
 }	// namespace RaptorQ
-
-#endif

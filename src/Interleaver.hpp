@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_INTERLEAVER_HPP
-#define RAPTORQ_INTERLEAVER_HPP
+#pragma once
 
 #include "common.hpp"
 #include "multiplication.hpp"
@@ -549,5 +548,3 @@ Source_Block<Rnd_It> Interleaver<Rnd_It>::operator*() const
 
 }	// namespace Impl
 }	// namespace RaptorQ
-
-#endif

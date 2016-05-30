@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_OPERATION_HPP
-#define RAPTORQ_OPERATION_HPP
+#pragma once
 
 #include "common.hpp"
 #include "Parameters.hpp"
@@ -127,5 +126,3 @@ private:
 
 }	// namespace Impl
 }	// namespace RaptorQ
-
-#endif

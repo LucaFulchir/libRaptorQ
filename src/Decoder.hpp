@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_DECODER_HPP
-#define RAPTORQ_DECODER_HPP
+#pragma once
 
 #include "common.hpp"
 #include "Graph.hpp"
@@ -355,5 +354,3 @@ DenseMtx* Decoder<In_It>::get_symbols()
 
 }	//namespace Impl
 }	// namespace RaptorQ
-
-#endif

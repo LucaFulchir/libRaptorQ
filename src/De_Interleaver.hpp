@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_DE_INTERLEAVING_HPP
-#define RAPTORQ_DE_INTERLEAVING_HPP
+#pragma once
 
 #include "common.hpp"
 #include "Decoder.hpp"
@@ -113,5 +112,3 @@ uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
 
 }	// namespace Impl
 }	// namespace RaptorQ
-
-#endif

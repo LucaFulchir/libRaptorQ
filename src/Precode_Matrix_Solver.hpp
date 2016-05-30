@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_PRECODE_MATRIX_SOLVER_HPP
-#define RAPTORQ_PRECODE_MATRIX_SOLVER_HPP
+#pragma once
 
 #include "Graph.hpp"
 #include "Precode_Matrix.hpp"
@@ -563,5 +562,3 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::encode (const DenseMtx &C,
 
 }	// namespace RaptorQ
 }	// namespace Impl
-
-#endif

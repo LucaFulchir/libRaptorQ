@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_DLF_HPP
-#define RAPTORQ_DLF_HPP
+#pragma once
 
 #include "../common.hpp"
 #include "../Operation.hpp"
@@ -265,5 +264,3 @@ bool DLF<User_Data, Key>::add (User_Data &raw, const Key &key)
 
 } // namespace Impl
 } // namespace RaptorQ
-
-#endif

@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_PRECODE_MATRIX_HPP
-#define RAPTORQ_PRECODE_MATRIX_HPP
+#pragma once
 
 #include "common.hpp"
 #include "Parameters.hpp"
@@ -114,5 +113,3 @@ private:
 
 #include "Precode_Matrix_Init.hpp" // above template implementation
 #include "Precode_Matrix_Solver.hpp" // above template implementation
-
-#endif

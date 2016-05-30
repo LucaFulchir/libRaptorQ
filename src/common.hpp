@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_H
-#define RAPTORQ_H
+#pragma once
 
 
 // These macros were taken from http://gcc.gnu.org/wiki/Visibility
@@ -94,6 +93,3 @@
 									std::random_access_iterator_tag>::value, \
 			CLASS " is supposed to get a FORWARD iterator\n");
 #endif
-
-#endif
-

@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_TABLE2_HPP
-#define RAPTORQ_TABLE2_HPP
+#pragma once
 
 #include <cstdint>
 #include <tuple>
@@ -54,6 +53,3 @@ static const std::array<rq_tuple16, 477> S_H_W = {rq_tuple16(7, 10, 17), rq_tupl
 
 }	// namespace Impl
 }	// namespace RaptorQ
-
-#endif
-

@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_PARAMETERS_HPP
-#define RAPTORQ_PARAMETERS_HPP
+#pragma once
 
 #include "common.hpp"
 #include "multiplication.hpp"
@@ -154,6 +153,3 @@ namespace Eigen {
 template<>
 struct NumTraits<RaptorQ::Impl::Octet> : NumTraits<uint8_t> {};
 }
-
-
-#endif

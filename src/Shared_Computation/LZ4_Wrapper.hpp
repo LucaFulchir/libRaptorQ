@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_LZ4_HPP
-#define RAPTORQ_LZ4_HPP
+#pragma once
 
 #include "../common.hpp"
 #include <lz4.h>
@@ -129,5 +128,3 @@ std::vector<uint8_t> LZ4<type>::decode (const std::vector<uint8_t> &in)
 
 } // namepace Impl
 } // namespace RaptorQ
-
-#endif

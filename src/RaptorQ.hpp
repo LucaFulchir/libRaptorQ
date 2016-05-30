@@ -18,8 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef RAPTORQ_HPP
-#define RAPTORQ_HPP
+#pragma once
 
 /////////////////////
 //
@@ -835,6 +834,3 @@ uint16_t Decoder<In_It, Fwd_It>::symbols (const uint8_t sbn) const
 }
 
 }	//RaptorQ
-
-#endif
-
