@@ -222,8 +222,8 @@ bool Decoder<In_It>::decode()
 		if (it->first >= std::pow(2,16)) {
 			DO_NOT_SAVE = true;
 		} else {
-			bitmask_repair.reserve (it->first - L_rows);
-			uint32_t idx = L_rows;
+			bitmask_repair.reserve (it->first - _symbols);
+			uint32_t idx = _symbols;
 			for (auto rep = received_repair.begin();
 								rep != received_repair.end(); ++rep, ++idx) {
 				for (;idx < rep->first; ++idx)
@@ -238,8 +238,7 @@ bool Decoder<In_It>::decode()
 	}
 	const Cache_Key key (L_rows, mask.get_holes(), bitmask_repair);
 
-	DenseMtx D = DenseMtx (K_S_H + (received_repair.size() - mask.get_holes()),
-														source_symbols.cols());
+	DenseMtx D = DenseMtx (K_S_H + overhead, source_symbols.cols());
 
 	// initialize D
 	for (uint16_t row = 0; row < S_H; ++row) {
