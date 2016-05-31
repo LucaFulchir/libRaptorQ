@@ -22,24 +22,26 @@
 #include "Shared_Computation/Decaying_LF.hpp"
 
 
-uint64_t RaptorQ::shared_cache_size (const uint64_t shared_cache)
+uint64_t RaptorQ__v1::shared_cache_size (const uint64_t shared_cache)
 {
     return 0;
 }
 
-bool RaptorQ::local_cache_size (const uint64_t local_cache)
+bool RaptorQ__v1::local_cache_size (const uint64_t local_cache)
 {
-    return RaptorQ::Impl::DLF<std::vector<uint8_t>, RaptorQ::Impl::Cache_Key>::
+    return RaptorQ__v1::Impl::DLF<std::vector<uint8_t>,
+									RaptorQ__v1::Impl::Cache_Key>::
 													get()->resize (local_cache);
 }
 
-uint64_t RaptorQ::get_shared_cache_size()
+uint64_t RaptorQ__v1::get_shared_cache_size()
 {
     return 0;
 }
 
-uint64_t RaptorQ::get_local_cache_size()
+uint64_t RaptorQ__v1::get_local_cache_size()
 {
-    return RaptorQ::Impl::DLF<std::vector<uint8_t>, RaptorQ::Impl::Cache_Key>::
+    return RaptorQ__v1::Impl::DLF<std::vector<uint8_t>,
+									RaptorQ__v1::Impl::Cache_Key>::
 															get()->get_size();
 }

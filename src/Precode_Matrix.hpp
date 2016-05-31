@@ -28,7 +28,7 @@
 #include <memory>
 #include "Operation.hpp"
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 // track the bitmask of holes for received symbols.

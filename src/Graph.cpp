@@ -20,14 +20,14 @@
 
 #include "Graph.hpp"
 
-RaptorQ::Impl::Graph::Graph (const uint16_t size)
+RaptorQ__v1::Impl::Graph::Graph (const uint16_t size)
 {
 	connections.reserve (size);
 	for (uint16_t i = 0; i < size; ++i)
 		connections.emplace_back (1, i);
 }
 
-uint16_t RaptorQ::Impl::Graph::find (const uint16_t id) const
+uint16_t RaptorQ__v1::Impl::Graph::find (const uint16_t id) const
 {
 	uint16_t tmp = id;
 	while (connections[tmp].second != tmp)
@@ -35,7 +35,7 @@ uint16_t RaptorQ::Impl::Graph::find (const uint16_t id) const
 	return tmp;
 }
 
-void RaptorQ::Impl::Graph::connect (const uint16_t node_a,
+void RaptorQ__v1::Impl::Graph::connect (const uint16_t node_a,
 														const uint16_t node_b)
 {
 	uint16_t rep_a = find (node_a), rep_b = find (node_b);
@@ -53,7 +53,7 @@ void RaptorQ::Impl::Graph::connect (const uint16_t node_a,
 	}
 }
 
-bool RaptorQ::Impl::Graph::is_max (const uint16_t id) const
+bool RaptorQ__v1::Impl::Graph::is_max (const uint16_t id) const
 {
 	return max_connections == connections[find (id)].first;
 }

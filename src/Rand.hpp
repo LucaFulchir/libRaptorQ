@@ -31,7 +31,7 @@
 #include <array>
 #include "common.hpp"
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 class RAPTORQ_LOCAL Rand {

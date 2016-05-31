@@ -29,7 +29,7 @@
 //
 ///////////////////
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 ///
@@ -142,7 +142,7 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::make_MT() const
 			}
 		}
 		// last column: alpha ^^ i, as in rfc6330
-		MT (row, col) = RaptorQ::Impl::oct_exp[row];
+		MT (row, col) = RaptorQ__v1::Impl::oct_exp[row];
 	}
 	return MT;
 }
@@ -160,8 +160,8 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::make_GAMMA() const
 			// alpha ^^ (i-j), as in rfc6330, pg24
 			// rfc only says "i-j", but we could go well over oct_exp size.
 			// we hope they just missed a modulus :/
-			GAMMA (row, col) = RaptorQ::Impl::oct_exp[(row - col) %
-												RaptorQ::Impl::oct_exp.size()];
+			GAMMA (row, col) = RaptorQ__v1::Impl::oct_exp[(row - col) %
+											RaptorQ__v1::Impl::oct_exp.size()];
 		for (; col < GAMMA.cols(); ++col) {
 			GAMMA (row, col) = 0;
 		}

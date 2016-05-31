@@ -33,7 +33,7 @@
 #include <vector>
 #include <Eigen/Dense>
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 extern template class Precode_Matrix<Save_Computation::OFF>;
@@ -51,7 +51,7 @@ public:
 			precode_off (init_precode_off (symbols)),
 			mask (_symbols)
 	{
-		IS_INPUT(In_It, "RaptorQ::Impl::Decoder");
+		IS_INPUT(In_It, "RaptorQ__v1::Impl::Decoder");
 		// symbol size is in octets, but we save it in "T" sizes.
 		// so be aware that "symbol_size" != "_symbol_size" for now
 		source_symbols = DenseMtx (_symbols, symbol_size);
@@ -209,14 +209,12 @@ bool Decoder<In_It>::decode()
 	}
 
 	uint16_t S_H;
-	uint16_t K_S_H;
 	uint16_t L_rows;
 	bool DO_NOT_SAVE = false;
 	std::vector<bool> bitmask_repair;
 	if (type == Save_Computation::ON) {
 		L_rows = precode_on->_params.L;
 		S_H = precode_on->_params.S + precode_on->_params.H;
-		K_S_H = precode_on->_params.K_padded + S_H;
 		// repair.rend() is the highest repair symbol
 		const auto it = received_repair.rend();
 		if (it->first >= std::pow(2,16)) {
@@ -234,11 +232,10 @@ bool Decoder<In_It>::decode()
 	} else {
 		L_rows = precode_off->_params.L;
 		S_H = precode_off->_params.S + precode_off->_params.H;
-		K_S_H = precode_off->_params.K_padded + S_H;
 	}
 	const Cache_Key key (L_rows, mask.get_holes(), bitmask_repair);
 
-	DenseMtx D = DenseMtx (K_S_H + overhead, source_symbols.cols());
+	DenseMtx D = DenseMtx (L_rows + overhead, source_symbols.cols());
 
 	// initialize D
 	for (uint16_t row = 0; row < S_H; ++row) {
@@ -272,12 +269,12 @@ bool Decoder<In_It>::decode()
 		++symbol;
 	}
 	// fill the padding symbols (always zero)
-	for (uint16_t row = S_H + _symbols; row < K_S_H; ++row) {
+	for (uint16_t row = S_H + _symbols; row < L_rows; ++row) {
 		for (uint16_t col = 0; col < D.cols(); ++col)
 			D (row, col) = 0;
 	}
 	// fill the remaining (redundant) repair symbols
-	for (uint16_t row = K_S_H;
+	for (uint16_t row = L_rows;
 							symbol != received_repair.end(); ++symbol, ++row) {
 		D.row (row) = symbol->second;
 	}
@@ -292,7 +289,8 @@ bool Decoder<In_It>::decode()
 															get()->get (key);
 		LZ4<LZ4_t::DECODER> lz4;
 		auto uncompressed = lz4.decode (compressed);
-		DenseMtx precomputed = raw_to_Mtx (uncompressed, key._mt_size);
+		DenseMtx precomputed = raw_to_Mtx (uncompressed,
+													key._mt_size + overhead);
 		if (precomputed.rows() != 0) {
 			missing = precomputed * D;
 			DO_NOT_SAVE = true;
@@ -307,7 +305,7 @@ bool Decoder<In_It>::decode()
 		DenseMtx res;
 		// don't save really small matrices
 		if (missing.rows() != 0 && L_rows > 100) {
-			res.setIdentity (L_rows + overhead, L_rows);
+			res.setIdentity (L_rows + overhead, L_rows + overhead);
 			for (auto &op : ops)
 				op->build_mtx (res);
 			// TODO: lots of wasted ram? how to compress things directly?

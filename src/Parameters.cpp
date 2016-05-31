@@ -22,18 +22,18 @@
 #include "Parameters.hpp"
 #include "Rand.hpp"
 
-RaptorQ::Impl::Parameters::Parameters(const uint16_t symbols)
+RaptorQ__v1::Impl::Parameters::Parameters(const uint16_t symbols)
 {
 	uint16_t idx;
-	for (idx = 0; idx < RaptorQ::Impl::K_padded.size(); ++idx) {
-		if (RaptorQ::Impl::K_padded[idx] >= symbols) {
-			K_padded = RaptorQ::Impl::K_padded[idx];
+	for (idx = 0; idx < RaptorQ__v1::Impl::K_padded.size(); ++idx) {
+		if (RaptorQ__v1::Impl::K_padded[idx] >= symbols) {
+			K_padded = RaptorQ__v1::Impl::K_padded[idx];
 			break;
 		}
 	}
 
-	J = RaptorQ::Impl::J_K_padded[idx];
-	std::tie (S, H, W) = RaptorQ::Impl::S_H_W [idx];
+	J = RaptorQ__v1::Impl::J_K_padded[idx];
+	std::tie (S, H, W) = RaptorQ__v1::Impl::S_H_W [idx];
 
 	L = K_padded + S + H;
 	P = L - W;
@@ -45,7 +45,7 @@ RaptorQ::Impl::Parameters::Parameters(const uint16_t symbols)
 		++P1;
 }
 
-bool RaptorQ::Impl::Parameters::is_prime (const uint16_t n)
+bool RaptorQ__v1::Impl::Parameters::is_prime (const uint16_t n)
 {
 	// 1 as prime, don't care. Not in our scope anyway.
 	// thank you stackexchange for the code
@@ -66,21 +66,22 @@ bool RaptorQ::Impl::Parameters::is_prime (const uint16_t n)
 }
 
 
-uint16_t RaptorQ::Impl::Parameters::Deg (const uint32_t v) const
+uint16_t RaptorQ__v1::Impl::Parameters::Deg (const uint32_t v) const
 {
 	// rfc 6330, pg 27
 
-	for (uint16_t d = 0; d < RaptorQ::Impl::degree_distribution.size(); ++d) {
-		if (v < RaptorQ::Impl::degree_distribution[d])
+	for (uint16_t d = 0; d < RaptorQ__v1::Impl::degree_distribution.size();++d){
+		if (v < RaptorQ__v1::Impl::degree_distribution[d])
 			return (d < (W - 2)) ? d : (W - 2);
 	}
 	return 0;	// never get here, but don't make the compiler complain
 }
 
-RaptorQ::Impl::Tuple RaptorQ::Impl::Parameters::tuple (const uint32_t ISI) const
+RaptorQ__v1::Impl::Tuple RaptorQ__v1::Impl::Parameters::tuple (
+													const uint32_t ISI) const
 {
-	RaptorQ::Impl::Rand rnd;
-	RaptorQ::Impl::Tuple ret;
+	RaptorQ__v1::Impl::Rand rnd;
+	RaptorQ__v1::Impl::Tuple ret;
 
 	// taken straight from RFC6330, pg 30
 	// so thank them for the *beautiful* names
@@ -108,8 +109,8 @@ RaptorQ::Impl::Tuple RaptorQ::Impl::Parameters::tuple (const uint32_t ISI) const
 	return ret;
 }
 
-std::vector<uint16_t> RaptorQ::Impl::Parameters::get_idxs (const uint32_t ISI)
-																		const
+std::vector<uint16_t> RaptorQ__v1::Impl::Parameters::get_idxs (
+													const uint32_t ISI) const
 {
 	// Needed to generate G_ENC: We need the ids of the symbols we would
 	// use on a "Enc" call. So this is the "enc algorithm, but returns the

@@ -23,7 +23,7 @@
 /////////////////////
 //
 //	These templates are just a wrapper around the
-//	functionalities offered by the RaptorQ::Impl namespace
+//	functionalities offered by the RaptorQ__v1::Impl namespace
 //	So if you want to see what the algorithm looks like,
 //	you are in the wrong place
 //
@@ -40,7 +40,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 
 template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder;
@@ -218,8 +218,8 @@ public:
 											_symbol_size (symbol_size),
 											_min_subsymbol (min_subsymbol_size)
 	{
-		IS_RANDOM(Rnd_It, "RaptorQ::Encoder");
-		IS_FORWARD(Fwd_It, "RaptorQ::Encoder");
+		IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
+		IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
 		auto _alignment = sizeof(typename
 									std::iterator_traits<Rnd_It>::value_type);
 		UNUSED(_alignment);	// used only for asserts
@@ -333,8 +333,8 @@ public:
 	//};
 	Decoder (const OTI_Common_Data common,const OTI_Scheme_Specific_Data scheme)
 	{
-		IS_INPUT(In_It, "RaptorQ::Decoder");
-		IS_FORWARD(Fwd_It, "RaptorQ::Decoder");
+		IS_INPUT(In_It, "RaptorQ__v1::Decoder");
+		IS_FORWARD(Fwd_It, "RaptorQ__v1::Decoder");
 
 		// see the above commented bitfields for quick reference
 		_symbol_size = static_cast<uint16_t> (common);
@@ -388,7 +388,7 @@ public:
 private:
 	// using shared pointers to avoid locking too much or
 	// worrying about deleting used stuff.
-	using Dec_ptr = std::shared_ptr<RaptorQ::Impl::Decoder<In_It>>;
+	using Dec_ptr = std::shared_ptr<RaptorQ__v1::Impl::Decoder<In_It>>;
 	uint64_t _size;
 	Impl::Partition part, _sub_blocks;
 	uint16_t _symbol_size;
@@ -833,4 +833,6 @@ uint16_t Decoder<In_It, Fwd_It>::symbols (const uint8_t sbn) const
 	return 0;
 }
 
-}	//RaptorQ
+}	// RaptorQ__v1
+
+namespace RaptorQ = RaptorQ__v1;

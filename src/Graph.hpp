@@ -23,7 +23,7 @@
 #include "common.hpp"
 #include <vector>
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 class RAPTORQ_LOCAL Graph

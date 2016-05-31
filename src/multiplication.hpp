@@ -23,7 +23,7 @@
 #include <cstdint>
 #include <array>
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 #pragma clang diagnostic push

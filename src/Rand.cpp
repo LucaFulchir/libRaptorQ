@@ -29,7 +29,7 @@ double div_floor (double a, double b)
 }
 }
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 uint32_t Rand::get (const uint32_t y, const uint8_t i, const uint32_t m)

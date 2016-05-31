@@ -32,7 +32,7 @@
 #include <Eigen/SparseLU>
 #include <memory>
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 extern template class Precode_Matrix<Save_Computation::OFF>;
@@ -49,8 +49,8 @@ public:
 		  precode_off (init_precode_off (symbols.source_symbols(SBN))),
 		  _symbols(symbols)
 	{
-		IS_RANDOM(Rnd_It, "RaptorQ::Impl::Encoder");
-		IS_FORWARD(Fwd_It, "RaptorQ::Impl::Encoder");
+		IS_RANDOM(Rnd_It, "RaptorQ__v1::Impl::Encoder");
+		IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::Encoder");
 		if (type == Save_Computation::ON) {
 			precode_on->gen (0);
 		} else {

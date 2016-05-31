@@ -44,7 +44,7 @@ float div_ceil (const float a, const float b)
 }
 }
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 void test (void);
@@ -370,7 +370,7 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 	:_data_from (data_from), _data_to (data_to), _symbol_size (symbol_size),
 		_alignment (sizeof(typename std::iterator_traits<Rnd_It>::value_type))
 {
-	IS_RANDOM(Rnd_It, "RaptorQ::Impl::Interleaver");
+	IS_RANDOM(Rnd_It, "RaptorQ__v1::Impl::Interleaver");
 	// all parameters are in octets
 	assert(_symbol_size >= _alignment &&
 					"RaptorQ: symbol_size must be >= alignment");
@@ -408,12 +408,12 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 		auto upper_bound = max_block_decodable / (_alignment *
 									div_ceil (_symbol_size, _alignment * tmp));
 		size_t idx;
-		for (idx = 0; idx < RaptorQ::Impl::K_padded.size(); ++idx) {
-			if (RaptorQ::Impl::K_padded[idx] > upper_bound)
+		for (idx = 0; idx < RaptorQ__v1::Impl::K_padded.size(); ++idx) {
+			if (RaptorQ__v1::Impl::K_padded[idx] > upper_bound)
 				break;
 		}
 		// NOTE: tmp starts from 1, but "sizes" stores from 0.
-		sizes.push_back (RaptorQ::Impl::K_padded[idx == 0 ? 0 : --idx]);
+		sizes.push_back (RaptorQ__v1::Impl::K_padded[idx == 0 ? 0 : --idx]);
 	}
 	_source_blocks = static_cast<uint8_t> (div_ceil (Kt, sizes[N_max - 1]));
 	tmp = static_cast<size_t> (div_ceil (Kt, _source_blocks));

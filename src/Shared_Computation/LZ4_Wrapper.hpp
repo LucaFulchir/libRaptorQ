@@ -24,7 +24,7 @@
 #include <lz4.h>
 #include <vector>
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 enum class LZ4_t : uint8_t { ENCODER=0, DECODER=1 };
@@ -127,4 +127,4 @@ std::vector<uint8_t> LZ4<type>::decode (const std::vector<uint8_t> &in)
 
 
 } // namepace Impl
-} // namespace RaptorQ
+} // namespace RaptorQ__v1

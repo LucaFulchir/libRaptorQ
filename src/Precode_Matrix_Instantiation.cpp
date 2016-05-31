@@ -20,7 +20,7 @@
 
 #include "Precode_Matrix.hpp"
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 template class Precode_Matrix<Save_Computation::OFF>;

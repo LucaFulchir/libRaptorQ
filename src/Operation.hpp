@@ -24,7 +24,7 @@
 #include "Parameters.hpp"
 #include <Eigen/Dense>
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 using DenseMtx = Eigen::Matrix<Octet, Eigen::Dynamic, Eigen::Dynamic,

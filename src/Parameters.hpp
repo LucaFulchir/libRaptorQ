@@ -27,7 +27,7 @@
 #include <Eigen/Core>
 #include <vector>
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 class RAPTORQ_LOCAL Tuple
@@ -98,7 +98,7 @@ public:
 	Octet& operator*= (const Octet a)
 	{
 		if (data != 0 && a.data != 0) {
-			data = RaptorQ::Impl::oct_exp[oct_log[data - 1] +
+			data = RaptorQ__v1::Impl::oct_exp[oct_log[data - 1] +
 											oct_log[a.data - 1]];
 		} else {
 			data = 0;
@@ -108,7 +108,7 @@ public:
 	friend Octet operator* (Octet lhs, const Octet rhs)
 	{
 		if (lhs.data != 0 && rhs.data != 0) {
-			lhs.data = RaptorQ::Impl::oct_exp[oct_log[lhs.data - 1] +
+			lhs.data = RaptorQ__v1::Impl::oct_exp[oct_log[lhs.data - 1] +
 														oct_log[rhs.data - 1]];
 		} else {
 			lhs.data = 0;
@@ -118,7 +118,7 @@ public:
 	Octet& operator/= (const Octet a)
 	{
 		if (a.data != 0 && data != 0) {
-			data = RaptorQ::Impl::oct_exp[oct_log[data - 1] -
+			data = RaptorQ__v1::Impl::oct_exp[oct_log[data - 1] -
 													oct_log[a.data - 1] + 255];
 		}
 		return *this;
@@ -132,7 +132,7 @@ public:
 
 	Octet inverse() const
 	{
-		return Octet (RaptorQ::Impl::oct_exp[255 - oct_log[data - 1]]);
+		return Octet (RaptorQ__v1::Impl::oct_exp[255 - oct_log[data - 1]]);
 	}
 
 	friend std::ostream &operator<< (std::ostream &os, const Octet m) {
@@ -151,5 +151,5 @@ inline uint8_t abs (Octet x) { return static_cast<uint8_t> (x); }
 
 namespace Eigen {
 template<>
-struct NumTraits<RaptorQ::Impl::Octet> : NumTraits<uint8_t> {};
+struct NumTraits<RaptorQ__v1::Impl::Octet> : NumTraits<uint8_t> {};
 }

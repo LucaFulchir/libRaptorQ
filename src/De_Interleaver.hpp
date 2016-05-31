@@ -24,7 +24,7 @@
 #include "Decoder.hpp"
 #include "Interleaver.hpp"
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 template <typename Fwd_It>
@@ -35,7 +35,7 @@ public:
 														const uint8_t alignment)
 		:_symbols (symbols), _sub_blocks (sub_blocks), _al (alignment)
 	{
-		IS_FORWARD(Fwd_It, "RaptorQ::Impl::De_Interleaver");
+		IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::De_Interleaver");
 	}
 	uint64_t operator() (Fwd_It &start, const Fwd_It end,
 														const uint8_t skip = 0);

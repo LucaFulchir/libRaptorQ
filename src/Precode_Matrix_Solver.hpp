@@ -29,7 +29,7 @@
 //
 ///////////////////
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 // The template parameter "IS_OFFLINE" lets us identify

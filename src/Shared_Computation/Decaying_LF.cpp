@@ -22,7 +22,7 @@
 #include <lz4.h>
 
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 
@@ -87,4 +87,4 @@ bool Cache_Key::operator== (const Cache_Key &rhs) const
 
 
 } // namespace Impl
-} // namespace RaptorQ
+} // namespace RaptorQ__v1

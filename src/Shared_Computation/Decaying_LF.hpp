@@ -30,7 +30,7 @@
 #include <vector>
 
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 
@@ -252,7 +252,7 @@ bool DLF<User_Data, Key>::add (User_Data &raw, const Key &key)
             data[last_item].raw = std::move(raw);
             max_size += raw.size() + sizeof (DLF_Data);
             std::sort (data.begin(), data.end());
-            actual_size += sizeof(RaptorQ::Impl::DLF<User_Data, Key>) +
+            actual_size += sizeof(RaptorQ__v1::Impl::DLF<User_Data, Key>) +
 																	raw.size();
             return true;
         } else {
@@ -263,4 +263,4 @@ bool DLF<User_Data, Key>::add (User_Data &raw, const Key &key)
 
 
 } // namespace Impl
-} // namespace RaptorQ
+} // namespace RaptorQ__v1

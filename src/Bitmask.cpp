@@ -42,7 +42,7 @@ float div_ceil (const float a, const float b)
 //
 ///////////////////
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 Bitmask::Bitmask (const uint16_t symbols)

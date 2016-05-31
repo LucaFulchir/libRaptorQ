@@ -24,7 +24,7 @@
 #include <tuple>
 #include <array>
 
-namespace RaptorQ {
+namespace RaptorQ__v1 {
 namespace Impl {
 
 #ifdef USING_CLANG
