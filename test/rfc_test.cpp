@@ -28,6 +28,7 @@
 #include <memory>
 #include <random>
 #include "../src/RaptorQ.hpp"
+#include <stdlib.h>
 #include <string>
 #include <thread>
 #include <tuple>
@@ -434,7 +435,12 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 
 	for (size_t i = 0; i < encoded.size(); ++i) {
 		auto it = encoded[i].second.begin();
-		dec.add_symbol (it, encoded[i].second.end(), encoded[i].first);
+		auto ret = dec.add_symbol (it, encoded[i].second.end(),
+															encoded[i].first);
+		if (ret != RaptorQ::Error::NONE && ret != RaptorQ::Error::NOT_NEEDED) {
+			std::cout << "Error in adding symbol to decoder!\n";
+			abort();
+		}
 	}
 
 	auto re_it = received.begin();

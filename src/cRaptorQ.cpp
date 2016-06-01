@@ -128,9 +128,10 @@ uint64_t RaptorQ_shared_cache_size (const uint64_t shared_cache)
 	return RaptorQ__v1::shared_cache_size (shared_cache);
 }
 
-bool RaptorQ_local_cache_size (const uint64_t local_cache)
+RaptorQ_Error RaptorQ_local_cache_size (const uint64_t local_cache)
 {
-	return RaptorQ__v1::local_cache_size (local_cache);
+	return static_cast<RaptorQ_Error> (RaptorQ__v1::local_cache_size (
+																local_cache));
 }
 
 uint64_t RaptorQ_get_shared_cache_size ()
@@ -678,7 +679,8 @@ uint64_t RaptorQ_decode_block (RaptorQ_ptr *dec, void **data, const size_t size,
 	return ret;
 }
 
-bool RaptorQ_add_symbol_id (RaptorQ_ptr *dec, void **data, const uint32_t size,
+RaptorQ_Error RaptorQ_add_symbol_id (RaptorQ_ptr *dec, void **data,
+															const uint32_t size,
 															const uint32_t id)
 {
 	uint8_t sbn = id >> 24;
@@ -686,49 +688,49 @@ bool RaptorQ_add_symbol_id (RaptorQ_ptr *dec, void **data, const uint32_t size,
 	return RaptorQ_add_symbol (dec, data, size, esi, sbn);
 }
 
-bool RaptorQ_add_symbol (RaptorQ_ptr *dec, void **data, const uint32_t size,
+RaptorQ_Error RaptorQ_add_symbol (RaptorQ_ptr *dec, void **data,
+															const uint32_t size,
 															const uint32_t esi,
 															const uint8_t sbn)
 {
 	if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE ||
 									dec->ptr == nullptr || data == nullptr) {
-		return false;
+		return RaptorQ_Error::RQ_ERR_CHECK_INIT;
 	}
 	uint8_t *p_8;
 	uint16_t *p_16;
 	uint32_t *p_32;
 	uint64_t *p_64;
+	RaptorQ__v1::Error error;
 	switch (dec->type) {
 	case RaptorQ_type::RQ_DEC_8:
 		p_8 = reinterpret_cast<uint8_t*> (*data);
-		return (reinterpret_cast<RaptorQ__v1::Decoder<uint8_t*, uint8_t*>*> (
-							dec->ptr))->add_symbol (p_8, p_8 + size, esi, sbn);
+		error = reinterpret_cast<RaptorQ__v1::Decoder<uint8_t*, uint8_t*>*> (
+							dec->ptr)->add_symbol (p_8, p_8 + size, esi, sbn);
+		break;
 	case RaptorQ_type::RQ_DEC_16:
 		p_16 = reinterpret_cast<uint16_t*> (*data);
-		return (reinterpret_cast<RaptorQ__v1::Decoder<uint16_t*, uint16_t*>*> (
-						dec->ptr))->add_symbol (p_16, p_16 + size, esi, sbn);
+		error = reinterpret_cast<RaptorQ__v1::Decoder<uint16_t*, uint16_t*>*> (
+						dec->ptr)->add_symbol (p_16, p_16 + size, esi, sbn);
+		break;
 	case RaptorQ_type::RQ_DEC_32:
 		p_32 = reinterpret_cast<uint32_t*> (*data);
-		return (reinterpret_cast<RaptorQ__v1::Decoder<uint32_t*, uint32_t*>*> (
-						dec->ptr))->add_symbol (p_32, p_32 + size, esi, sbn);
+		error = reinterpret_cast<RaptorQ__v1::Decoder<uint32_t*, uint32_t*>*> (
+						dec->ptr)->add_symbol (p_32, p_32 + size, esi, sbn);
+		break;
 	case RaptorQ_type::RQ_DEC_64:
 		p_64 = reinterpret_cast<uint64_t*> (*data);
-		return (reinterpret_cast<RaptorQ__v1::Decoder<uint64_t*, uint64_t*>*> (
-						dec->ptr))->add_symbol (p_64, p_64 + size, esi, sbn);
+		error = reinterpret_cast<RaptorQ__v1::Decoder<uint64_t*, uint64_t*>*> (
+						dec->ptr)->add_symbol (p_64, p_64 + size, esi, sbn);
+		break;
 	case RaptorQ_type::RQ_ENC_8:
 	case RaptorQ_type::RQ_ENC_16:
 	case RaptorQ_type::RQ_ENC_32:
 	case RaptorQ_type::RQ_ENC_64:
 	case RaptorQ_type::RQ_NONE:
-		return false;
+		return RaptorQ_Error::RQ_ERR_CHECK_INIT;
 	}
-#ifndef USING_CLANG
-	// uncomment the return and:
-	// clang: WARN: will never be executed (exaustive switch)
-	// if commented, GCC: warn: control reaches end of non-void
-	// ...make up your mind, guys?
-	return false;
-#endif
+	return static_cast<RaptorQ_Error> (error);
 }
 
 ///////////////////////

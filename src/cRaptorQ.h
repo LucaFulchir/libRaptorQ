@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "common.hpp"
+#include "common.hpp" // includes RaptorQ_Errors
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -35,6 +35,7 @@ extern "C"
 	typedef enum { RQ_NONE = 0, RQ_ENC_8 = 1, RQ_ENC_16 = 2, RQ_ENC_32 = 3,
 					RQ_ENC_64 = 4, RQ_DEC_8 = 5, RQ_DEC_16 = 6, RQ_DEC_32 = 7,
 					RQ_DEC_64 = 8 } RaptorQ_type;
+
 
 	struct RAPTORQ_LOCAL RaptorQ_ptr;
 
@@ -52,7 +53,7 @@ extern "C"
 	// Precomputation caching
 	///////////////////////////
 	uint64_t RAPTORQ_API RaptorQ_shared_cache_size(const uint64_t shared_cache);
-	bool RAPTORQ_API RaptorQ_local_cache_size (const uint64_t local_cache);
+	RaptorQ_Error RAPTORQ_API RaptorQ_local_cache_size (const uint64_t local_cache);
 	uint64_t RAPTORQ_API RaptorQ_get_shared_cache_size ();
 	uint64_t RAPTORQ_API RaptorQ_get_local_cache_size ();
 
@@ -104,10 +105,12 @@ extern "C"
 															const size_t size,
 															const uint8_t sbn);
 
-	bool RAPTORQ_API RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec,void **data,
+	RaptorQ_Error RAPTORQ_API RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec,
+														void **data,
 														const uint32_t size,
 														const uint32_t id);
-	bool RAPTORQ_API RaptorQ_add_symbol (struct RaptorQ_ptr *dec, void **data,
+	RaptorQ_Error RAPTORQ_API RaptorQ_add_symbol (struct RaptorQ_ptr *dec,
+															void **data,
 															const uint32_t size,
 															const uint32_t esi,
 															const uint8_t sbn);

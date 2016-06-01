@@ -42,6 +42,7 @@ extern template class Precode_Matrix<Save_Computation::ON>;
 template <typename In_It>
 class RAPTORQ_API Decoder
 {
+
 	using Vect = Eigen::Matrix<Octet, 1, Eigen::Dynamic, Eigen::RowMajor>;
 	using T_in = typename std::iterator_traits<In_It>::value_type;
 public:
@@ -57,7 +58,7 @@ public:
 		source_symbols = DenseMtx (_symbols, symbol_size);
 	}
 
-	bool add_symbol (In_It &start, const In_It end, const uint32_t esi);
+	Error add_symbol (In_It &start, const In_It end, const uint32_t esi);
 	bool decode();
 	DenseMtx* get_symbols();
 	//std::vector<T> get (const uint16_t symbol) const;
@@ -111,7 +112,7 @@ private:
 
 
 template <typename In_It>
-bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
+Error Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 															const uint32_t esi)
 {
 	// true if added succesfully
@@ -122,19 +123,17 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 									std::random_access_iterator_tag>::value) {
 		if (static_cast<size_t>(end - start) * sizeof(T_in) <
 								static_cast<size_t> (source_symbols.cols()))
-			return false;
+			return Error::WRONG_INPUT;
 	}
 
 	if (esi >= std::pow (2, 20))
-		return false;
+		return Error::WRONG_INPUT;
 
 	std::lock_guard<std::mutex> guard (lock);
 	UNUSED(guard);
 
-	if (mask.get_holes() == 0)
-		return false;	// not even needed.
-	if (mask.exists (esi))
-		return false;	// already present.
+	if (mask.get_holes() == 0 || mask.exists (esi))
+		return Error::NOT_NEEDED;	// not even needed.
 
 	uint16_t col = 0;
 	if (esi < _symbols) {
@@ -149,7 +148,7 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 		// input iterator might reach end before we get enough data
 		// for the symbol.
 		if (col != source_symbols.cols())
-			return false;
+			return Error::WRONG_INPUT;
 	} else {
 		Vect v = Vect (source_symbols.cols());
 		for (; start != end && col != source_symbols.cols(); ++start) {
@@ -163,7 +162,7 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 		// input iterator might reach end before we get enough data
 		// for the symbol.
 		if (col != v.cols())
-			return false;
+			return Error::WRONG_INPUT;
 		received_repair.emplace_back (esi, std::move(v));
 		// reorder the received_repair:
 		// ordering the repair packets lets us have more deterministic
@@ -185,7 +184,7 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 	}
 	mask.add (esi);
 
-	return true;
+	return Error::NONE;
 }
 
 template <typename In_It>

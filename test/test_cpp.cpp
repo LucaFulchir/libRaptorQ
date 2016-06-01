@@ -22,6 +22,7 @@
 #include <iostream>
 #include <random>
 #include "../src/RaptorQ.hpp"
+#include <stdlib.h>
 #include <vector>
 
 // Demonstration of how to use the C++ interface
@@ -198,8 +199,12 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 
 	for (size_t i = 0; i < encoded.size(); ++i) {
 		auto it = encoded[i].second.begin();
-		if (!dec.add_symbol (it, encoded[i].second.end(), encoded[i].first))
+		auto err = dec.add_symbol (it, encoded[i].second.end(),
+															encoded[i].first);
+		if (err != RaptorQ::Error::NONE && err != RaptorQ::Error::NOT_NEEDED) {
 			std::cout << "error adding?\n";
+			abort();
+		}
 	}
 
 	auto re_it = received.begin();

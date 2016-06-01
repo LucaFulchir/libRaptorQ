@@ -309,6 +309,7 @@ template <typename In_It, typename Fwd_It>
 class RAPTORQ_API Decoder
 {
 public:
+
 	// rfc 6330, pg 6
 	// easy explanation for OTI_* comes next.
 	// we do NOT use bitfields as compilators are not actually forced to put
@@ -376,8 +377,8 @@ public:
 	uint64_t decode (Fwd_It &start, const Fwd_It end);
 	uint64_t decode (Fwd_It &start, const Fwd_It end, const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
-	bool add_symbol (In_It &start, const In_It end, const uint32_t id);
-	bool add_symbol (In_It &start, const In_It end, const uint32_t esi,
+	Error add_symbol (In_It &start, const In_It end, const uint32_t id);
+	Error add_symbol (In_It &start, const In_It end, const uint32_t esi,
 															const uint8_t sbn);
 	void free (const uint8_t sbn);
 	uint64_t bytes() const;
@@ -671,7 +672,7 @@ void Decoder<In_It, Fwd_It>::free (const uint8_t sbn)
 }
 
 template <typename In_It, typename Fwd_It>
-bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
+Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 															const uint32_t id)
 {
 	uint32_t esi = (id << 8 ) >> 8;
@@ -681,12 +682,11 @@ bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 }
 
 template <typename In_It, typename Fwd_It>
-bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
-															const uint32_t esi,
-															const uint8_t sbn)
+Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
+										const uint32_t esi, const uint8_t sbn)
 {
 	if (sbn >= _blocks)
-		return false;
+		return Error::WRONG_INPUT;
 	_mtx.lock();
 	auto it = decoders.find (sbn);
 	if (it == decoders.end()) {
@@ -835,4 +835,3 @@ uint16_t Decoder<In_It, Fwd_It>::symbols (const uint8_t sbn) const
 
 }	// RaptorQ__v1
 
-namespace RaptorQ = RaptorQ__v1;

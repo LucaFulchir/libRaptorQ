@@ -215,8 +215,9 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	for (size_t i = 0; i < next_encoded; ++i) {
 		uint32_t *data = encoded[i].symbol;
 		uint32_t data_size = RaptorQ_symbol_size (dec) / sizeof(uint32_t);
-		if (!RaptorQ_add_symbol_id (dec, (void **)&data, data_size,
-															encoded[i].id)) {
+		RaptorQ_Error err = RaptorQ_add_symbol_id (dec, (void **)&data,
+													data_size, encoded[i].id);
+		if (err != RQ_ERR_NONE && err != RQ_ERR_NOT_NEEDED) {
 			// this can happen if we receive the same symbol twice
 			// (which doesn't make much sense). But we constructed
 			// everything so that there are no duplicates here,

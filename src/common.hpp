@@ -58,11 +58,40 @@
 	#define RAPTORQ_LOCAL
 #endif // RAPTORQ_DLL
 
+///////////////////////////
+////
+//// Common error codes
+////
+///////////////////////////
+// NOTE: the C++ and C version should be kept in sync
+//		so that we can just static_cast<>() from the C++ to the C version.
 
+#ifdef __cplusplus
+// C++ version
+#include <cstdint>
+namespace RaptorQ__v1 {
+	enum class Error : uint8_t {
+							NONE = 0,
+							NOT_NEEDED = 1,
+							WRONG_INPUT = 2
+							};
+}
+// versioning support
+namespace RaptorQ = RaptorQ__v1;
+#endif
+// C version
+typedef enum {	RQ_ERR_NONE = 0,
+				RQ_ERR_NOT_NEEDED = 1,
+				RQ_ERR_WRONG_INPUT = 2,
+				RQ_ERR_CHECK_INIT = 3,
+				RQ_ERR_INTERNAL = 4
+			} RaptorQ_Error;
+
+
+// Now just some macros to check the iterator type
 #ifdef __cplusplus
 
 #include <cassert>
-#include <cstdint>
 #include <iterator>
 
 #define UNUSED(x)	((void)x)
