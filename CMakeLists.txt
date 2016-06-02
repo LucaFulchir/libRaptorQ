@@ -97,7 +97,7 @@ endif()
 
 if(CLANG_STDLIB MATCHES "ON")
 	if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
-	    message(FATAL_ERROR "libc++ is only supported by clang")
+		message(FATAL_ERROR "libc++ is only supported by clang")
 	endif()
 endif()
 
@@ -174,7 +174,6 @@ SET(HEADERS	src/Interleaver.hpp
 		src/cRaptorQ.h)
 
 
-set(RQ_DBG_LINK "")
 include(cmake/compiler_flags)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -211,7 +210,7 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
 
     # PRE-run: build a library, generate the profile.
     add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS})
-    target_link_libraries(RaptorQ_Static_Profiling ${STDLIB} ${RQ_LZ4_DEP} ${RQ_DBG_LINK})
+    target_link_libraries(RaptorQ_Static_Profiling ${STDLIB} ${RQ_LZ4_DEP} ${RQ_UBSAN})
     set(CMAKE_CXX_FLAGS )
     target_compile_options(
         RaptorQ_Static_Profiling PRIVATE
@@ -227,7 +226,6 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
     target_compile_options(
         test_c_profiled PRIVATE
         ${C_COMPILER_FLAGS}
-		-Wno-disabled-macro-expansion
     )
     target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB} m ${CMAKE_THREAD_LIBS_INIT})
     set_target_properties(test_c_profiled PROPERTIES LINK_FLAGS ${PROFILE_GET})
@@ -297,7 +295,7 @@ if(STATIC_LIB MATCHES "ON")
         make_deterministic PRIVATE
         ${CXX_COMPILER_FLAGS}
     )
-	target_link_libraries(make_deterministic ${STDLIB} ${RQ_DBG_LINK})
+	target_link_libraries(make_deterministic ${STDLIB} ${RQ_UBSAN})
     add_custom_command(
         OUTPUT deterministic.run
         COMMAND make_deterministic ${CMAKE_BINARY_DIR}/lib/libRaptorQ-${RQ_VERSION}.a
@@ -348,7 +346,7 @@ add_executable(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
         ${CXX_COMPILER_FLAGS}
     )
 add_dependencies(libRaptorQ-test RaptorQ)
-target_link_libraries(libRaptorQ-test ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP} RaptorQ)
+target_link_libraries(libRaptorQ-test ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 add_custom_target(tests DEPENDS libRaptorQ-test)
 
 # build examples
@@ -360,11 +358,7 @@ add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
 		-Wno-disabled-macro-expansion
     )
 add_dependencies(test_c RaptorQ)
-target_link_libraries(test_c ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP} ${RQ_DBG_LINK} RaptorQ m)
-# cmake 2.8.12 seems to have problems understanding to link pthread...
-if(USE_PTHREADS_INIT)
-    target_link_libraries(test_c pthread)
-endif()
+target_link_libraries(test_c ${RQ_UBSAN} ${STDLIB} RaptorQ m ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
 # CPP interface
 add_executable(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
@@ -373,7 +367,7 @@ add_executable(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
 		${CXX_COMPILER_FLAGS}
     )
 add_dependencies(test_cpp RaptorQ)
-target_link_libraries(test_cpp ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP} RaptorQ)
+target_link_libraries(test_cpp ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 add_custom_target(examples DEPENDS test_c test_cpp)
 
 add_custom_target(everything DEPENDS Make_static_deterministic tests examples docs)
