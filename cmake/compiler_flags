@@ -18,6 +18,27 @@
 # along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+include(CheckCCompilerFlag)
+include(CheckCXXCompilerFlag)
+
+##############################################
+#### check for UBSAN sanitizing support ######
+##############################################
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+    check_c_compiler_flag("-fsanitize=undefined" RQ_FLAG_C_UBSAN)
+    check_cxx_compiler_flag("-fsanitize=undefined" RQ_FLAG_CXX_UBSAN)
+    if (RQ_FLAG_C_UBSAN AND RQ_FLAG_CXX_UBSAN)
+        set(RQ_ENABLE_UBSAN TRUE)
+        set(RQ_UBSAN ubsan)
+        message(STATUS "UBSAN sanitizing support enabled")
+    else()
+        message(STATUS "UBSAN sanitizing support disabled")
+    endif()
+endif()
+
+###################
+## Compiler options
+###################
 
 #gnu options
 set(RQ_GNU_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv )
@@ -27,8 +48,10 @@ set(RQ_GNU_CXX_OPTIONS ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions 
 # -fsanitize=undefined
 # -fsanitize=null
 # -fsanitize=signed-integer-overflow
-set(RQ_GNU_C_DEBUG   -O0 -g -Wno-aggressive-loop-optimizations -ftrapv -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute )
-set(RQ_GNU_CXX_DEBUG -O0 -g -Wno-aggressive-loop-optimizations -ftrapv -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute )
+set(RQ_GNU_C_DEBUG   -O0 -g -Wno-aggressive-loop-optimizations -ftrapv )
+set(RQ_GNU_CXX_DEBUG -O0 -g -Wno-aggressive-loop-optimizations -ftrapv )
+set(RQ_GNU_C_DEBUG_SANITIZE   -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute )
+set(RQ_GNU_CXX_DEBUG_SANITIZE -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute )
 set(RQ_GNU_C_MINSIZEREL   -Os )
 set(RQ_GNU_CXX_MINSIZEREL -Os )
 set(RQ_GNU_C_RELEASE   -O4 -DNDEBUG -fwrapv )
@@ -39,6 +62,8 @@ set(RQ_GNU_CXX_RELWITHDEBINFO ${RQ_GNU_CXX_RELEASE} -g )
 # clang options
 set(RQ_CLANG_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security -Wno-disabled-macro-expansion)
 set(RQ_CLANG_CXX_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security )
+set(RQ_CLANG_C_DEBUG_SANITIZE   -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return )
+set(RQ_CLANG_CXX_DEBUG_SANITIZE -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return )
 
 set(RQ_CLANG_C_DEBUG   -O0 -g )
 set(RQ_CLANG_CXX_DEBUG -O0 -g )
@@ -53,12 +78,18 @@ set(RQ_CLANG_CXX_RELWITHDEBINFO ${RQ_CLANG_CXX_RELEASE} -g )
 set(MSVC_C_OPTIONS )
 set(MSVC_CXX_OPTIONS )
 
+
+###################
 # combine the above
+###################
 # note: generator expansions do not work on "set(..)"
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_CLANG_CXX_OPTIONS})
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
         set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_CLANG_CXX_DEBUG})
+        if (RQ_ENABLE_UBSAN)
+            set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_CLANG_CXX_DEBUG_SANITIZE})
+        endif()
     elseif(CMAKE_BUILD_TYPE MATCHES "MinSizeRel")
         set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_CLANG_CXX_MINSIZEREL})
     elseif(CMAKE_BUILD_TYPE MATCHES "Release")
@@ -69,8 +100,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_GNU_CXX_OPTIONS})
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
-        set(RQ_DBG_LINK ubsan)
         set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_GNU_CXX_DEBUG})
+        if (RQ_ENABLE_UBSAN)
+            set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_GNU_CXX_DEBUG_SANITIZE})
+        endif()
     elseif(CMAKE_BUILD_TYPE MATCHES "MinSizeRel")
         set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_GNU_CXX_MINSIZEREL})
     elseif(CMAKE_BUILD_TYPE MATCHES "Release")
@@ -87,6 +120,9 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
     set(RQ_LIST_C_COMPILER_FLAGS ${RQ_CLANG_C_OPTIONS})
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
         set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_CLANG_C_DEBUG})
+        if (RQ_ENABLE_UBSAN)
+            set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_CLANG_C_DEBUG_SANITIZE})
+        endif()
     elseif(CMAKE_BUILD_TYPE MATCHES "MinSizeRel")
         set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_CLANG_C_MINSIZEREL})
     elseif(CMAKE_BUILD_TYPE MATCHES "Release")
@@ -97,8 +133,10 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
 elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
     set(RQ_LIST_C_COMPILER_FLAGS ${RQ_GNU_C_OPTIONS})
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
-        set(RQ_DBG_LINK ubsan)
         set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_GNU_C_DEBUG})
+        if (RQ_ENABLE_UBSAN)
+            set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_GNU_C_DEBUG_SANITIZE})
+        endif()
     elseif(CMAKE_BUILD_TYPE MATCHES "MinSizeRel")
         set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_GNU_C_MINSIZEREL})
     elseif(CMAKE_BUILD_TYPE MATCHES "Release")
@@ -111,8 +149,9 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
 endif()
 
 
-include(CheckCCompilerFlag)
-include(CheckCXXCompilerFlag)
+########################################
+## Test all the previously enabled flags
+########################################
 
 set(RQ_C_COMPILER_FLAGS "")
 set(RQ_CXX_COMPILER_FLAGS "")
