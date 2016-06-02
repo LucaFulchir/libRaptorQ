@@ -22,7 +22,7 @@ project (libRaptorQ)
 enable_language(CXX)
 enable_language(C)
 
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
 set(RQ_VERSION 0.2-prealpha)
 
 message(STATUS "libRaptorQ version ${RQ_VERSION}")
@@ -119,11 +119,10 @@ include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 find_package(LZ4 REQUIRED)
 include_directories(SYSTEM ${RQ_LZ4_INCLUDE_DIR})
 #lz4 build if necessary
-set(RQ_LZ4_DEP "lz4")
-add_subdirectory(${CMAKE_SOURCE_DIR}/external)
+include(${CMAKE_CURRENT_SOURCE_DIR}/external/build_deps.cmake)
 
 # LATEX documentation
-add_subdirectory(${CMAKE_SOURCE_DIR}/doc)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/doc)
 
 
 if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/.git/ AND GIT_FOUND)
@@ -211,6 +210,7 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
     # PRE-run: build a library, generate the profile.
     add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS})
     target_link_libraries(RaptorQ_Static_Profiling ${STDLIB} ${RQ_LZ4_DEP} ${RQ_UBSAN})
+	add_dependencies(RaptorQ_Static_Profiling LZ4)
     set(CMAKE_CXX_FLAGS )
     target_compile_options(
         RaptorQ_Static_Profiling PRIVATE
@@ -268,6 +268,7 @@ endif()
 # build the static library
 if(STATIC_LIB MATCHES "ON")
     add_library(RaptorQ_Static STATIC ${SOURCES} ${HEADERS})
+	add_dependencies(RaptorQ_Static LZ4)
     if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
         set_target_properties(RaptorQ_Static PROPERTIES OUTPUT_NAME RaptorQ-${RQ_VERSION})
     endif()
@@ -287,7 +288,7 @@ if(STATIC_LIB MATCHES "ON")
         PROPERTIES
         LINK_FLAGS "-Wl,-z,now,-z,relro -pie ${LD_OPT}"
     )
-    set_property(TARGET RaptorQ_Static PROPERTY ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+    set_property(TARGET RaptorQ_Static PROPERTY ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
 
 	# make the library deterministic (only on *nix)
     add_executable(make_deterministic src/deterministic.cpp)
@@ -298,7 +299,7 @@ if(STATIC_LIB MATCHES "ON")
 	target_link_libraries(make_deterministic ${STDLIB} ${RQ_UBSAN})
     add_custom_command(
         OUTPUT deterministic.run
-        COMMAND make_deterministic ${CMAKE_BINARY_DIR}/lib/libRaptorQ-${RQ_VERSION}.a
+        COMMAND make_deterministic ${CMAKE_CURRENT_BINARY_DIR}/lib/libRaptorQ-${RQ_VERSION}.a
         DEPENDS RaptorQ_Static
         COMMENT "Removing creation date from library..."
         VERBATIM
@@ -316,6 +317,7 @@ if(DYNAMIC_LIB MATCHES "ON")
     add_definitions(-DRAPTORQ_DLL_EXPORTS)
 
     add_library(RaptorQ SHARED ${SOURCES} ${HEADERS})
+	add_dependencies(RaptorQ LZ4)
     target_compile_options(
         RaptorQ PRIVATE
         ${CXX_COMPILER_FLAGS}
@@ -335,7 +337,7 @@ if(DYNAMIC_LIB MATCHES "ON")
         PROPERTIES
         LINK_FLAGS "-Wl,-z,now,-z,relro ${LD_OPT}"
     )
-    set_property(TARGET RaptorQ PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+    set_property(TARGET RaptorQ PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
 endif()
 
 

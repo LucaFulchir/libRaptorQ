@@ -19,15 +19,14 @@
 #
 
 FIND_PATH(RQ_LZ4_INCLUDE_DIR
-  NAMES lz4.h
-  PATH_SUFFIXES include/ include/lz4/ lz4/
-  PATHS
-  ${LZ4_ROOT}
-  $ENV{LZ4_ROOT}
-  /usr/
+	NAMES lz4.h
+	PATH_SUFFIXES include/ include/lz4/ lz4/
+	PATHS
+	${LZ4_ROOT}
+	$ENV{LZ4_ROOT}
+	/usr/
+	${CMAKE_CURRENT_SOURCE_DIR}/external/lz4/lib
 )
-
-message(STATUS "Found lz4 at: ${RQ_LZ4_INCLUDE_DIR}.")
 
 IF(RQ_LZ4_INCLUDE_DIR)
   SET(RQ_LZ4_FOUND TRUE)
@@ -36,15 +35,17 @@ ELSE(RQ_LZ4_INCLUDE_DIR)
 ENDIF(RQ_LZ4_INCLUDE_DIR)
 
 IF(RQ_LZ4_FOUND)
-  MESSAGE(STATUS "Found lz4 in ${RQ_LZ4_INCLUDE_DIR}")
+	MESSAGE(STATUS "Found lz4 in ${RQ_LZ4_INCLUDE_DIR}")
+	IF(RQ_LZ4_INCLUDE_DIR MATCHES "${CMAKE_CURRENT_SOURCE_DIR}/external/lz4/lib")
+		MESSAGE(WARNING "We will build our own lz4 library and statically link it.")
+		SET(RQ_BUILD_LZ4 TRUE)
+	ENDIF()
 ELSE(RQ_LZ4_FOUND)
-  IF(RQ_LZ4_FIND_REQUIRED)
-    MESSAGE(STATUS "Could not find \"lz4\" library. We'll build our own...")
-    MESSAGE(STATUS "Found lz4 in ${PROJECT_SOURCE_DIR}/external/lz4/lib")
-    SET(RQ_LZ4_INCLUDE_DIR   ${PROJECT_SOURCE_DIR}/external/lz4/lib)
-  ENDIF(RQ_LZ4_FIND_REQUIRED)
+	IF(RQ_LZ4_FIND_REQUIRED)
+		MESSAGE(FATAL_ERROR "Could not find \"lz4\" library.")
+	ENDIF(RQ_LZ4_FIND_REQUIRED)
 ENDIF(RQ_LZ4_FOUND)
 
 MARK_AS_ADVANCED(
-  RQ_LZ4_INCLUDE_DIR
+	RQ_LZ4_INCLUDE_DIR
 )
