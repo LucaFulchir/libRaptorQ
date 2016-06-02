@@ -174,7 +174,7 @@ SET(HEADERS	src/Interleaver.hpp
 		src/cRaptorQ.h)
 
 
-include(cmake/compiler_flags)
+include(cmake/compiler_flags.cmake)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_definitions(-DUSING_CLANG)
