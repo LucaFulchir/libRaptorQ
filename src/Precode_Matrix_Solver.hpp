@@ -37,7 +37,10 @@ namespace Impl {
 // or we can avoid saving it, and thus be faster and more memory efficient.
 
 template <Save_Computation IS_OFFLINE>
-DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D, Op_Vec &ops)
+std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
+												DenseMtx &D, Op_Vec &ops,
+												bool &keep_working,
+												Work_State *thread_keep_working)
 {
 	// rfc 6330, pg 32
 	// "c" and "d" are used to track row and columns exchange.
@@ -57,18 +60,37 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D, Op_Vec &ops)
 	for (i = 0; i < _params.L; ++i)
 		c.emplace_back (i);
 
-	std::tie (success, i, u) = decode_phase1 (X, D, c ,ops);
+	std::tie (success, i, u) = decode_phase1 (X, D, c , ops,
+											keep_working, thread_keep_working);
 
+	if (stop (keep_working, thread_keep_working))
+		return std::make_pair (Precode_Result::STOPPED, DenseMtx());
 	if (!success)
-		return C;
-	success = decode_phase2 (D, i, u, ops);
+		return std::make_pair (Precode_Result::FAILED, DenseMtx());
+
+	success = decode_phase2 (D, i, u, ops, keep_working, thread_keep_working);
+	if (stop (keep_working, thread_keep_working))
+		return std::make_pair (Precode_Result::STOPPED, DenseMtx());
 	if (!success)
-		return C;
+		return std::make_pair (Precode_Result::FAILED, DenseMtx());
+
 	// A now should be considered as being LxL from now
 	decode_phase3 (X, D, i, ops);
+	if (stop (keep_working, thread_keep_working))
+		return std::make_pair (Precode_Result::STOPPED, DenseMtx());
+
 	X = DenseMtx ();	// free some memory, X is not needed anymore.
-	decode_phase4 (D, i, u, ops);
-	decode_phase5 (D, i, ops);
+	decode_phase4 (D, i, u, ops, keep_working, thread_keep_working);
+	if (stop (keep_working, thread_keep_working))
+		return std::make_pair (Precode_Result::STOPPED, DenseMtx());
+	if (!success)
+		return std::make_pair (Precode_Result::FAILED, DenseMtx());
+
+	decode_phase5 (D, i, ops, keep_working, thread_keep_working);
+	if (stop (keep_working, thread_keep_working))
+		return std::make_pair (Precode_Result::STOPPED, DenseMtx());
+	if (!success)
+		return std::make_pair (Precode_Result::FAILED, DenseMtx());
 	// A now must be an LxL identity matrix: check it.
 	// CHECK DISABLED: phase4  does not modify A, as it's never readed
 	// again. So the Matrix is *not* an identity anymore.
@@ -87,22 +109,23 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D, Op_Vec &ops)
 	C = DenseMtx (D.rows(), D.cols());
 	for (i = 0; i < _params.L; ++i)
 		C.row (c[i]) = D.row (i);
-	return C;
+	return std::make_pair (Precode_Result::DONE, C);
 }
 
 template <Save_Computation IS_OFFLINE>
-DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D,
-										const Bitmask &mask,
+std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
+										DenseMtx &D, const Bitmask &mask,
 										const std::vector<uint32_t> &repair_esi,
-										Op_Vec &ops)
+										Op_Vec &ops, bool &keep_working,
+										Work_State *thread_keep_working)
 {
 	decode_phase0 (mask, repair_esi);
-	DenseMtx C = intermediate (D, ops);
+	Precode_Result res;
+	DenseMtx C;
+	std::tie (res, C) = intermediate (D, ops, keep_working, thread_keep_working);
 
-	if (C.rows() == 0) {
-		// error somewhere
-		return DenseMtx();
-	}
+	if (res != Precode_Result::DONE)
+		return std::make_pair (res, C);
 
 	DenseMtx missing = DenseMtx (mask.get_holes(), D.cols());
 	uint16_t holes = mask.get_holes();
@@ -115,7 +138,7 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::intermediate (DenseMtx &D,
 		++row;
 		--holes;
 	}
-	return missing;
+	return std::make_pair (Precode_Result::DONE, missing);
 }
 
 template <Save_Computation IS_OFFLINE>
@@ -180,7 +203,9 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase0 (const Bitmask &mask,
 template <Save_Computation IS_OFFLINE>
 std::tuple<bool, uint16_t, uint16_t>
 	Precode_Matrix<IS_OFFLINE>::decode_phase1 (DenseMtx &X, DenseMtx &D,
-										std::vector<uint16_t> &c, Op_Vec &ops)
+												std::vector<uint16_t> &c,
+												Op_Vec &ops, bool &keep_working,
+												Work_State *thread_keep_working)
 {
 	// rfc6330, page 33
 
@@ -209,6 +234,8 @@ std::tuple<bool, uint16_t, uint16_t>
 	}
 
 	while (i + u < _params.L) {
+		if (stop (keep_working, thread_keep_working))
+			return std::tuple<bool,uint16_t,uint16_t> (false, 0, 0); // stop
 		auto V = A.block (i, i, A.rows() - i, (A.cols() - i) - u);
 		uint16_t chosen = static_cast<uint16_t> (V.rows());
 		// search for minium "r" (number of nonzero elements in row)
@@ -220,6 +247,8 @@ std::tuple<bool, uint16_t, uint16_t>
 		// build graph, get minimum non_zero and track rows that
 		// will be needed later
 		for (uint16_t row = 0; row < V.rows(); ++row) {
+			if (stop (keep_working, thread_keep_working))
+				return std::tuple<bool,uint16_t,uint16_t> (false, 0, 0); // stop
 			uint16_t non_zero_tmp = 0;
 			// if the row is NOT HDPC and has two ones,
 			// it represents an edge in a graph between the two columns with "1"
@@ -345,6 +374,8 @@ std::tuple<bool, uint16_t, uint16_t>
 		}
 		uint16_t col = static_cast<uint16_t> (V.cols()) - 1;
 		uint16_t swap = 1;	// at most we swapped V(0,0)
+		if (stop (keep_working, thread_keep_working))
+			return std::tuple<bool,uint16_t,uint16_t> (false, 0, 0); // stop
 		// put all the non-zero cols to the last columns.
 		for (; col > V.cols() - non_zero; --col) {
 			if (static_cast<uint8_t> (V (0, col)) != 0)
@@ -359,6 +390,8 @@ std::tuple<bool, uint16_t, uint16_t>
 			X.col (col + i).swap (X.col (swap + i));
 			std::swap (c[col + i], c[swap + i]);	//rfc6330, pg32
 		}
+		if (stop (keep_working, thread_keep_working))
+			return std::tuple<bool,uint16_t,uint16_t> (false, 0, 0); // stop
 		// now add a multiple of the row V(0) to the other rows of *A* so that
 		// the other rows of *V* have a zero first column.
 		for (uint16_t row = 1; row < V.rows(); ++row) {
@@ -383,7 +416,9 @@ std::tuple<bool, uint16_t, uint16_t>
 
 template<Save_Computation IS_OFFLINE>
 bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
-												const uint16_t u, Op_Vec &ops)
+												const uint16_t u, Op_Vec &ops,
+												bool &keep_working,
+												Work_State *thread_keep_working)
 {
 	// rfc 6330, pg 35
 
@@ -394,6 +429,8 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
 	// remember that all row swaps affect A as well, not just U_Lower
 
 	for (uint16_t row = row_start; row < row_end; ++row) {
+		if (stop (keep_working, thread_keep_working))
+			return false; // stop
 		// make sure the considered row has nonzero on the diagonal
 		uint16_t row_nonzero = row;
 		const uint16_t col_diag = col_start + (row - row_start);
@@ -423,6 +460,8 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
 
 		// make U_Lower and identity up to row
 		for (uint16_t del_row = row_start; del_row < row_end; ++del_row) {
+			if (stop (keep_working, thread_keep_working))
+				return false;	// stop
 			if (del_row == row)
 				continue;
 			// subtract row "row" to "del_row" enough times to make
@@ -471,7 +510,9 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase3 (const DenseMtx &X, DenseMtx &D,
 
 template<Save_Computation IS_OFFLINE>
 void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseMtx &D, const uint16_t i,
-												const uint16_t u, Op_Vec &ops)
+												const uint16_t u, Op_Vec &ops,
+												bool &keep_working,
+												Work_State *thread_keep_working)
 {
 	// rfc 6330, pg 35:
 	// For each of the first i rows of U_upper, do the following: if the row
@@ -482,6 +523,8 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseMtx &D, const uint16_t i,
 
 	auto U_upper = A.block (0, A.cols() - u, i, u);
 	for (uint16_t row = 0; row < U_upper.rows(); ++row) {
+		if (stop (keep_working, thread_keep_working))
+			return;
 		for (uint16_t col = 0; col < U_upper.cols(); ++col) {
 			// col == j
 			auto multiple = U_upper (row, col);
@@ -504,10 +547,13 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseMtx &D, const uint16_t i,
 
 template<Save_Computation IS_OFFLINE>
 void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
-																	Op_Vec &ops)
+												Op_Vec &ops, bool &keep_working,
+												Work_State *thread_keep_working)
 {
 	// rc 6330, pg 36
 	for (uint16_t j = 0; j <= i; ++j) {
+		if (stop (keep_working, thread_keep_working))
+			return;
 		if (static_cast<uint8_t> (A (j, j)) != 1) {
 			// A(j, j) is actually never 0, by construction.
 			const auto multiple = A (j, j);

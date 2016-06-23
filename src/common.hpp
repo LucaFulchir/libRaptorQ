@@ -58,6 +58,8 @@
 	#define RAPTORQ_LOCAL
 #endif // RAPTORQ_DLL
 
+#define RAPTORQ_DEPRECATED __attribute__ ((deprecated))
+
 ///////////////////////////
 ////
 //// Common error codes
@@ -66,26 +68,82 @@
 // NOTE: the C++ and C version should be kept in sync
 //		so that we can just static_cast<>() from the C++ to the C version.
 
-#ifdef __cplusplus
-// C++ version
-#include <cstdint>
-namespace RaptorQ__v1 {
-	enum class Error : uint8_t {
-							NONE = 0,
-							NOT_NEEDED = 1,
-							WRONG_INPUT = 2
-							};
-}
-// versioning support
-namespace RaptorQ = RaptorQ__v1;
-#endif
 // C version
+typedef enum {	RQ_TIME_NANOSEC		= 0,
+				RQ_TIME_MICROSEC	= 1,
+				RQ_TIME_MILLISEC	= 2,
+				RQ_TIME_SEC			= 3,
+				RQ_TIME_MIN			= 4,
+				RQ_TIME_HOUR		= 5
+			} RaptorQ_Unit_Time;
+
 typedef enum {	RQ_ERR_NONE = 0,
 				RQ_ERR_NOT_NEEDED = 1,
 				RQ_ERR_WRONG_INPUT = 2,
-				RQ_ERR_CHECK_INIT = 3,
-				RQ_ERR_INTERNAL = 4
+				RQ_ERR_NEED_DATA = 3,
+				RQ_ERR_WORKING = 4,
+				RQ_ERR_CHECK_INIT = 5,
+				RQ_ERR_INTERNAL = 6
 			} RaptorQ_Error;
+typedef enum {
+	RQ_COMPUTE_NONE = 0x00,					// do nothing => get error
+											// warn when;
+	RQ_COMPUTE_PARTIAL_FROM_BEGINNING = 0x01,// first blocks can be decoded
+	RQ_COMPUTE_PARTIAL_ANY = 0x02,			//  "some" blocks have been decoded.
+	RQ_COMPUTE_COMPLETE = 0x04,				//  all blocks are decoded.
+	RQ_COMPUTE_NO_BACKGROUND = 0x08,		// no background/async
+	RQ_COMPUTE_NO_POOL = 0x10,				// do not use the thread pool
+	RQ_COMPUTE_NO_RETRY = 0x20				// do not try again with different
+											// repair symbol combination
+} RaptorQ_Compute;
+
+typedef enum {
+	RQ_WORK_KEEP_WORKING = 0,
+	RQ_WORK_ABORT_COMPUTATION = 1,
+} RaptorQ_Work;
+
+#ifndef __cplusplus
+#include <stdint.h>
+#else
+// C++ version. keep the enum synced
+#include <cstdint>
+namespace RaptorQ__v1 {
+	enum class RAPTORQ_API Error : uint8_t {
+							NONE = RQ_ERR_NONE,
+							NOT_NEEDED = RQ_ERR_NOT_NEEDED,
+							WRONG_INPUT = RQ_ERR_WRONG_INPUT,
+							NEED_DATA = RQ_ERR_NEED_DATA,
+							WORKING = RQ_ERR_WORKING
+							};
+
+	enum class RAPTORQ_API Compute : uint8_t {
+		NONE = RQ_COMPUTE_NONE,
+		PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
+		PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
+		COMPLETE = RQ_COMPUTE_COMPLETE,
+		NO_BACKGROUND = RQ_COMPUTE_NO_BACKGROUND,
+		NO_POOL = RQ_COMPUTE_NO_POOL,
+		NO_RETRY = RQ_COMPUTE_NO_RETRY
+	};
+	enum class RAPTORQ_API Work_State : uint8_t {
+		KEEP_WORKING = RQ_WORK_KEEP_WORKING,
+		ABORT_COMPUTATION = RQ_WORK_ABORT_COMPUTATION,
+	};
+
+inline Compute operator| (const Compute a, const Compute b)
+{
+	return static_cast<Compute> (static_cast<uint8_t> (a) |
+													static_cast<uint8_t> (b));
+}
+inline Compute operator& (const Compute a, const Compute b)
+{
+	return static_cast<Compute> (static_cast<uint8_t> (a) &
+													static_cast<uint8_t> (b));
+}
+} // namespace RaptorQ__v1
+// versioning support
+namespace RaptorQ = RaptorQ__v1;
+#endif
 
 
 // Now just some macros to check the iterator type
@@ -94,6 +152,7 @@ typedef enum {	RQ_ERR_NONE = 0,
 #include <cassert>
 #include <iterator>
 
+// FIXME: RAPTORQ_UNUSED
 #define UNUSED(x)	((void)x)
 
 #define IS_RANDOM(IT, CLASS) \

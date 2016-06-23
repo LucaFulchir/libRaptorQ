@@ -23,7 +23,6 @@
 #include "common.hpp" // includes RaptorQ_Errors
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -57,6 +56,32 @@ extern "C"
 	uint64_t RAPTORQ_API RaptorQ_get_shared_cache_size ();
 	uint64_t RAPTORQ_API RaptorQ_get_local_cache_size ();
 
+	/////////////////////
+	// Common functions
+	/////////////////////
+
+	// C++11 async API into C pointers
+	struct RAPTORQ_API RaptorQ_Result {
+		RaptorQ_Error error;
+		uint8_t sbn;
+	};
+	struct RAPTORQ_LOCAL RaptorQ_future;
+
+	RaptorQ_Error	RaptorQ_future_valid	(struct RaptorQ_future *future);
+	RaptorQ_Error	RaptorQ_future_wait_for	(struct RaptorQ_future *future,
+												const uint64_t time,
+												const RaptorQ_Unit_Time unit);
+	void			RaptorQ_future_wait		(struct RaptorQ_future *future);
+	void			RaptorQ_future_free		(struct RaptorQ_future **future);
+	struct RaptorQ_Result RaptorQ_future_get (struct RaptorQ_future *future);
+
+
+	bool RAPTORQ_API RaptorQ_set_thread_pool (const size_t threads,
+										const uint16_t max_block_concurrency,
+										const RaptorQ_Work exit_type);
+
+	struct RaptorQ_future* RAPTORQ_API RaptorQ_compute (struct RaptorQ_ptr *ptr,
+												const RaptorQ_Compute flags);
 
 	///////////
 	// Encoding
@@ -77,10 +102,6 @@ extern "C"
 															const uint8_t sbn);
 	size_t RAPTORQ_API RaptorQ_precompute_max_memory (struct RaptorQ_ptr *enc);
 
-	void RAPTORQ_API RaptorQ_precompute (struct RaptorQ_ptr *enc,
-														const uint8_t threads,
-														const bool background);
-
 	uint64_t RAPTORQ_API RaptorQ_encode_id (struct RaptorQ_ptr *enc,
 															void **data,
 															const uint64_t size,
@@ -98,9 +119,17 @@ extern "C"
 
 	uint64_t RAPTORQ_API RaptorQ_bytes (struct RaptorQ_ptr *dec);
 
-	uint64_t RAPTORQ_API RaptorQ_decode (struct RaptorQ_ptr *dec, void **data,
-															const size_t size);
-	uint64_t RAPTORQ_API RaptorQ_decode_block (struct RaptorQ_ptr *dec,
+	struct RaptorQ_Dec_Result {
+		uint64_t written;
+		uint8_t skip;
+	};
+
+	struct RaptorQ_Dec_Result RAPTORQ_API RaptorQ_decode (
+														struct RaptorQ_ptr *dec,
+														void **data,
+														const size_t size,
+														const uint8_t skip);
+	uint64_t RAPTORQ_API RaptorQ_decode_block(struct RaptorQ_ptr *dec,
 															void **data,
 															const size_t size,
 															const uint8_t sbn);

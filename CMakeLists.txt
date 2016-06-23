@@ -24,7 +24,6 @@ enable_language(C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
 set(RQ_VERSION 0.2-prealpha)
-
 message(STATUS "libRaptorQ version ${RQ_VERSION}")
 
 # default values
@@ -143,6 +142,7 @@ endif()
 
 
 SET(SOURCES src/Operation.cpp
+		src/Thread_Pool.cpp
 		src/Bitmask.cpp
 		src/Rand.cpp
 		src/Parameters.cpp
@@ -153,6 +153,7 @@ SET(SOURCES src/Operation.cpp
 		src/cRaptorQ.cpp)
 
 SET(HEADERS	src/Interleaver.hpp
+		src/Thread_Pool.hpp
 		src/multiplication.hpp
 		src/table2.hpp
 		src/degree.hpp
@@ -183,7 +184,9 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 endif()
 
 
-#######################################
+########################################
+## TODO: if windows, add notelemetry.obj
+########################################
 
 
 if(PROFILING MATCHES "ON")
@@ -337,6 +340,12 @@ if(DYNAMIC_LIB MATCHES "ON")
         PROPERTIES
         LINK_FLAGS "-Wl,-z,now,-z,relro ${LD_OPT}"
     )
+set_target_properties (
+	RaptorQ
+	PROPERTIES
+		SO_VERSION libRaptorQ.1
+		VERSION ${RQ_VERSION}
+	)
     set_property(TARGET RaptorQ PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
 endif()
 

@@ -26,12 +26,15 @@
 #include "Precode_Matrix.hpp"
 #include "Shared_Computation/Decaying_LF.hpp"
 #include "Shared_Computation/LZ4_Wrapper.hpp"
+#include "Thread_Pool.hpp"
 #include <memory>
 #include <mutex>
+#include <random>
 #include <tuple>
 #include <utility>
 #include <vector>
 #include <Eigen/Dense>
+
 
 namespace RaptorQ__v1 {
 namespace Impl {
@@ -42,37 +45,59 @@ extern template class Precode_Matrix<Save_Computation::ON>;
 template <typename In_It>
 class RAPTORQ_API Decoder
 {
-
+	// decode () can be launched multiple times,
+	// But each time the list of source and repair symbols might
+	// change. we also track the number of times we failed at decoding
+	// so that we can drop some repair symbol.
+	// Dropping sone repair symbol and using an other instead might make
+	// things decodable, even without additional repair symbols.
 	using Vect = Eigen::Matrix<Octet, 1, Eigen::Dynamic, Eigen::RowMajor>;
 	using T_in = typename std::iterator_traits<In_It>::value_type;
 public:
 	Decoder (const uint16_t symbols, const uint16_t symbol_size)
-		:_symbols (symbols), type (test_computation()),
-			precode_on  (init_precode_on  (symbols)),
-			precode_off (init_precode_off (symbols)),
-			mask (_symbols)
+		:_symbols (symbols), combination (0), combination_drop_sym (0),
+			keep_working (true), type (test_computation()), mask (_symbols)
 	{
 		IS_INPUT(In_It, "RaptorQ__v1::Impl::Decoder");
 		// symbol size is in octets, but we save it in "T" sizes.
 		// so be aware that "symbol_size" != "_symbol_size" for now
 		source_symbols = DenseMtx (_symbols, symbol_size);
+		concurrent = 0;
 	}
+	~Decoder();
+
+	enum class RAPTORQ_API Decoder_Result : uint8_t {
+		DECODED = 0,
+		STOPPED = 1,
+		CAN_RETRY = 2,
+		NEED_DATA = 3
+	};
 
 	Error add_symbol (In_It &start, const In_It end, const uint32_t esi);
-	bool decode();
+	Decoder_Result decode (Work_State *thread_keep_working);
 	DenseMtx* get_symbols();
-	//std::vector<T> get (const uint16_t symbol) const;
+
+	bool can_decode() const;
+	void stop();
+	bool ready() const;
+	// should we add work? we have a maximum amount of
+	bool add_concurrent (const uint16_t max_concurrent);
+	void drop_concurrent();
 
 private:
+	// FIXME: multiple decoding should start only after the first
+	// decoding has failed!
 	std::mutex lock;
 	const uint16_t _symbols;
+	uint16_t combination, combination_drop_sym; // failure trackers
+	uint16_t concurrent;	// currently running decoders retry
+	bool keep_working;
 	const Save_Computation type;
-	const std::unique_ptr<Precode_Matrix<Save_Computation::ON>> precode_on;
-	const std::unique_ptr<Precode_Matrix<Save_Computation::OFF>> precode_off;
 	Bitmask mask;
+	std::vector<bool> selector;
 	DenseMtx source_symbols;
-
 	std::vector<std::pair<uint32_t, Vect>> received_repair;
+
 
 	// to help making things const
 	static Save_Computation test_computation()
@@ -110,6 +135,54 @@ private:
 //
 ///////////////////////////////////
 
+template <typename In_It>
+Decoder<In_It>::~Decoder()
+{
+	stop();
+}
+
+template <typename In_It>
+void Decoder<In_It>::stop()
+{
+	keep_working = false;
+}
+
+template <typename In_It>
+bool Decoder<In_It>::ready() const
+{
+	return mask.get_holes() == 0;
+}
+
+template <typename In_It>
+bool Decoder<In_It>::can_decode() const
+{
+	const int32_t total_overhead =
+								static_cast<int32_t> (received_repair.size()) -
+								static_cast<int32_t> (mask.get_holes());
+	if (total_overhead < 0 || combination_drop_sym > total_overhead)
+		return false;
+	return true;
+}
+
+template <typename In_It>
+bool Decoder<In_It>::add_concurrent (const uint16_t max_concurrent)
+{
+	std::unique_lock<std::mutex> guard (lock);
+	if (max_concurrent > concurrent) {
+		++concurrent;
+		return true;
+	}
+	return false;
+}
+
+template <typename In_It>
+void Decoder<In_It>::drop_concurrent()
+{
+	std::unique_lock<std::mutex> guard (lock);
+	// "if" should not be necessary. But I forgot to add --make-bug-free flag.
+	if (concurrent > 0)
+		--concurrent;
+}
 
 template <typename In_It>
 Error Decoder<In_It>::add_symbol (In_It &start, const In_It end,
@@ -184,23 +257,91 @@ Error Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 	}
 	mask.add (esi);
 
+	selector = std::vector<bool> (received_repair.size(), true);
+	combination_drop_sym = 0;
+	combination = 0;	// new data. try again all combinations from the start.
 	return Error::NONE;
 }
 
 template <typename In_It>
-bool Decoder<In_It>::decode()
+typename Decoder<In_It>::Decoder_Result Decoder<In_It>::decode (
+												Work_State *thread_keep_working)
 {
+	// this method can be launched concurrently multiple times.
+	// track the failures in "combination"
+
+
 	// rfc 6330: can decode when received >= K_padded
 	// actually: (K_padded - K) are padding and thus constant and NOT
 	// transmitted. so really N >= K.
 	if (mask.get_holes() == 0)
-		return true;
+		return Decoder_Result::DECODED;
 
 	if (received_repair.size() < mask.get_holes())
-		return false;
+		return Decoder_Result::NEED_DATA;
 
-	const uint16_t overhead = static_cast<uint16_t> (received_repair.size() -
-															mask.get_holes());
+	const std::unique_ptr<Precode_Matrix<Save_Computation::ON>> precode_on (
+												init_precode_on (_symbols));
+	const std::unique_ptr<Precode_Matrix<Save_Computation::OFF>> precode_off (
+												init_precode_off (_symbols));
+	std::unique_lock<std::mutex> shared (lock);
+	// if this is not the first time we try to decode the block,
+	// we might change which symbols we use.
+	// so now we will cycle between
+	uint32_t dropped_repair = 0;
+	std::vector<uint32_t> drop;
+	const uint32_t total_overhead = static_cast<uint32_t> (
+									received_repair.size() - mask.get_holes());
+	// already tried enough times. don't bother until
+	if (combination_drop_sym > total_overhead)
+		return Decoder_Result::NEED_DATA;
+	// new daa arrives.
+	if (combination > 20) {
+		// we are already sure that overhead > 0
+		// is someone trying very carefully to feed us an undecodable
+		// set of symbols?
+		// randomize dropping.
+		std::random_device rd;
+		std::mt19937 rnd (rd());// no crypto safety needed -- mersenne is enough
+
+		std::uniform_int_distribution<size_t> dis_dropped  (1, total_overhead);
+		dropped_repair = static_cast<uint32_t> (dis_dropped (rnd));
+		std::uniform_int_distribution<size_t> dis_repair  (0,
+													received_repair.size() - 1);
+		drop.reserve (dropped_repair);
+		for (uint32_t i = 0; i < dropped_repair; ++i)
+			drop.push_back (received_repair[dis_repair (rnd)].first);
+		std::sort (drop.begin(), drop.end());
+	} else {
+		dropped_repair = combination_drop_sym;
+		drop.reserve (dropped_repair);
+		++combination;
+		auto rec_it = received_repair.begin();
+		for (auto sel_it = selector.begin(); sel_it != selector.end();
+															++sel_it,++rec_it) {
+			if (*sel_it)
+				continue;
+			drop.push_back (rec_it->first);
+		}
+		// next selector for next retry.
+		if (combination_drop_sym == 0) {
+			++combination_drop_sym;
+			std::fill (selector.begin(), selector.end(), true);
+			selector[0] = false;
+		} else {
+			auto next = std::prev_permutation (selector.begin(),selector.end());
+			if (!next) {
+				if (++combination_drop_sym <= total_overhead) {
+					std::fill (selector.begin(), selector.end(), true);
+					std::fill (	selector.begin(),
+								selector.begin() + dropped_repair, false);
+				}
+			}
+		}
+	}
+
+	const uint16_t overhead = static_cast<uint16_t> (total_overhead -
+																dropped_repair);
 	if (type == Save_Computation::ON) {
 		precode_on->gen (static_cast<uint32_t> (overhead));
 	} else {
@@ -216,16 +357,22 @@ bool Decoder<In_It>::decode()
 		S_H = precode_on->_params.S + precode_on->_params.H;
 		// repair.rend() is the highest repair symbol
 		const auto it = received_repair.rend();
-		if (it->first >= std::pow(2,16)) {
+		if (it->first >= std::pow (2, 16)) {
 			DO_NOT_SAVE = true;
 		} else {
-			bitmask_repair.reserve (it->first - _symbols);
+			bitmask_repair.reserve ((it->first - _symbols) - dropped_repair);
 			uint32_t idx = _symbols;
+			auto drop_it = drop.begin();
 			for (auto rep = received_repair.begin();
 								rep != received_repair.end(); ++rep, ++idx) {
 				for (;idx < rep->first; ++idx)
 					bitmask_repair.push_back (false);
-				bitmask_repair.push_back (true);
+				// remember to drop the symbols on retries
+				if (drop_it != drop.end() && *drop_it == idx) {
+					bitmask_repair.push_back (false);
+				} else {
+					bitmask_repair.push_back (true);
+				}
 			}
 		}
 	} else {
@@ -242,46 +389,63 @@ bool Decoder<In_It>::decode()
 			D (row, col) = 0;
 	}
 	// put non-repair symbols (source symbols) in place
-	lock.lock();
-	if (mask.get_holes() == 0) { // other thread completed its work before us?
-		lock.unlock();
-		return true;
+	if (mask.get_holes() == 0) {
+		// other thread completed its work before us?
+		return Decoder_Result::DECODED;
 	}
 	D.block (S_H, 0, source_symbols.rows(), D.cols()) = source_symbols;
 
 	// mask must be copied to avoid threading problems, same with tracking
 	// the repair esi.
 	const Bitmask mask_safe = mask;
+	for (const auto drop_me : drop)
+		mask.drop (drop_me);
+	auto drop_it = drop.begin();
 	std::vector<uint32_t> repair_esi;
-	repair_esi.reserve (received_repair.size());
-	for (auto rep : received_repair)
+	repair_esi.reserve (received_repair.size() - dropped_repair);
+	for (auto rep : received_repair) {
+		if (drop_it != drop.end() && *drop_it == rep.first)
+			continue;
 		repair_esi.push_back (rep.first);
+	}
+
+	drop_it = drop.begin();
 
 	// fill holes with the first repair symbols available
 	auto symbol = received_repair.begin();
-	for (uint16_t hole = 0; hole < _symbols && symbol != received_repair.end();
-																	++hole) {
-		if (mask_safe.exists (hole))
+	uint16_t hole = 0;
+	while (hole < _symbols && symbol != received_repair.end()) {
+		if (mask_safe.exists (static_cast<size_t> (hole))) {
+			++hole;
 			continue;
+		}
+		if (drop_it != drop.end() && symbol->first == *drop_it) {
+			++drop_it;
+			continue;
+		}
 		const uint16_t row = S_H + hole;
 		D.row (row) = symbol->second;
 		++symbol;
+		++hole;
 	}
 	// fill the padding symbols (always zero)
-	for (uint16_t row = S_H + _symbols; row < L_rows; ++row) {
-		for (uint16_t col = 0; col < D.cols(); ++col)
-			D (row, col) = 0;
-	}
+	for (uint16_t row = S_H + _symbols; row < L_rows; ++row)
+		D.row (row).setZero();
 	// fill the remaining (redundant) repair symbols
+	// remember to drop the repair symbols as needed
+	drop_it = drop.begin();
 	for (uint16_t row = L_rows;
 							symbol != received_repair.end(); ++symbol, ++row) {
+		if (drop_it != drop.end() && *drop_it == symbol->first)
+			continue;
 		D.row (row) = symbol->second;
 	}
 
 	// do not lock this part, as it's the expensive part
-	lock.unlock();
+	shared.unlock();
 	std::deque<std::unique_ptr<Operation>> ops;
 
+	Precode_Result precode_res = Precode_Result::DONE;
 	DenseMtx missing;
 	if (type == Save_Computation::ON) {
 		std::vector<uint8_t> compressed = DLF<std::vector<uint8_t>, Cache_Key>::
@@ -294,15 +458,24 @@ bool Decoder<In_It>::decode()
 			missing = precomputed * D;
 			DO_NOT_SAVE = true;
 		} else {
-			missing = precode_on->intermediate (D, mask_safe, repair_esi, ops);
+			std::tie (precode_res, missing) = precode_on->intermediate (D,
+											mask_safe, repair_esi, ops,
+											keep_working, thread_keep_working);
 		}
 	} else {
-		missing = precode_off->intermediate (D, mask_safe, repair_esi, ops);
+		std::tie (precode_res, missing) = precode_off->intermediate (D,
+											mask_safe, repair_esi, ops,
+											keep_working, thread_keep_working);
 	}
+	if (precode_res == Precode_Result::STOPPED)
+		return Decoder_Result::STOPPED;
+
 	D = DenseMtx();	// free some memory;
-	if (type == Save_Computation::ON && !DO_NOT_SAVE) {
+	if (type == Save_Computation::ON && !DO_NOT_SAVE &&
+										precode_res == Precode_Result::DONE) {
 		DenseMtx res;
 		// don't save really small matrices
+		// TODO: check again if other thread already saved this.
 		if (missing.rows() != 0 && L_rows > 100) {
 			res.setIdentity (L_rows + overhead, L_rows + overhead);
 			for (auto &op : ops)
@@ -318,10 +491,13 @@ bool Decoder<In_It>::decode()
 	std::lock_guard<std::mutex> dec_lock (lock);
 	UNUSED(dec_lock);
 
-	if (missing.rows() == 0)
-		return mask.get_holes() == 0; // did other threads do something?
+	if (precode_res == Precode_Result::FAILED) {
+		if (combination_drop_sym > total_overhead)
+			return Decoder_Result::NEED_DATA;
+		return Decoder_Result::CAN_RETRY;
+	}
 	if (mask.get_holes() == 0)
-		return true;			// other thread did something
+		return Decoder_Result::DECODED;
 
 	// put missing symbols into "source_symbols".
 	// remember: we might have received other symbols while decoding.
@@ -337,9 +513,11 @@ bool Decoder<In_It>::decode()
 		mask.add (row);
 	}
 
+	keep_working = false;	 // tell eventual threads to top crunching,
 	// free some memory, we don't need recover symbols anymore
 	received_repair = std::vector<std::pair<uint32_t, Vect>>();
-	return true;
+	mask.free();
+	return Decoder_Result::DECODED;
 }
 
 template <typename In_It>

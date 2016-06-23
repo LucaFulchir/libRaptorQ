@@ -21,12 +21,13 @@
 #pragma once
 
 #include "common.hpp"
-#include "Parameters.hpp"
 #include "multiplication.hpp"
+#include "Operation.hpp"
+#include "Parameters.hpp"
+#include "Thread_Pool.hpp"
 #include <Eigen/Dense>
 #include <deque>
 #include <memory>
-#include "Operation.hpp"
 
 namespace RaptorQ__v1 {
 namespace Impl {
@@ -41,8 +42,10 @@ public:
 	Bitmask (const uint16_t symbols);
 
 	void add (const size_t id);
+	void drop (const size_t id);
 	bool exists (const size_t id) const;
 	uint16_t get_holes () const;
+	void free();
 private:
 	// NOTE: this is not just vector<bool> 'cause this gives us a bit more
 	// breating space and less reallocations, but really, why don't we just
@@ -58,6 +61,12 @@ enum class RAPTORQ_API Save_Computation : uint8_t {
 	ON = 1
 };
 
+enum class RAPTORQ_API Precode_Result : uint8_t {
+	DONE = 0,
+	STOPPED = 1,
+	FAILED = 2
+};
+
 template<Save_Computation IS_OFFLINE>
 class RAPTORQ_API Precode_Matrix
 {
@@ -71,10 +80,15 @@ public:
 
 	void gen (const uint32_t repair_overhead);
 
-	DenseMtx intermediate (DenseMtx &D, Op_Vec &ops);
-	DenseMtx intermediate (DenseMtx &D, const Bitmask &mask,
+
+	std::pair<Precode_Result, DenseMtx> intermediate (DenseMtx &D, Op_Vec &ops,
+											bool &keep_working,
+											Work_State *thread_keep_working);
+	std::pair<Precode_Result, DenseMtx> intermediate (DenseMtx &D,
+										const Bitmask &mask,
 										const std::vector<uint32_t> &repair_esi,
-										Op_Vec &ops);
+										Op_Vec &ops, bool &keep_working,
+										Work_State *thread_keep_working);
 	DenseMtx encode (const DenseMtx &C, const uint32_t iSI) const;
 
 private:
@@ -94,18 +108,30 @@ private:
 		DenseMtx make_GAMMA() const;	// rfc 6330, pgg 24, used for HDPC
 	void add_G_ENC ();
 
-
+	DenseMtx intermediate (DenseMtx &D, Op_Vec &ops, bool &keep_working);
 	void decode_phase0 (const Bitmask &mask,
 									const std::vector<uint32_t> &repair_esi);
 	std::tuple<bool, uint16_t, uint16_t> decode_phase1 (DenseMtx &X,DenseMtx &D,
-										std::vector<uint16_t> &c, Op_Vec &ops);
+											std::vector<uint16_t> &c,
+											Op_Vec &ops, bool &keep_working,
+											Work_State *thread_keep_working);
 	bool decode_phase2 (DenseMtx &D, const uint16_t i,const uint16_t u,
-																Op_Vec &ops);
+											Op_Vec &ops, bool &keep_working,
+											Work_State *thread_keep_working);
 	void decode_phase3 (const DenseMtx &X, DenseMtx &D, const uint16_t i,
-																Op_Vec &ops);
+											Op_Vec &ops);
 	void decode_phase4 (DenseMtx &D, const uint16_t i, const uint16_t u,
-																Op_Vec &ops);
-	void decode_phase5 (DenseMtx &D, const uint16_t i, Op_Vec &ops);
+											Op_Vec &ops, bool &keep_working,
+											Work_State *thread_keep_working);
+	void decode_phase5 (DenseMtx &D, const uint16_t i, Op_Vec &ops,
+											bool &keep_working,
+											Work_State *thread_keep_working);
+
+	inline bool stop (bool keep_working, Work_State *thread_keep_working)
+	{
+		return keep_working == true ||
+							*thread_keep_working != Work_State::KEEP_WORKING;
+	}
 };
 
 }	// namespace Impl

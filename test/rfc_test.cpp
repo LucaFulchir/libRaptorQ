@@ -372,7 +372,7 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 					enc_it, myvec.end(), subsymbol, symbol_size, 1073741824);
 
 	t.start();
-	enc.precompute(1, false);
+	enc.compute (RaptorQ::Compute::COMPLETE | RaptorQ::Compute::NO_BACKGROUND);
 	uint64_t micro1 = t.stop();
 
 	if (micro1 == 0)
@@ -428,6 +428,9 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	RaptorQ::Decoder<std::vector<uint32_t>::iterator, std::vector<uint32_t>::
 										iterator> dec (oti_common, oti_scheme);
 
+	dec.compute (RaptorQ::Compute::COMPLETE | RaptorQ::Compute::NO_BACKGROUND |
+													RaptorQ::Compute::NO_POOL);
+
 	std::vector<uint32_t> received;
 	received.reserve (mysize);
 	for (uint32_t i = 0; i < mysize; ++i)
@@ -445,10 +448,11 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 
 	auto re_it = received.begin();
 	t.start();
-	auto decoded = dec.decode(re_it, received.end(), 0);
+	auto decoded = dec.decode (re_it, received.end(), 0);
 	uint64_t micro2 = t.stop();
 
-	if (decoded != mysize) {
+
+	if (decoded.first != mysize) {
 		std::cout << "NOPE: "<< mysize << " - " << drop_prob << " - " <<
 											static_cast<int> (overhead) << "\n";
 		return 0;
@@ -517,6 +521,7 @@ int main (int argc, char **argv)
 
 	uint16_t K_index = 0;
 
+	RaptorQ::set_thread_pool (threads, 1, RaptorQ::Work_State::KEEP_WORKING);
 	std::vector<std::thread> t;
 	t.reserve (threads + 1);
 	if (!conformity) {

@@ -104,7 +104,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 		return false;
 	}
 
-	enc.precompute(4, false);
+	enc.compute (RaptorQ::Compute::COMPLETE | RaptorQ::Compute::NO_BACKGROUND);
 
 	if (drop_prob > static_cast<float> (90.0))
 		drop_prob = 90.0;	// this is still too high probably.
@@ -188,6 +188,8 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 							typename std::vector<out_dec_align>::iterator>
 												dec (oti_common, oti_scheme);
 
+	auto async_dec = dec.compute (RaptorQ::Compute::COMPLETE);
+
 	std::vector<out_dec_align> received;
 	size_t out_size = static_cast<size_t> (
 				std::ceil(static_cast<float>(mysize) / sizeof(out_dec_align)));
@@ -207,20 +209,24 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 		}
 	}
 
+	async_dec.wait();
+
 	auto re_it = received.begin();
 	// decode all blocks
 	// you can actually call ".decode(...)" as many times
 	// as you want. It will only start decoding once
 	// it has enough data.
-	auto decoded = dec.decode(re_it, received.end());
+	auto decoded = dec.decode(re_it, received.end(), 0);
 
-	if (decoded * sizeof(out_dec_align) < mysize) {
-		if (decoded == 0) {
-			std::cout << "Couldn't decode, RaptorQ Algorithm failure. Retry.\n";
+	if (decoded.first * sizeof(out_dec_align) != mysize) {
+		if (decoded.first == 0) {
+			std::cout << "Couldn't decode, RaptorQ Algorithm failure. "
+															"Can't Retry.\n";
 			return true;
 		} else {
 			std::cout << "Partial Decoding? This should not have happened: " <<
-					decoded * sizeof(out_dec_align) << " vs " << mysize << "\n";
+							decoded.first * sizeof(out_dec_align) << " vs " <<
+																mysize << "\n";
 		}
 		return false;
 	} else {
@@ -250,6 +256,7 @@ int main (void)
 	rand.read (reinterpret_cast<char *> (&seed), sizeof(seed));
 	rand.close ();
 	rnd.seed (seed);
+
 
 	std::uniform_int_distribution<uint32_t> distr(1, 10000);
 	// encode and decode

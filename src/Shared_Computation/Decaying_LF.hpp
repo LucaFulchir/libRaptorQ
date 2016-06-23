@@ -40,6 +40,9 @@ DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
 														const uint16_t cols);
 
 
+// TODO: keys and search: we might be able to decode things without using
+// all repair symbols! so the cached mtx could have less symbols than the
+// working one
 
 
 // Track precomputed matrices.

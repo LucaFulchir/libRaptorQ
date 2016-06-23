@@ -39,7 +39,6 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 {
 	uint32_t *myvec;
 
-
 	srand((uint32_t)time(NULL));
 	// initialize vector with random data
 	myvec = (uint32_t *) malloc (mysize * sizeof(uint32_t));
@@ -75,8 +74,16 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	}
 
 	// start background precomputation while we get the source symbols.
-	//RaptorQ_precompute (enc, 2, true);
-	RaptorQ_precompute (enc, 1, false);
+	struct RaptorQ_future *async_enc = RaptorQ_compute (enc, RQ_COMPUTE_COMPLETE);
+    // wait for all block to finish computing:
+    if (async_enc == NULL) {
+        fprintf(stderr, "Error in starting computation\n");
+        RaptorQ_free (&enc);
+        free (myvec);
+        return false;
+    }
+    RaptorQ_future_wait (async_enc);
+    RaptorQ_future_free (&async_enc);
 
 	/* everything is encoded now.
 	 * well, it might be running in background, but don't worry:
@@ -207,6 +214,15 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		free (encoded);
 		return false;
 	}
+	// start background precomputation while we get the source symbols.
+	struct RaptorQ_future *async_dec = RaptorQ_compute (dec, RQ_COMPUTE_COMPLETE);
+    // wait for all block to finish computing:
+    if (async_dec == NULL) {
+        fprintf(stderr, "Error in starting computation\n");
+        RaptorQ_free (&dec);
+        free (myvec);
+        return false;
+    }
 
 	// we made things so there is only one block.
 	// if you want to generalize things,
@@ -247,10 +263,14 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		;//*shit = 0xFFFFFFFF;
 
 	uint32_t *rec = received;
-	// you can actually call "RaptorQ_decode" as many times as you want
-	// until you get enough data. it will wait until it has enough data
-	// to start the decoding.
-	uint64_t written = RaptorQ_decode (dec, (void **)&rec, decoded_size);
+
+	// wait for the whole data to be decoded
+	RaptorQ_future_wait (async_dec);
+    RaptorQ_future_free (&async_dec);
+	struct RaptorQ_Dec_Result res = RaptorQ_decode (dec, (void **)&rec,
+															decoded_size, 0);
+	// we are assuming no errors, all blocks decoded.
+	uint64_t written = res.written;
 	// "rec" now points to "received + written"
 	// This might help you to call RaptorQ_decode_sbn multiple time
 	// on the same pointer.
@@ -302,6 +322,7 @@ int main (void)
 {
 	// set local cache size to 100MB
 	RaptorQ_local_cache_size (100*1024*1024);
+    RaptorQ_set_thread_pool (2, 2, RQ_WORK_ABORT_COMPUTATION);
 	// encode and decode
 	bool ret = decode (501, 20.0, 4);
 

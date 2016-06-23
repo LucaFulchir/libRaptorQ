@@ -28,6 +28,7 @@
 #include "Rand.hpp"
 #include "Shared_Computation/Decaying_LF.hpp"
 #include "Shared_Computation/LZ4_Wrapper.hpp"
+#include "Thread_Pool.hpp"
 #include <Eigen/Dense>
 #include <Eigen/SparseLU>
 #include <memory>
@@ -56,15 +57,22 @@ public:
 		} else {
 			precode_off->gen (0);
 		}
+		keep_working = true;
 	}
+	~Encoder();
+
 	uint64_t Enc (const uint32_t ESI, Fwd_It &output, const Fwd_It end) const;
 
-	bool generate_symbols();
+	bool generate_symbols (Work_State *thread_keep_working);
+	void stop();
+	bool ready() const;
 
+	// FIXME: unused? we might move "precode_XX" initialization into generate_
 	uint16_t padded() const;
 private:
 	const uint8_t _SBN;
 	const Save_Computation type;
+	bool  keep_working;
 	const std::unique_ptr<Precode_Matrix<Save_Computation::ON>> precode_on;
 	const std::unique_ptr<Precode_Matrix<Save_Computation::OFF>> precode_off;
 	const Interleaver<Rnd_It> _symbols;
@@ -107,7 +115,19 @@ private:
 //
 
 template <typename Rnd_It, typename Fwd_It>
-uint16_t Encoder<Rnd_It, Fwd_It>::padded () const
+Encoder<Rnd_It, Fwd_It>::~Encoder()
+{
+	stop();
+}
+
+template <typename Rnd_It, typename Fwd_It>
+void Encoder<Rnd_It, Fwd_It>::stop()
+{
+	keep_working = false;
+}
+
+template <typename Rnd_It, typename Fwd_It>
+uint16_t Encoder<Rnd_It, Fwd_It>::padded() const
 {
 	if (type == Save_Computation::ON)
 		return precode_on->_params.K_padded;
@@ -115,7 +135,13 @@ uint16_t Encoder<Rnd_It, Fwd_It>::padded () const
 }
 
 template <typename Rnd_It, typename Fwd_It>
-bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
+bool Encoder<Rnd_It, Fwd_It>::ready() const
+{
+	return encoded_symbols.cols() != 0;
+}
+
+template <typename Rnd_It, typename Fwd_It>
+bool Encoder<Rnd_It, Fwd_It>::generate_symbols (Work_State *thread_keep_working)
 {
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
 	// do not bother checing for multithread. that is done in RaptorQ.hpp
@@ -159,6 +185,7 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
 			D (row, col) = 0;
 	}
 
+	Precode_Result precode_res;
 	std::deque<std::unique_ptr<Operation>> ops;
 	if (type == Save_Computation::ON) {
 		const uint16_t size = precode_on->_params.L;
@@ -177,8 +204,10 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
 			}
 			return false;
 		}
-		encoded_symbols = precode_on->intermediate (D, ops);
-		if (encoded_symbols.cols() == 0)
+		std::tie (precode_res, encoded_symbols) = precode_on->intermediate (D,
+														ops, keep_working,
+														thread_keep_working);
+		if (precode_res != Precode_Result::DONE || encoded_symbols.cols() == 0)
 			return false;
 		// RaptorQ succeded.
 		// build the precomputed matrix.
@@ -194,9 +223,11 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols()
 			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed, key);
 		}
 	} else {
-		encoded_symbols = precode_off->intermediate (D, ops);
+		std::tie (precode_res, encoded_symbols) = precode_off->intermediate (D,
+														ops, keep_working,
+														thread_keep_working);
 	}
-	return encoded_symbols.cols() != 0;
+	return (precode_res == Precode_Result::DONE) && encoded_symbols.cols() != 0;
 }
 
 template <typename Rnd_It, typename Fwd_It>

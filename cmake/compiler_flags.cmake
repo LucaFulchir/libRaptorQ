@@ -42,7 +42,7 @@ endif()
 
 #gnu options
 set(RQ_GNU_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv )
-set(RQ_GNU_CXX_OPTIONS ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv )
+set(RQ_GNU_CXX_OPTIONS ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -pedantic -Wno-padded -Wno-unknown-pragmas -fstack-protector-all -fstrict-aliasing -fwrapv )
 
 # GCC internal compiler errors with:
 # -fsanitize=undefined
@@ -54,14 +54,14 @@ set(RQ_GNU_C_DEBUG_SANITIZE   -fsanitize=shift -fsanitize=integer-divide-by-zero
 set(RQ_GNU_CXX_DEBUG_SANITIZE -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute )
 set(RQ_GNU_C_MINSIZEREL   -Os )
 set(RQ_GNU_CXX_MINSIZEREL -Os )
-set(RQ_GNU_C_RELEASE   -O4 -DNDEBUG -fwrapv )
-set(RQ_GNU_CXX_RELEASE -O4 -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fwrapv )
+set(RQ_GNU_C_RELEASE   -Ofast -DNDEBUG -fwrapv )
+set(RQ_GNU_CXX_RELEASE -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fwrapv )
 set(RQ_GNU_C_RELWITHDEBINFO   ${RQ_GNU_C_RELEASE} -g )
 set(RQ_GNU_CXX_RELWITHDEBINFO ${RQ_GNU_CXX_RELEASE} -g )
 
 # clang options
 set(RQ_CLANG_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security -Wno-disabled-macro-expansion )
-set(RQ_CLANG_CXX_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security )
+set(RQ_CLANG_CXX_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -Wno-unknown-pragmas -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security )
 
 set(RQ_CLANG_C_DEBUG   -O0 -g )
 set(RQ_CLANG_CXX_DEBUG -O0 -g )

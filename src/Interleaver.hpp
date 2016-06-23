@@ -324,8 +324,6 @@ template <typename Rnd_It>
 class RAPTORQ_LOCAL Interleaver
 {
 public:
-	operator bool() const;	// true => all ok
-
 	Interleaver (const Rnd_It data_from, const Rnd_It data_to,
 											const uint16_t min_subsymbol_size,
 											const size_t max_block_decodable,
@@ -341,10 +339,12 @@ public:
 	uint8_t blocks () const;
 	uint16_t sub_blocks () const;
 	uint16_t symbol_size() const;
-protected:
+	operator bool() const;	// true => all ok
+
 private:
 	const Rnd_It _data_from, _data_to;
 	const uint16_t _symbol_size;
+	// TODO: "const" all of the next vars
 	uint16_t _sub_blocks, _source_symbols, iterator_idx = 0;
 	uint8_t _alignment, _source_blocks;
 

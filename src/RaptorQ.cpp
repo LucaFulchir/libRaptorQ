@@ -22,6 +22,18 @@
 #include "Shared_Computation/Decaying_LF.hpp"
 
 
+bool RaptorQ__v1::set_thread_pool (const size_t threads,
+										const uint16_t max_block_concurrency,
+										const RaptorQ__v1::Work_State exit_type)
+{
+	if (max_block_concurrency == 0 || max_block_concurrency > threads)
+		return false;
+	RaptorQ__v1::Impl::max_block_decoder_concurrency = max_block_concurrency;
+	Impl::Thread_Pool::get().resize_pool (threads, exit_type);
+	return true;
+}
+
+
 uint64_t RaptorQ__v1::shared_cache_size (const uint64_t shared_cache)
 {
     return 0;

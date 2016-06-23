@@ -34,9 +34,14 @@
 #include "Encoder.hpp"
 #include "Decoder.hpp"
 #include "Shared_Computation/Decaying_LF.hpp"
+#include "Thread_Pool.hpp"
+#include <cassert>
+#include <future>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <thread>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -193,16 +198,33 @@ private:
 };
 
 
+////////////////////
+//// Free Functions
+////////////////////
+
 uint64_t shared_cache_size (const uint64_t shared_cache);
 bool local_cache_size (const uint64_t local_cache);
 uint64_t get_shared_cache_size();
 uint64_t get_local_cache_size();
 
-
 static const uint64_t max_data = 946270874880;	// ~881 GB
 
 typedef uint64_t OTI_Common_Data;
 typedef uint32_t OTI_Scheme_Specific_Data;
+
+bool set_thread_pool (const size_t threads,const uint16_t max_block_concurrency,
+												const Work_State exit_type);
+namespace Impl {
+// maximum times a single block can be decoded at the same time.
+// the decoder can be launched multiple times with different combinations
+// of repair symbols. This can be useful as the decoding is actually
+// probabilistic, and dropping a set of repair symbols *MIGHT* make things
+// decodable again.
+// keep this low. 1, 2, 3 should be ok.
+static uint16_t max_block_decoder_concurrency = 1;
+
+}
+
 
 template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder
@@ -216,7 +238,12 @@ public:
 											const size_t max_memory)
 		: _mem (max_memory), _data_from (data_from), _data_to (data_to),
 											_symbol_size (symbol_size),
-											_min_subsymbol (min_subsymbol_size)
+											_min_subsymbol (min_subsymbol_size),
+											interleave (_data_from,
+														_data_to,
+														_min_subsymbol,
+														_mem,
+														_symbol_size)
 	{
 		IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
 		IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
@@ -241,32 +268,33 @@ public:
 																> max_data) {
 			return;
 		}
-		interleave = std::unique_ptr<Impl::Interleaver<Rnd_It>> (
-								new Impl::Interleaver<Rnd_It> (_data_from,
-														_data_to,
-														_min_subsymbol, _mem,
-														_symbol_size));
-		if (!(*interleave))
-			interleave = nullptr;
+
+		pool_lock = std::make_shared<std::pair<std::mutex,
+												std::condition_variable>> ();
+		pool_last_reported = -1;
+		use_pool = true;
+		exiting = false;
 	}
 
 	Block_Iterator<Rnd_It, Fwd_It> begin ()
 	{
 		return Block_Iterator<Rnd_It, Fwd_It> (this,
-												interleave->get_partition(), 0);
+												interleave.get_partition(), 0);
 	}
 	const Block_Iterator<Rnd_It, Fwd_It> end ()
 	{
-		auto part = interleave->get_partition();
+		auto part = interleave.get_partition();
 		return Block_Iterator<Rnd_It, Fwd_It> (this, part,
 							static_cast<uint8_t> (part.num(0) + part.num(1)));
 	}
 
-	operator bool() const { return interleave != nullptr; }
+	operator bool() const { return interleave; }
 	OTI_Common_Data OTI_Common() const;
 	OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
-	void precompute (const uint8_t threads, const bool background);
+	// TODO: introduce memory limits on threading ?
+	std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
+
 	size_t precompute_max_memory ();
 	uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
 															const uint8_t sbn);
@@ -279,31 +307,48 @@ public:
 	uint16_t symbols (const uint8_t sbn) const;
 	uint32_t max_repair (const uint8_t sbn) const;
 private:
-	class RAPTORQ_LOCAL Locked_Encoder
-	{
+
+	static void wait_threads (Encoder<Rnd_It, Fwd_It> *obj, const Compute flags,
+									std::promise<std::pair<Error, uint8_t>> p);
+
+	class Block_Work : public Impl::Pool_Work {
 	public:
-		Locked_Encoder (const Impl::Interleaver<Rnd_It> &symbols,
-															const uint8_t SBN)
-			:_enc (symbols, SBN)
-		{}
-		std::mutex _mtx;
-		Impl::Encoder<Rnd_It, Fwd_It> _enc;
+		std::weak_ptr<Impl::Encoder<Rnd_It, Fwd_It>> work;
+		std::weak_ptr<std::pair<std::mutex, std::condition_variable>> notify;
+
+		Work_Exit_Status do_work (Work_State *state) override;
+		~Block_Work() override {}
 	};
-	std::vector<std::thread> background_work;
-	std::unique_ptr<Impl::Interleaver<Rnd_It>> interleave = nullptr;
-	std::map<uint8_t, std::shared_ptr<Locked_Encoder>> encoders;
+
+	// TODO: tagged pointer
+	class Enc {
+	public:
+		Enc (const Impl::Interleaver<Rnd_It> &interleaver, const uint8_t sbn)
+		{
+			enc = std::make_shared<Impl::Encoder<Rnd_It, Fwd_It>> (interleaver,
+																		sbn);
+			reported = false;
+		}
+		std::shared_ptr<Impl::Encoder<Rnd_It, Fwd_It>> enc;
+		bool reported;
+	};
+
+	std::pair<Error, uint8_t> get_report (const Compute flags);
+	std::shared_ptr<std::pair<std::mutex, std::condition_variable>> pool_lock;
+	std::deque<std::thread> pool_wait;
+
+	std::map<uint8_t, Enc> encoders;
 	std::mutex _mtx;
+
 	const size_t _mem;
 	const Rnd_It _data_from, _data_to;
 	const uint16_t _symbol_size;
 	const uint16_t _min_subsymbol;
+	const Impl::Interleaver<Rnd_It> interleave;
+	bool use_pool, exiting;
+	int16_t pool_last_reported;
 
-	static void precompute_block_all (Encoder<Rnd_It, Fwd_It> *obj,
-														const uint8_t threads);
-	static void precompute_thread (Encoder<Rnd_It, Fwd_It> *obj, uint8_t *sbn,
-													const uint8_t single_sbn);
 };
-
 
 template <typename In_It, typename Fwd_It>
 class RAPTORQ_API Decoder
@@ -354,6 +399,11 @@ public:
 								_size / static_cast<double> (_symbol_size)));
 
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
+		pool_lock = std::make_shared<std::pair<std::mutex,
+												std::condition_variable>> ();
+		pool_last_reported = -1;
+		use_pool = true;
+		exiting = false;
 	}
 
 	Decoder (const uint64_t size, const uint16_t symbol_size,
@@ -371,11 +421,16 @@ public:
 		_sub_blocks = Impl::Partition (_symbol_size / _alignment, sub_blocks);
 
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
+		pool_last_reported = -1;
+		use_pool = true;
+		exiting = false;
 	}
 
-	bool precompute ();
-	uint64_t decode (Fwd_It &start, const Fwd_It end);
-	uint64_t decode (Fwd_It &start, const Fwd_It end, const uint8_t sbn);
+	std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
+
+	std::pair<size_t, uint8_t> decode (Fwd_It &start, const Fwd_It end,
+													const uint8_t skip = 0);
+	uint64_t decode_block (Fwd_It &start, const Fwd_It end, const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
 	Error add_symbol (In_It &start, const In_It end, const uint32_t id);
 	Error add_symbol (In_It &start, const In_It end, const uint32_t esi,
@@ -389,17 +444,44 @@ public:
 private:
 	// using shared pointers to avoid locking too much or
 	// worrying about deleting used stuff.
-	using Dec_ptr = std::shared_ptr<RaptorQ__v1::Impl::Decoder<In_It>>;
+	class Block_Work : public Impl::Pool_Work {
+	public:
+		std::weak_ptr<Impl::Decoder<In_It>> work;
+		std::weak_ptr<std::pair<std::mutex, std::condition_variable>> notify;
+
+		Work_Exit_Status  do_work (Work_State *state) override;
+		~Block_Work() override {}
+	};
+	// TODO: tagged pointer
+	class Dec {
+	public:
+		Dec (const uint16_t symbols, const uint16_t symbol_size)
+		{
+			dec = std::make_shared<Impl::Decoder<In_It>> (symbols, symbol_size);
+			reported = false;
+		}
+		std::shared_ptr<Impl::Decoder<In_It>> dec;
+		bool reported;
+	};
+
+	static void wait_threads (Decoder<In_It, Fwd_It> *obj, const Compute flags,
+									std::promise<std::pair<Error, uint8_t>> p);
+	std::pair<Error, uint8_t> get_report (const Compute flags);
+	std::shared_ptr<std::pair<std::mutex, std::condition_variable>> pool_lock;
+	std::deque<std::thread> pool_wait;
+
 	uint64_t _size;
 	Impl::Partition part, _sub_blocks;
-	uint16_t _symbol_size;
-	uint8_t _blocks, _alignment;
-	std::map<uint8_t, Dec_ptr> decoders;
+	std::map<uint8_t, Dec> decoders;
 	std::mutex _mtx;
+	uint16_t _symbol_size;
+	int16_t pool_last_reported;
+	uint8_t _blocks, _alignment;
+	bool use_pool, exiting;
+
+	std::vector<bool> decoded_sbn;
+
 };
-
-
-
 
 
 /////////////////
@@ -407,17 +489,24 @@ private:
 // Encoder
 //
 /////////////////
+
+
 template <typename Rnd_It, typename Fwd_It>
-Encoder<Rnd_It, Fwd_It>::~Encoder ()
+Encoder<Rnd_It, Fwd_It>::~Encoder()
 {
-	for (auto &thread: background_work)
-		thread.join();
+	exiting = true;	// stop notifying thread
+	pool_lock->second.notify_all();
+	for (auto &it : encoders) {	// stop existing computations
+		auto ptr = it.second.enc;
+		if (ptr != nullptr)
+			ptr->stop();
+	}
 }
 
 template <typename Rnd_It, typename Fwd_It>
 OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
 {
-	if (interleave == nullptr)
+	if (!interleave)
 		return 0;
 	OTI_Common_Data ret;
 	// first 40 bits: data length.
@@ -433,13 +522,13 @@ OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
 template <typename Rnd_It, typename Fwd_It>
 OTI_Scheme_Specific_Data Encoder<Rnd_It, Fwd_It>::OTI_Scheme_Specific() const
 {
-	if (interleave == nullptr)
+	if (!interleave)
 		return 0;
 	OTI_Scheme_Specific_Data ret;
 	// 8 bit: source blocks
-	ret = static_cast<uint32_t> (interleave->blocks()) << 24;
+	ret = static_cast<uint32_t> (interleave.blocks()) << 24;
 	// 16 bit: sub-blocks number (N)
-	ret += static_cast<uint32_t> (interleave->sub_blocks()) << 8;
+	ret += static_cast<uint32_t> (interleave.sub_blocks()) << 8;
 	// 8 bit: alignment
 	ret += sizeof(typename std::iterator_traits<Rnd_It>::value_type);
 
@@ -454,10 +543,10 @@ size_t Encoder<Rnd_It, Fwd_It>::precompute_max_memory ()
 	// this will help you understand how many concurrent precomputations
 	// you want to do :)
 
-	if (interleave == nullptr)
+	if (!interleave)
 		return 0;
 
-	uint16_t symbols = interleave->source_symbols(0);
+	uint16_t symbols = interleave.source_symbols (0);
 
 	uint16_t K_idx;
 	for (K_idx = 0; K_idx < Impl::K_padded.size(); ++K_idx) {
@@ -476,93 +565,183 @@ size_t Encoder<Rnd_It, Fwd_It>::precompute_max_memory ()
 }
 
 template <typename Rnd_It, typename Fwd_It>
-void Encoder<Rnd_It, Fwd_It>::precompute_thread (Encoder<Rnd_It, Fwd_It> *obj,
-													uint8_t *sbn,
-													const uint8_t single_sbn)
+Work_Exit_Status Encoder<Rnd_It, Fwd_It>::Block_Work::do_work (
+															Work_State *state)
 {
-	if (obj->interleave == nullptr)
-		return;
-	// if "sbn" pointer is NOT nullptr, than we are a thread from
-	// from a precompute_block_all. This means that we need to update
-	// the value of sbn as soon as we get our work.
-	//
-	// if sbn == nullptr, then we have been called to work on a single
-	// sbn, and not from "precompute_block_all".
-	// This means we work on "single_sbn", and do not touch "sbn"
+	auto locked_enc = work.lock();
+	auto locked_notify = notify.lock();
+	if (locked_enc != nullptr && locked_notify != nullptr) {
+		// encoding always works. It's one of the few constants of the universe.
+		if (!locked_enc->generate_symbols (state))
+			return Work_Exit_Status::STOPPED;	// only explanation.
+		locked_notify->first.lock();
+		locked_notify->second.notify_one();
+	}
+	return Work_Exit_Status::DONE;
+}
 
-	uint8_t *sbn_ptr = sbn;
-	if (sbn_ptr == nullptr)
-		sbn_ptr = const_cast<uint8_t*> (&single_sbn);
-	// call this from a thread, precomput all block symbols
-	while (*sbn_ptr < obj->interleave->blocks()) {
-		obj->_mtx.lock();
-		if (*sbn_ptr >= obj->interleave->blocks()) {
-			obj->_mtx.unlock();
-			return;
+template <typename Rnd_It, typename Fwd_It>
+std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
+															const Compute flags)
+{
+	using ret_t = std::pair<Error, uint8_t>;
+	std::promise<ret_t> p;
+
+	bool error = !interleave;
+	// need some flags
+	if (flags == Compute::NONE)
+		error = true;
+
+	// flag incompatibilities
+	if (Compute::NONE != (flags & Compute::PARTIAL_FROM_BEGINNING) &&
+					(Compute::NONE != (flags & (Compute::PARTIAL_ANY |
+												Compute::COMPLETE |
+												Compute::NO_POOL)))) {
+			error = true;
+	} else if (Compute::NONE != (flags & Compute::PARTIAL_ANY) &&
+				(Compute::NONE != (flags & (Compute::PARTIAL_FROM_BEGINNING |
+											Compute::COMPLETE |
+											Compute::NO_POOL)))) {
+			error = true;
+	} else if (Compute::NONE != (flags & Compute::COMPLETE) &&
+					Compute::NONE != (flags &(Compute::PARTIAL_FROM_BEGINNING |
+												Compute::PARTIAL_ANY |
+												Compute::NO_POOL))) {
+			error = true;
+	}
+
+	if (Compute::NONE != (flags & Compute::NO_POOL)) {
+		std::unique_lock<std::mutex> lock (_mtx);
+		UNUSED(lock);
+		if (encoders.size() != 0) {
+			// You can only say you won't use the pool *before* you start
+			// decoding something!
+			error = true;
+		} else {
+			use_pool = false;
+			p.set_value ({Error::NONE, 0});
+			return p.get_future();
 		}
-		auto it = obj->encoders.find (*sbn_ptr);
-		if (it == obj->encoders.end()) {
+	}
+
+	if (error) {
+		p.set_value ({Error::WRONG_INPUT, 0});
+		return p.get_future();
+	}
+
+	// flags are fine, add work to pool
+	std::unique_lock<std::mutex> lock (_mtx);
+	for (uint8_t block = 0; block < blocks(); ++block) {
+		auto enc = encoders.find (block);
+		if (enc == encoders.end()) {
 			bool success;
-			std::tie (it, success) = obj->encoders.insert ({*sbn_ptr,
-					std::make_shared<Locked_Encoder> (*obj->interleave,*sbn_ptr)
-														});
+			std::tie (enc, success) = encoders.emplace (
+									std::piecewise_construct,
+									std::forward_as_tuple (block),
+									std::forward_as_tuple (interleave, block));
+			assert (success == true);
+			std::unique_ptr<Block_Work> work = std::unique_ptr<Block_Work>(
+															new Block_Work());
+			work->work = enc->second.enc;
+			work->notify = pool_lock;
+			Impl::Thread_Pool::get().add_work (std::move(work));
 		}
-		auto enc_ptr = it->second;
-		bool locked = enc_ptr->_mtx.try_lock();
-		if (sbn != nullptr)
-			++(*sbn);
-		obj->_mtx.unlock();
-		if (locked) {	// if not locked, someone else is already waiting
-						// on this. so don't do the same work twice.
-			// result can be nullptr. in that case, disregard the result.
-			enc_ptr->_enc.generate_symbols();
-			enc_ptr->_mtx.unlock();
-		}
-		if (sbn == nullptr)
-			return;
 	}
-}
+	lock.unlock();
 
-template <typename Rnd_It, typename Fwd_It>
-void Encoder<Rnd_It, Fwd_It>::precompute (const uint8_t threads,
-														const bool background)
-{
-	if (interleave == nullptr)
-		return;
-	if (background) {
-		background_work.emplace_back (precompute_block_all, this, threads);
+	// spawn thread waiting for other thread exit.
+	// this way we can set_value to the future when needed.
+	auto future = p.get_future();
+	if (Compute::NONE != (flags & Compute::NO_BACKGROUND)) {
+		wait_threads (this, flags, std::move(p));
 	} else {
-		return precompute_block_all (this, threads);
+		std::unique_lock<std::mutex> pool_wait_lock (_mtx);
+		UNUSED(pool_wait_lock);
+		pool_wait.emplace_back(wait_threads, this, flags, std::move(p));
+
+	}
+	return future;
+}
+
+template <typename Rnd_It, typename Fwd_It>
+void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
+									const Compute flags,
+									std::promise<std::pair<Error, uint8_t>> p)
+{
+	do {
+		if (obj->exiting) {	// make sure we can exit
+			p.set_value ({Error::NONE, 0});
+			break;
+		}
+		// pool is global (static), so wait only for our stuff.
+		std::unique_lock<std::mutex> lock (obj->pool_lock->first);
+		if (obj->exiting) { // make sure we can exit
+			p.set_value ({Error::NONE, 0});
+			break;
+		}
+		auto status = obj->get_report (flags);
+		if (status.first != Error::WORKING) {
+			p.set_value (status);
+			break;
+		}
+
+		obj->pool_lock->second.wait (lock); // conditional wait
+		if (obj->exiting) {	// make sure we can exit
+			p.set_value ({Error::NONE, 0});
+			obj->pool_lock->first.unlock();	// unlock
+			break;
+		}
+		status = obj->get_report (flags);
+		lock.unlock();	// unlock
+		if (status.first != Error::WORKING) {
+			p.set_value (status);
+			break;
+		}
+	} while (true);
+	std::unique_lock<std::mutex> lock (obj->_mtx);
+	UNUSED (lock);
+	for (auto it = obj->pool_wait.begin(); it != obj->pool_wait.end(); ++it) {
+		if (it->get_id() == std::this_thread::get_id()) {
+			it->detach();
+			obj->pool_wait.erase (it);
+		}
 	}
 }
 
 template <typename Rnd_It, typename Fwd_It>
-void Encoder<Rnd_It, Fwd_It>::precompute_block_all (
-												Encoder<Rnd_It, Fwd_It> *obj,
-												const uint8_t threads)
+std::pair<Error, uint8_t> Encoder<Rnd_It, Fwd_It>::get_report (
+														const Compute flags)
 {
-	// precompute all intermediate symbols, do it with more threads.
-	if (obj->interleave == nullptr)
-		return;
-	std::vector<std::thread> t;
-	int32_t spawned = threads - 1;
-	if (spawned <= -1)
-		spawned = static_cast<int32_t> (std::thread::hardware_concurrency());
-
-	if (spawned > 0)
-		t.reserve (static_cast<size_t> (spawned));
-	uint8_t sbn = 0;
-
-	// spawn n-1 threads
-	for (int8_t id = 0; id < spawned; ++id)
-		t.emplace_back (precompute_thread, obj, &sbn, 0);
-
-	// do the work ourselves
-	precompute_thread (obj, &sbn, 0);
-
-	// join other threads
-	for (uint8_t id = 0; id < spawned; ++id)
-		t[id].join();
+	if (Compute::NONE != (flags & Compute::COMPLETE) ||
+				Compute::NONE != (flags & Compute::PARTIAL_FROM_BEGINNING)) {
+		auto it = encoders.begin();
+		for (; it != encoders.end(); ++it) {
+			auto ptr = it->second.enc;
+			if (ptr != nullptr && !ptr->ready())
+				break;
+		}
+		if (it == encoders.end()) {
+			pool_last_reported = static_cast<int16_t> (encoders.size() - 1);
+			return {Error::NONE, pool_last_reported};
+		}
+		if (Compute::NONE != (flags & Compute::PARTIAL_FROM_BEGINNING) &&
+									(pool_last_reported < (it->first - 1))) {
+			pool_last_reported = it->first - 1;
+			return {Error::NONE, pool_last_reported};
+		}
+		return {Error::WORKING, 0};
+	}
+	if (Compute::NONE != (flags & Compute::PARTIAL_ANY)) {
+		for (auto &it : encoders) {
+			if (!it.second.reported) {
+				auto ptr = it.second.enc;
+				if (ptr != nullptr && ptr->ready()) {
+					return {Error::NONE, it.first};
+				}
+			}
+		}
+	}
+	return {Error::WORKING, 0};	// should never be reached
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -580,81 +759,91 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 															const uint32_t esi,
 															const uint8_t sbn)
 {
-	if (interleave == nullptr)
+	if (sbn >= interleave.blocks())
 		return 0;
-	if (sbn >= interleave->blocks())
-		return 0;
-	_mtx.lock();
-	auto it = encoders.find (sbn);
-	if (it == encoders.end()) {
-		bool success;
-		std::tie (it, success) = encoders.emplace (sbn,
-						std::make_shared<Locked_Encoder> (*interleave, sbn));
-		background_work.emplace_back (precompute_thread, this, nullptr, sbn);
-	}
-	auto enc_ptr = it->second;
-	_mtx.unlock();
-	if (esi >= interleave->source_symbols (sbn)) {
-		// make sure we generated the intermediate symbols
-		enc_ptr->_mtx.lock();
-		enc_ptr->_enc.generate_symbols();
-		enc_ptr->_mtx.unlock();
-	}
 
-	return enc_ptr->_enc.Enc (esi, output, end);
+	std::unique_lock<std::mutex> lock (_mtx);
+	auto it = encoders.find (sbn);
+	if (use_pool) {
+		if (it == encoders.end())
+			return 0;
+		auto shared_enc = it->second.enc;
+		if (!shared_enc->ready())
+			return 0;
+		lock.unlock();
+		return shared_enc->Enc (esi, output, end);
+	} else {
+		if (it == encoders.end()) {
+			bool success;
+			std::tie (it, success) = encoders.emplace (std::make_pair (sbn,
+														Enc (interleave, sbn)));
+			auto shared_enc = it->second.enc;
+			lock.unlock();
+			Work_State state = Work_State::KEEP_WORKING;
+			shared_enc->generate_symbols (&state);
+			return shared_enc->Enc (esi, output, end);
+		} else {
+			auto shared_enc = it->second.enc;
+			lock.unlock();
+			if (!shared_enc->ready())
+				return 0;
+			return shared_enc->Enc (esi, output, end);
+		}
+	}
 }
 
 
 template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::free (const uint8_t sbn)
 {
-	_mtx.lock();
+	std::unique_lock<std::mutex> lock (_mtx);
+	UNUSED(lock);
 	auto it = encoders.find (sbn);
 	if (it != encoders.end())
 		encoders.erase (it);
-	_mtx.unlock();
 }
 
 template <typename Rnd_It, typename Fwd_It>
 uint8_t Encoder<Rnd_It, Fwd_It>::blocks() const
 {
-	if (interleave == nullptr)
+	if (!interleave)
 		return 0;
-	return interleave->blocks();
+	return interleave.blocks();
 }
 
 template <typename Rnd_It, typename Fwd_It>
 uint32_t Encoder<Rnd_It, Fwd_It>::block_size (const uint8_t sbn) const
 {
-	if (interleave == nullptr)
+	if (!interleave)
 		return 0;
-	return interleave->source_symbols (sbn) * interleave->symbol_size();
+	return interleave.source_symbols (sbn) * interleave.symbol_size();
 }
 
 template <typename Rnd_It, typename Fwd_It>
 uint16_t Encoder<Rnd_It, Fwd_It>::symbol_size() const
 {
-	if (interleave == nullptr)
+	if (!interleave)
 		return 0;
-	return interleave->symbol_size();
+	return interleave.symbol_size();
 }
 
 template <typename Rnd_It, typename Fwd_It>
 uint16_t Encoder<Rnd_It, Fwd_It>::symbols (const uint8_t sbn) const
 {
-	if (interleave == nullptr)
+	if (!interleave)
 		return 0;
-	return interleave->source_symbols (sbn);
+	return interleave.source_symbols (sbn);
 }
 
 template <typename Rnd_It, typename Fwd_It>
 uint32_t Encoder<Rnd_It, Fwd_It>::max_repair (const uint8_t sbn) const
 {
-	if (interleave == nullptr)
+	if (interleave)
 		return 0;
 	return static_cast<uint32_t> (std::pow (2, 20)) -
-											interleave->source_symbols (sbn);
+											interleave.source_symbols (sbn);
 }
+
 /////////////////
 //
 // Decoder
@@ -687,77 +876,276 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 {
 	if (sbn >= _blocks)
 		return Error::WRONG_INPUT;
-	_mtx.lock();
+	std::unique_lock<std::mutex> lock (_mtx);
 	auto it = decoders.find (sbn);
 	if (it == decoders.end()) {
 		const uint16_t symbols = sbn < part.num (0) ?
 													part.size(0) : part.size(1);
-		decoders.insert ({sbn, std::make_shared<Impl::Decoder<In_It>> (
-													symbols, _symbol_size)});
-		it = decoders.find (sbn);
+		bool success;
+		std::tie (it, success) = decoders.emplace (std::make_pair(sbn,
+												Dec (symbols, _symbol_size)));
+		assert (success);
 	}
-	auto dec = it->second;
-	_mtx.unlock();
+	auto dec = it->second.dec;
+	lock.unlock();
 
-	return dec->add_symbol (start, end, esi);
-}
-
-template <typename In_It, typename Fwd_It>
-bool Decoder<In_It, Fwd_It>::precompute ()
-{
-	_mtx.lock();
-	auto it = decoders.find (0);
-	if (it == decoders.end()) {
-		_mtx.unlock();
-		return false;
-	}
-	auto dec = it->second;
-	_mtx.unlock();
-
-	return dec->decode();
-}
-
-template <typename In_It, typename Fwd_It>
-uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end)
-{
-	for (uint8_t sbn = 0; sbn < _blocks; ++sbn) {
-		_mtx.lock();
-		auto it = decoders.find (sbn);
-		if (it == decoders.end()) {
-			_mtx.unlock();
-			return 0;
+	auto err = dec->add_symbol (start, end, esi);
+	if (err != Error::NONE)
+		return err;
+	// automatically add work to pool if we use it.
+	if (use_pool && dec->can_decode()) {
+		bool add_work = dec->add_concurrent (
+										Impl::max_block_decoder_concurrency);
+		if (add_work) {
+			std::unique_ptr<Block_Work> work = std::unique_ptr<Block_Work>(
+															new Block_Work());
+			work->work = dec;
+			work->notify = pool_lock;
+			Impl::Thread_Pool::get().add_work (std::move(work));
 		}
-		auto dec = it->second;
-		_mtx.unlock();
-
-		if (!dec->decode())
-			return 0;
 	}
-	// everything has been decoded
-	// now try to decode all blocks. Some tricks are needed since the output
-	// alignment and the block size might not be the same.
+	return Error::NONE;
+}
+
+
+template <typename In_It, typename Fwd_It>
+Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
+															Work_State *state)
+{
+	auto locked_dec = work.lock();
+	auto locked_notify = notify.lock();
+	if (locked_dec != nullptr && locked_notify != nullptr) {
+		auto stat = locked_dec->decode (state);
+		switch (stat) {
+		case Impl::Decoder<In_It>::Decoder_Result::DECODED:
+			locked_notify->first.lock();
+			locked_notify->second.notify_one();
+			[[clang::fallthrough]];
+		case Impl::Decoder<In_It>::Decoder_Result::NEED_DATA:
+			locked_dec->drop_concurrent();
+			return Work_Exit_Status::DONE;
+		case Impl::Decoder<In_It>::Decoder_Result::STOPPED:
+			return Work_Exit_Status::STOPPED;
+		case Impl::Decoder<In_It>::Decoder_Result::CAN_RETRY:
+			return Work_Exit_Status::REQUEUE;
+		}
+	}
+	return Work_Exit_Status::DONE;
+}
+
+template <typename In_It, typename Fwd_It>
+std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
+														const Compute flags)
+{
+	using ret_t = std::pair<Error, uint8_t>;
+	std::promise<ret_t> p;
+
+	bool error = false;
+	// need some flags
+	if (flags == Compute::NONE)
+		error = true;
+
+	// flag incompatibilities
+	if (Compute::NONE != (flags & Compute::PARTIAL_FROM_BEGINNING) &&
+							(Compute::NONE != (flags & (Compute::PARTIAL_ANY |
+														Compute::COMPLETE |
+														Compute::NO_POOL)))) {
+		error = true;
+	} else if (Compute::NONE != (flags & Compute::PARTIAL_ANY) &&
+				(Compute::NONE != (flags & (Compute::PARTIAL_FROM_BEGINNING |
+											Compute::COMPLETE |
+											Compute::NO_POOL)))) {
+		error = true;
+	} else if (Compute::NONE != (flags & Compute::COMPLETE) &&
+					Compute::NONE != (flags &(Compute::PARTIAL_FROM_BEGINNING |
+												Compute::PARTIAL_ANY |
+												Compute::NO_POOL))) {
+		error = true;
+	}
+
+	if (Compute::NONE != (flags & Compute::NO_POOL)) {
+		std::unique_lock<std::mutex> lock (_mtx);
+		UNUSED(lock);
+		if (decoders.size() != 0) {
+			// You can only say you won't use the pool *before* you start
+			// decoding something!
+			error = true;
+		} else {
+			use_pool = false;
+			p.set_value ({Error::NONE, 0});
+			return p.get_future();
+		}
+	}
+
+	if (error) {
+		p.set_value ({Error::WRONG_INPUT, 0});
+		return p.get_future();
+	}
+
+	// flags are fine, add work to pool
+	std::unique_lock<std::mutex> lock (_mtx);
+	for (uint8_t block = 0; block < blocks(); ++block) {
+		auto dec_it = decoders.find (block);
+		if (dec_it == decoders.end()) {
+			bool success;
+			const uint16_t symbols = block < part.num (0) ?
+													part.size(0) : part.size(1);
+			std::tie (dec_it, success) = decoders.emplace (std::make_pair(block,
+												Dec (symbols, _symbol_size)));
+			assert (success == true);
+			auto dec = dec_it->second.dec;
+			if (dec->can_decode() &&
+					dec->add_concurrent (Impl::max_block_decoder_concurrency)) {
+				// will likely never happen. we just created the decoder,
+				// it will never have enough data.
+				std::unique_ptr<Block_Work> work =std::unique_ptr<Block_Work>(
+															new Block_Work());
+				work->work = dec;
+				work->notify = pool_lock;
+				Impl::Thread_Pool::get().add_work (std::move(work));
+			}
+		}
+	}
+	lock.unlock();
+
+	// spawn thread waiting for other thread exit.
+	// this way we can set_value to the future when needed.
+	auto future = p.get_future();
+	if (Compute::NONE != (flags & Compute::NO_BACKGROUND)) {
+		wait_threads (this, flags, std::move(p));
+	} else {
+		std::unique_lock<std::mutex> pool_wait_lock (_mtx);
+		UNUSED(pool_wait_lock);
+		pool_wait.emplace_back(wait_threads, this, flags, std::move(p));
+
+	}
+	return future;
+}
+
+template <typename In_It, typename Fwd_It>
+void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
+									const Compute flags,
+									std::promise<std::pair<Error, uint8_t>> p)
+{
+	do {
+		if (obj->exiting) {	// make sure we can exit
+			p.set_value ({Error::NONE, 0});
+			break;
+		}
+		// pool is global (static), so wait only for our stuff.
+		std::unique_lock<std::mutex> lock (obj->pool_lock->first);
+		if (obj->exiting) { // make sure we can exit
+			p.set_value ({Error::NONE, 0});
+			break;
+		}
+		auto status = obj->get_report (flags);
+		if (Error::WORKING != status.first) {
+			p.set_value (status);
+			break;
+		}
+
+		obj->pool_lock->second.wait (lock); // conditional wait
+		if (obj->exiting) {	// make sure we can exit
+			p.set_value ({Error::NONE, 0});
+			break;
+		}
+		status = obj->get_report (flags);
+		lock.unlock();
+		if (Error::WORKING != status.first) {
+			p.set_value (status);
+			break;
+		}
+	} while (true);
+
+	// delete ourselves from the waiting thread vector.
+	std::unique_lock<std::mutex> lock (obj->_mtx);
+	UNUSED (lock);
+	for (auto it = obj->pool_wait.begin(); it != obj->pool_wait.end(); ++it) {
+		if (it->get_id() == std::this_thread::get_id()) {
+			it->detach();
+			obj->pool_wait.erase (it);
+		}
+	}
+}
+
+template <typename In_It, typename Fwd_It>
+std::pair<Error, uint8_t> Decoder<In_It, Fwd_It>::get_report (
+														const Compute flags)
+{
+	if (Compute::NONE != (flags & Compute::COMPLETE) ||
+			Compute::NONE != (flags & Compute::PARTIAL_FROM_BEGINNING)) {
+		auto it = decoders.begin();
+		for (; it != decoders.end(); ++it) {
+			auto ptr = it->second.dec;
+			if (ptr != nullptr && !ptr->ready())
+				break;
+		}
+		if (it == decoders.end()) {
+			pool_last_reported = static_cast<int16_t> (decoders.size() - 1);
+			return {Error::NONE, pool_last_reported};
+		}
+		if (Compute::NONE != (flags & Compute::PARTIAL_FROM_BEGINNING) &&
+									(pool_last_reported < (it->first - 1))) {
+			pool_last_reported = it->first - 1;
+			return {Error::NONE, pool_last_reported};
+		}
+		return {Error::WORKING, 0};
+	}
+	if (Compute::NONE != (flags & Compute::PARTIAL_ANY)) {
+		for (auto &it : decoders) {
+			if (!it.second.reported) {
+				auto ptr = it.second.dec;
+				if (ptr != nullptr && ptr->ready()) {
+					return {Error::NONE, it.first};
+				}
+			}
+		}
+	}
+	// can be reached if computing thread was stopped
+	return {Error::WORKING, 0};
+}
+
+template <typename In_It, typename Fwd_It>
+std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode (Fwd_It &start,
+														const Fwd_It end,
+														const uint8_t skip)
+{
+	// Decode from the beginning, up untill we can.
+
 	uint64_t written = 0;
-	uint8_t skip = 0;
-	for (uint8_t sbn = 0; sbn < _blocks; ++sbn) {
-		_mtx.lock();
+	uint8_t new_skip = skip;
+	for (uint8_t sbn = 0; sbn < blocks(); ++sbn) {
+		std::unique_lock<std::mutex> block_lock (_mtx);
 		auto it = decoders.find (sbn);
 		if (it == decoders.end())
-			return written;
-		auto dec = it->second;
-		_mtx.unlock();
-		Impl::De_Interleaver<Fwd_It> de_interleaving (dec->get_symbols(),
+			return {written, new_skip};
+		auto dec_ptr = it->second.dec;
+		block_lock.unlock();
+
+		if (!dec_ptr->ready()) {
+			if (!use_pool && dec_ptr->can_decode()) {
+				Work_State state = Work_State::KEEP_WORKING;
+				auto ret = dec_ptr->decode (&state);
+				if (Impl::Decoder<In_It>::Decoder_Result::DECODED != ret)
+					return {written, new_skip};;
+			} else {
+				return {written, new_skip};
+			}
+		}
+
+		Impl::De_Interleaver<Fwd_It> de_interleaving (dec_ptr->get_symbols(),
 													_sub_blocks, _alignment);
+
 		auto tmp_start = start;
-		uint64_t tmp_written = de_interleaving (tmp_start, end, skip);
+		uint64_t tmp_written = de_interleaving (tmp_start, end, new_skip);
 		if (tmp_written == 0)
-			return written;
-		written += tmp_written;
-		// did we end up in the middle of a Fwd_It now?
-		skip = block_size (sbn) %
-					sizeof(typename std::iterator_traits<Fwd_It>::value_type);
+			return {written, new_skip};
+		written += static_cast<size_t> (tmp_written);
+		new_skip = block_size (sbn) %
+				sizeof(typename std::iterator_traits<Fwd_It>::value_type);
 		// if we ended decoding in the middle of a Fwd_It, do not advance
 		// start too much, or we will end up having additional zeros.
-		if (skip == 0) {
+		if (new_skip == 0) {
 			start = tmp_start;
 		} else {
 			// tmp_written > 0 due to earlier return
@@ -766,30 +1154,45 @@ uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end)
 			// we can not do "--start" since it's a forward iterator
 			start += static_cast<int64_t> (tmp_written - 1);
 		}
+		written += tmp_written;
 	}
-	return written;
+	return {written, new_skip};
 }
 
 template <typename In_It, typename Fwd_It>
-uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end,
+uint64_t Decoder<In_It, Fwd_It>::decode_block (Fwd_It &start, const Fwd_It end,
 															const uint8_t sbn)
 {
 	if (sbn >= _blocks)
 		return 0;
 
-	_mtx.lock();
+	std::shared_ptr<RaptorQ__v1::Impl::Decoder<In_It>> dec_ptr = nullptr;
+	std::unique_lock<std::mutex> lock (_mtx);
 	auto it = decoders.find (sbn);
-	if (it == decoders.end()) {
-		_mtx.unlock();
-		return 0;
+
+	if (it == decoders.end())
+		return 0;	// did not receiveany data yet.
+
+	if (use_pool) {
+		dec_ptr = it->second.dec;
+		lock.unlock();
+		if (!dec_ptr->ready())
+			return 0;	// did not receive enough data, or could not decode yet.
+	} else {
+		dec_ptr = it->second.dec;
+		lock.unlock();
+		if (!dec_ptr->ready()) {
+			if (!dec_ptr->can_decode())
+				return 0;
+			Work_State keep_working = Work_State::KEEP_WORKING;
+			dec_ptr->decode (&keep_working);
+			if (!dec_ptr->ready())
+				return 0;
+		}
 	}
-	auto dec = it->second;
-	_mtx.unlock();
+	// decoder has decoded the block
 
-	if (!dec->decode())
-		return 0;
-
-	Impl::De_Interleaver<Fwd_It> de_interleaving (dec->get_symbols(),
+	Impl::De_Interleaver<Fwd_It> de_interleaving (dec_ptr->get_symbols(),
 													_sub_blocks, _alignment);
 	return de_interleaving (start, end);
 }

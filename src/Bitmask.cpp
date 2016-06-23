@@ -56,6 +56,12 @@ Bitmask::Bitmask (const uint16_t symbols)
 		mask.push_back (0);
 }
 
+void Bitmask::free()
+{
+	mask.clear();
+	holes = 0;
+}
+
 void Bitmask::add (const size_t id)
 {
 	size_t element = static_cast<size_t> (div_floor (id, sizeof(size_t)));
@@ -69,6 +75,20 @@ void Bitmask::add (const size_t id)
 	if (id < _max_nonrepair)
 		--holes;
 }
+void Bitmask::drop (const size_t id)
+{
+	size_t element = static_cast<size_t> (div_floor (id, sizeof(size_t)));
+	if (element >= mask.size())
+		return;
+	if (!exists(id))
+		return;
+
+	size_t drop_mask = 1 << (id - (element * sizeof(size_t)));
+	mask[element] &= ~drop_mask;
+	if (id < _max_nonrepair)
+		++holes;
+}
+
 
 bool Bitmask::exists (const size_t id) const
 {
