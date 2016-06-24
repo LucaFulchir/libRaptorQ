@@ -43,24 +43,15 @@ Thread_Pool::~Thread_Pool()
 		auto locked = th.second.lock();
 		if (locked != nullptr) {
 			th.first.detach();
-			//FIXME: pool.erase (th); NOW?
 			*locked = static_cast<Work_State_Overlay> (
 												Work_State::ABORT_COMPUTATION);
 		}
 	}
-//	for (auto &th : wait_for_exit) {
-//		auto locked = th.second.lock();
-//		if (locked != nullptr) {
-//			*locked = static_cast<Work_State_Overlay> (
-//												Work_State::ABORT_COMPUTATION);
-//		}
-//	}
 	cond.notify_all();	// unlock threads stuck on condition_wait
 	data_lock.unlock();
 	pool_lock.unlock();
 
 	pool.clear();
-	//wait_for_exit.clear();
 }
 
 void Thread_Pool::resize_pool (const size_t size, const Work_State exit_t)
@@ -70,20 +61,36 @@ void Thread_Pool::resize_pool (const size_t size, const Work_State exit_t)
     std::lock_guard<std::mutex> guard_pool (pool_mtx);
     UNUSED(guard_pool);
 
+	uint16_t x = 1;
+
     while (pool.size() > size) {
 		std::lock_guard<std::mutex> guard_data (data_mtx);
 		UNUSED(guard_data);
+		auto it2 = pool.begin();
+		for (; it2 != pool.end(); ++it2) {
+			std::weak_ptr<Work_State_Overlay> sec = it2->second;
+			std::shared_ptr<Work_State_Overlay> state = sec.lock();
+			if (nullptr != state) {
+				++x;
+			} else {
+				if (it2->first.joinable()) {
+					++x;
+				} else {
+					++x;
+				}
+			}
+		}
 		auto it = pool.begin();
 		for (; it != pool.end(); ++it) {
 			// delete a thread that is still waiting
-			auto sec = it->second;
-			auto state = sec.lock();
-			if (state != nullptr) {
-				if (*state == Work_State_Overlay::WAITING) {
+			std::weak_ptr<Work_State_Overlay> sec = it->second;
+			std::shared_ptr<Work_State_Overlay> state = sec.lock();
+			if (nullptr != state) {
+				if (Work_State_Overlay::WAITING == *state) {
 					it->first.detach();
 					pool.erase (it);
+					it = pool.begin();
 					*state = static_cast<Work_State_Overlay> (exit_t);
-					//wait_for_exit.emplace_back (std::move(*it));
 					cond.notify_all();
 					break;
 				}
@@ -96,18 +103,16 @@ void Thread_Pool::resize_pool (const size_t size, const Work_State exit_t)
 				break;
 			}
 		}
-		if (it == pool.end()) {
+		if (pool.size() > size && it == pool.end()) {
 			// all threads are busy, but we must terminate one :(
 			auto end = pool.rbegin();
 			auto locked = end->second.lock();
-			if (locked != nullptr) {
+			if (nullptr != locked) {
 				end->first.detach();
 				pool.erase (end.base());
 				*locked = static_cast<Work_State_Overlay> (exit_t);
 			}
-			//wait_for_exit.emplace_back (std::move(*end));
 			cond.notify_all();
-			//pool.erase (end.base());
 		}
     }
     while (pool.size() < size) {
@@ -116,19 +121,6 @@ void Thread_Pool::resize_pool (const size_t size, const Work_State exit_t)
         pool.emplace_back (std::thread (working_thread, this, state),
 									std::weak_ptr<Work_State_Overlay> (state));
     }
-
-	for (auto &wat : pool) {
-		auto asd = wat.second.lock();
-		if (asd == nullptr)
-			;
-	}
-    // cleanup
-//    for (auto it = wait_for_exit.begin(); it != wait_for_exit.end(); ++it) {
-//		auto is_working = it->second.lock();
-//		if (is_working == nullptr) {
-//			wait_for_exit.erase (it);
-//		}
-//    }
 }
 
 bool Thread_Pool::add_work (std::unique_ptr<Pool_Work> work)
@@ -140,16 +132,6 @@ bool Thread_Pool::add_work (std::unique_ptr<Pool_Work> work)
 
     queue.push_back (std::move(work));
 	cond.notify_one();
-	lock_data.unlock();
-
-	std::unique_lock<std::mutex> pool_lock (pool_mtx);
-	// cleanup expired threads
-//	for (auto it = wait_for_exit.begin(); it != wait_for_exit.end(); ++it) {
-//		auto is_working = it->second.lock();
-//		if (is_working == nullptr) {
-//			wait_for_exit.erase (it);
-//		}
-//    }
 
     return true;
 }
@@ -157,16 +139,17 @@ bool Thread_Pool::add_work (std::unique_ptr<Pool_Work> work)
 void Thread_Pool::working_thread (Thread_Pool *obj,
 									std::shared_ptr<Work_State_Overlay> state)
 {
-	while (*state == Work_State_Overlay::KEEP_WORKING) {
+	while (Work_State_Overlay::KEEP_WORKING == *state) {
 		std::unique_lock<std::mutex> lock_data (obj->data_mtx);
-		if (*state != Work_State_Overlay::KEEP_WORKING)
+		if (Work_State_Overlay::KEEP_WORKING != *state)
 			break;
 		if (obj->queue.size() == 0) {
 			*state = Work_State_Overlay::WAITING;
 			obj->cond.wait (lock_data);
-			if (*state != Work_State_Overlay::WAITING)	// => abort
+			if (Work_State_Overlay::WAITING != *state)	// => abort
 				break;
 			if (obj->queue.size() == 0)	{ // unlock intended for other threads?
+				*state = Work_State_Overlay::KEEP_WORKING;
 				lock_data.unlock();
 				continue;
 			}

@@ -243,6 +243,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 			for (uint32_t k = 0; k < next_encoded; ++k)
 				free (encoded[k].symbol);
 			free (encoded);
+			RaptorQ_future_free (&async_dec);
 			RaptorQ_free (&dec);
 			return false;
 		}
@@ -257,10 +258,6 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	uint64_t decoded_size =(uint64_t) (ceil (RaptorQ_bytes (dec)
 														/ sizeof(uint32_t)));
 	uint32_t *received = (uint32_t *) malloc (decoded_size * sizeof(uint32_t));
-
-	for (uint32_t *shit = received; shit != received + decoded_size; ++shit)
-		//*shit = 0xFF + (0xFF >> 8) + (0xFF >> 16) + (0xFF >> 24);
-		;//*shit = 0xFFFFFFFF;
 
 	uint32_t *rec = received;
 

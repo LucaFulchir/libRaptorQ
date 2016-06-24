@@ -227,7 +227,7 @@ bool Encoder<Rnd_It, Fwd_It>::generate_symbols (Work_State *thread_keep_working)
 														ops, keep_working,
 														thread_keep_working);
 	}
-	return (precode_res == Precode_Result::DONE) && encoded_symbols.cols() != 0;
+	return (Precode_Result::DONE == precode_res) && 0 != encoded_symbols.cols();
 }
 
 template <typename Rnd_It, typename Fwd_It>

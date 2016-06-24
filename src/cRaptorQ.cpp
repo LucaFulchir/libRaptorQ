@@ -20,6 +20,7 @@
 
 #include "cRaptorQ.h"
 #include "RaptorQ.hpp"
+#include <future>
 #include <memory>
 
 struct RAPTORQ_LOCAL RaptorQ_ptr
@@ -215,6 +216,7 @@ RaptorQ_Error RaptorQ_future_wait_for (struct RaptorQ_future *future,
 		}
 		return RQ_ERR_NONE;
 	}
+	return RQ_ERR_WRONG_INPUT;
 }
 
 void RaptorQ_future_wait (struct RaptorQ_future *future)
@@ -241,6 +243,55 @@ void RaptorQ_future_free (struct RaptorQ_future **future)
 		return;
 	delete *future;
 	*future = nullptr;
+}
+
+RaptorQ_future* RaptorQ_compute (RaptorQ_ptr *ptr, const RaptorQ_Compute flags)
+{
+	if (ptr == nullptr || ptr->type == RaptorQ_type::RQ_NONE ||
+															ptr->ptr == nullptr)
+		return nullptr;
+	const RaptorQ__v1::Compute cpp_flags =
+									static_cast<RaptorQ__v1::Compute> (flags);
+	std::future<std::pair<RaptorQ__v1::Error, uint8_t>> f;
+	switch (ptr->type) {
+	case RaptorQ_type::RQ_ENC_8:
+		f = (reinterpret_cast<RaptorQ__v1::Encoder<uint8_t*, uint8_t*>*> (
+											ptr->ptr))->compute (cpp_flags);
+		break;
+	case RaptorQ_type::RQ_ENC_16:
+		f = (reinterpret_cast<RaptorQ__v1::Encoder<uint16_t*, uint16_t*>*> (
+											ptr->ptr))->compute (cpp_flags);
+		break;
+	case RaptorQ_type::RQ_ENC_32:
+		f = (reinterpret_cast<RaptorQ__v1::Encoder<uint32_t*, uint32_t*>*> (
+											ptr->ptr))->compute (cpp_flags);
+		break;
+	case RaptorQ_type::RQ_ENC_64:
+		f = (reinterpret_cast<RaptorQ__v1::Encoder<uint64_t*, uint64_t*>*> (
+											ptr->ptr))->compute (cpp_flags);
+		break;
+	case RaptorQ_type::RQ_DEC_8:
+		f = (reinterpret_cast<RaptorQ__v1::Decoder<uint8_t*, uint8_t*>*> (
+											ptr->ptr))->compute (cpp_flags);
+		break;
+	case RaptorQ_type::RQ_DEC_16:
+		f = (reinterpret_cast<RaptorQ__v1::Decoder<uint16_t*, uint16_t*>*> (
+											ptr->ptr))->compute (cpp_flags);
+		break;
+	case RaptorQ_type::RQ_DEC_32:
+		f = (reinterpret_cast<RaptorQ__v1::Decoder<uint32_t*, uint32_t*>*> (
+											ptr->ptr))->compute (cpp_flags);
+		break;
+	case RaptorQ_type::RQ_DEC_64:
+		f = (reinterpret_cast<RaptorQ__v1::Decoder<uint64_t*, uint64_t*>*> (
+											ptr->ptr))->compute (cpp_flags);
+		break;
+	case RaptorQ_type::RQ_NONE:
+		return nullptr;
+	}
+	RaptorQ_future *ret = new RaptorQ_future();
+	ret->f = std::move(f);
+	return ret;
 }
 
 ///////////
@@ -546,55 +597,6 @@ size_t RaptorQ_precompute_max_memory (RaptorQ_ptr *enc)
 	// ...make up your mind, guys?
 	return 0;
 #endif
-}
-
-RaptorQ_future* RaptorQ_compute (RaptorQ_ptr *ptr, const RaptorQ_Compute flags)
-{
-	if (ptr == nullptr || ptr->type == RaptorQ_type::RQ_NONE ||
-															ptr->ptr == nullptr)
-		return nullptr;
-	const RaptorQ__v1::Compute cpp_flags =
-									static_cast<RaptorQ__v1::Compute> (flags);
-	std::future<std::pair<RaptorQ__v1::Error, uint8_t>> f;
-	switch (ptr->type) {
-	case RaptorQ_type::RQ_ENC_8:
-		f = (reinterpret_cast<RaptorQ__v1::Encoder<uint8_t*, uint8_t*>*> (
-											ptr->ptr))->compute (cpp_flags);
-		break;
-	case RaptorQ_type::RQ_ENC_16:
-		f = (reinterpret_cast<RaptorQ__v1::Encoder<uint16_t*, uint16_t*>*> (
-											ptr->ptr))->compute (cpp_flags);
-		break;
-	case RaptorQ_type::RQ_ENC_32:
-		f = (reinterpret_cast<RaptorQ__v1::Encoder<uint32_t*, uint32_t*>*> (
-											ptr->ptr))->compute (cpp_flags);
-		break;
-	case RaptorQ_type::RQ_ENC_64:
-		f = (reinterpret_cast<RaptorQ__v1::Encoder<uint64_t*, uint64_t*>*> (
-											ptr->ptr))->compute (cpp_flags);
-		break;
-	case RaptorQ_type::RQ_DEC_8:
-		f = (reinterpret_cast<RaptorQ__v1::Decoder<uint8_t*, uint8_t*>*> (
-											ptr->ptr))->compute (cpp_flags);
-		break;
-	case RaptorQ_type::RQ_DEC_16:
-		f = (reinterpret_cast<RaptorQ__v1::Decoder<uint16_t*, uint16_t*>*> (
-											ptr->ptr))->compute (cpp_flags);
-		break;
-	case RaptorQ_type::RQ_DEC_32:
-		f = (reinterpret_cast<RaptorQ__v1::Decoder<uint32_t*, uint32_t*>*> (
-											ptr->ptr))->compute (cpp_flags);
-		break;
-	case RaptorQ_type::RQ_DEC_64:
-		f = (reinterpret_cast<RaptorQ__v1::Decoder<uint64_t*, uint64_t*>*> (
-											ptr->ptr))->compute (cpp_flags);
-		break;
-	case RaptorQ_type::RQ_NONE:
-		return nullptr;
-	}
-	RaptorQ_future *ret = new RaptorQ_future();
-	ret->f = std::move(f);
-	return ret;
 }
 
 uint64_t RaptorQ_encode_id (RaptorQ_ptr *enc, void **data, const uint64_t size,

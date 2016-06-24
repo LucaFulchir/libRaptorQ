@@ -62,13 +62,13 @@ class RAPTORQ_API Thread_Pool
 public:
 	static Thread_Pool& get()
 	{
-		#pragma GCC diagnostic push
-		#pragma GCC diagnostic ignored "-Wexit-time-destructors"
+		//#pragma GCC diagnostic push
 		#pragma clang diagnostic push
+		#pragma clang diagnostic ignored "-Wexit-time-destructors"
 		#pragma clang diagnostic ignored "-Wglobal-constructors"
 		static Thread_Pool pool;
 		#pragma clang diagnostic pop
-		#pragma GCC diagnostic pop
+		//#pragma GCC diagnostic pop
 		return pool;
 	}
 

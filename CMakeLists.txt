@@ -369,7 +369,7 @@ add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
 		-Wno-disabled-macro-expansion
     )
 add_dependencies(test_c RaptorQ)
-target_link_libraries(test_c ${RQ_UBSAN} ${STDLIB} RaptorQ m ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+target_link_libraries(test_c RaptorQ m ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
 # CPP interface
 add_executable(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)

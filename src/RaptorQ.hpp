@@ -212,8 +212,9 @@ static const uint64_t max_data = 946270874880;	// ~881 GB
 typedef uint64_t OTI_Common_Data;
 typedef uint32_t OTI_Scheme_Specific_Data;
 
-bool set_thread_pool (const size_t threads,const uint16_t max_block_concurrency,
-												const Work_State exit_type);
+bool RAPTORQ_API set_thread_pool (const size_t threads,
+										const uint16_t max_block_concurrency,
+										const Work_State exit_type);
 namespace Impl {
 // maximum times a single block can be decoded at the same time.
 // the decoder can be launched multiple times with different combinations
@@ -574,7 +575,8 @@ Work_Exit_Status Encoder<Rnd_It, Fwd_It>::Block_Work::do_work (
 		// encoding always works. It's one of the few constants of the universe.
 		if (!locked_enc->generate_symbols (state))
 			return Work_Exit_Status::STOPPED;	// only explanation.
-		locked_notify->first.lock();
+		std::lock_guard<std::mutex> mtx (locked_notify->first);
+		UNUSED(mtx);
 		locked_notify->second.notify_one();
 	}
 	return Work_Exit_Status::DONE;
@@ -658,7 +660,6 @@ std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
 		std::unique_lock<std::mutex> pool_wait_lock (_mtx);
 		UNUSED(pool_wait_lock);
 		pool_wait.emplace_back(wait_threads, this, flags, std::move(p));
-
 	}
 	return future;
 }
@@ -688,7 +689,6 @@ void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
 		obj->pool_lock->second.wait (lock); // conditional wait
 		if (obj->exiting) {	// make sure we can exit
 			p.set_value ({Error::NONE, 0});
-			obj->pool_lock->first.unlock();	// unlock
 			break;
 		}
 		status = obj->get_report (flags);
@@ -698,12 +698,15 @@ void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
 			break;
 		}
 	} while (true);
+
+	// delete ourselves from the waiting thread vector.
 	std::unique_lock<std::mutex> lock (obj->_mtx);
 	UNUSED (lock);
 	for (auto it = obj->pool_wait.begin(); it != obj->pool_wait.end(); ++it) {
 		if (it->get_id() == std::this_thread::get_id()) {
 			it->detach();
 			obj->pool_wait.erase (it);
+			break;
 		}
 	}
 }
@@ -838,7 +841,7 @@ uint16_t Encoder<Rnd_It, Fwd_It>::symbols (const uint8_t sbn) const
 template <typename Rnd_It, typename Fwd_It>
 uint32_t Encoder<Rnd_It, Fwd_It>::max_repair (const uint8_t sbn) const
 {
-	if (interleave)
+	if (!interleave)
 		return 0;
 	return static_cast<uint32_t> (std::pow (2, 20)) -
 											interleave.source_symbols (sbn);
@@ -889,10 +892,11 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 	auto dec = it->second.dec;
 	lock.unlock();
 
-	auto err = dec->add_symbol (start, end, esi);
+ 	auto err = dec->add_symbol (start, end, esi);
 	if (err != Error::NONE)
 		return err;
-	// automatically add work to pool if we use it.
+	// automatically add work to pool if we use it and have enough data
+	lock.lock();
 	if (use_pool && dec->can_decode()) {
 		bool add_work = dec->add_concurrent (
 										Impl::max_block_decoder_concurrency);
@@ -916,11 +920,17 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
 	auto locked_notify = notify.lock();
 	if (locked_dec != nullptr && locked_notify != nullptr) {
 		auto stat = locked_dec->decode (state);
+		// initialize, do not lock yet
+		std::unique_lock<std::mutex> locked_guard (locked_notify->first,
+															std::defer_lock);
 		switch (stat) {
 		case Impl::Decoder<In_It>::Decoder_Result::DECODED:
-			locked_notify->first.lock();
+			locked_guard.lock(); // lock only here
 			locked_notify->second.notify_one();
+			#pragma GCC diagnostic push
+			#pragma GCC diagnostic ignored "-Wattributes"
 			[[clang::fallthrough]];
+			#pragma GCC diagnostic pop
 		case Impl::Decoder<In_It>::Decoder_Result::NEED_DATA:
 			locked_dec->drop_concurrent();
 			return Work_Exit_Status::DONE;
@@ -982,31 +992,8 @@ std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
 		return p.get_future();
 	}
 
-	// flags are fine, add work to pool
-	std::unique_lock<std::mutex> lock (_mtx);
-	for (uint8_t block = 0; block < blocks(); ++block) {
-		auto dec_it = decoders.find (block);
-		if (dec_it == decoders.end()) {
-			bool success;
-			const uint16_t symbols = block < part.num (0) ?
-													part.size(0) : part.size(1);
-			std::tie (dec_it, success) = decoders.emplace (std::make_pair(block,
-												Dec (symbols, _symbol_size)));
-			assert (success == true);
-			auto dec = dec_it->second.dec;
-			if (dec->can_decode() &&
-					dec->add_concurrent (Impl::max_block_decoder_concurrency)) {
-				// will likely never happen. we just created the decoder,
-				// it will never have enough data.
-				std::unique_ptr<Block_Work> work =std::unique_ptr<Block_Work>(
-															new Block_Work());
-				work->work = dec;
-				work->notify = pool_lock;
-				Impl::Thread_Pool::get().add_work (std::move(work));
-			}
-		}
-	}
-	lock.unlock();
+	// do not add work to the pool to save up memory.
+	// let "add_symbol craete the Decoders as needed.
 
 	// spawn thread waiting for other thread exit.
 	// this way we can set_value to the future when needed.
@@ -1017,7 +1004,6 @@ std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
 		std::unique_lock<std::mutex> pool_wait_lock (_mtx);
 		UNUSED(pool_wait_lock);
 		pool_wait.emplace_back(wait_threads, this, flags, std::move(p));
-
 	}
 	return future;
 }
@@ -1064,6 +1050,7 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 		if (it->get_id() == std::this_thread::get_id()) {
 			it->detach();
 			obj->pool_wait.erase (it);
+			break;
 		}
 	}
 }
@@ -1142,7 +1129,7 @@ std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode (Fwd_It &start,
 			return {written, new_skip};
 		written += static_cast<size_t> (tmp_written);
 		new_skip = block_size (sbn) %
-				sizeof(typename std::iterator_traits<Fwd_It>::value_type);
+					sizeof(typename std::iterator_traits<Fwd_It>::value_type);
 		// if we ended decoding in the middle of a Fwd_It, do not advance
 		// start too much, or we will end up having additional zeros.
 		if (new_skip == 0) {

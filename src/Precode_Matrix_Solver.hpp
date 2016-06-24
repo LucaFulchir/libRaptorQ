@@ -40,7 +40,7 @@ template <Save_Computation IS_OFFLINE>
 std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
 												DenseMtx &D, Op_Vec &ops,
 												bool &keep_working,
-												Work_State *thread_keep_working)
+												const Work_State *thread_keep_working)
 {
 	// rfc 6330, pg 32
 	// "c" and "d" are used to track row and columns exchange.
@@ -117,7 +117,7 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
 										DenseMtx &D, const Bitmask &mask,
 										const std::vector<uint32_t> &repair_esi,
 										Op_Vec &ops, bool &keep_working,
-										Work_State *thread_keep_working)
+										const Work_State *thread_keep_working)
 {
 	decode_phase0 (mask, repair_esi);
 	Precode_Result res;
@@ -205,7 +205,7 @@ std::tuple<bool, uint16_t, uint16_t>
 	Precode_Matrix<IS_OFFLINE>::decode_phase1 (DenseMtx &X, DenseMtx &D,
 												std::vector<uint16_t> &c,
 												Op_Vec &ops, bool &keep_working,
-												Work_State *thread_keep_working)
+												const Work_State *thread_keep_working)
 {
 	// rfc6330, page 33
 
@@ -418,7 +418,7 @@ template<Save_Computation IS_OFFLINE>
 bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
 												const uint16_t u, Op_Vec &ops,
 												bool &keep_working,
-												Work_State *thread_keep_working)
+												const Work_State *thread_keep_working)
 {
 	// rfc 6330, pg 35
 
@@ -512,7 +512,7 @@ template<Save_Computation IS_OFFLINE>
 void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseMtx &D, const uint16_t i,
 												const uint16_t u, Op_Vec &ops,
 												bool &keep_working,
-												Work_State *thread_keep_working)
+												const Work_State *thread_keep_working)
 {
 	// rfc 6330, pg 35:
 	// For each of the first i rows of U_upper, do the following: if the row
@@ -548,7 +548,7 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseMtx &D, const uint16_t i,
 template<Save_Computation IS_OFFLINE>
 void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
 												Op_Vec &ops, bool &keep_working,
-												Work_State *thread_keep_working)
+												const Work_State *thread_keep_working)
 {
 	// rc 6330, pg 36
 	for (uint16_t j = 0; j <= i; ++j) {

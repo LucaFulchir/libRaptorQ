@@ -61,26 +61,29 @@ extern "C"
 	/////////////////////
 
 	// C++11 async API into C pointers
-	struct RAPTORQ_API RaptorQ_Result {
+	struct RaptorQ_Result {
 		RaptorQ_Error error;
 		uint8_t sbn;
 	};
 	struct RAPTORQ_LOCAL RaptorQ_future;
 
-	RaptorQ_Error	RaptorQ_future_valid	(struct RaptorQ_future *future);
-	RaptorQ_Error	RaptorQ_future_wait_for	(struct RaptorQ_future *future,
+	RaptorQ_Error RAPTORQ_API RaptorQ_future_valid (
+												struct RaptorQ_future *future);
+	RaptorQ_Error RAPTORQ_API RaptorQ_future_wait_for (
+												struct RaptorQ_future *future,
 												const uint64_t time,
 												const RaptorQ_Unit_Time unit);
-	void			RaptorQ_future_wait		(struct RaptorQ_future *future);
-	void			RaptorQ_future_free		(struct RaptorQ_future **future);
-	struct RaptorQ_Result RaptorQ_future_get (struct RaptorQ_future *future);
+	void RAPTORQ_API RaptorQ_future_wait (struct RaptorQ_future *future);
+	void RAPTORQ_API RaptorQ_future_free (struct RaptorQ_future **future);
+	struct RaptorQ_Result RAPTORQ_API RaptorQ_future_get (
+												struct RaptorQ_future *future);
 
 
 	bool RAPTORQ_API RaptorQ_set_thread_pool (const size_t threads,
 										const uint16_t max_block_concurrency,
 										const RaptorQ_Work exit_type);
 
-	struct RaptorQ_future* RAPTORQ_API RaptorQ_compute (struct RaptorQ_ptr *ptr,
+	RAPTORQ_API struct RaptorQ_future* RaptorQ_compute (struct RaptorQ_ptr *ptr,
 												const RaptorQ_Compute flags);
 
 	///////////

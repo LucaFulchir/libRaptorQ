@@ -83,12 +83,12 @@ public:
 
 	std::pair<Precode_Result, DenseMtx> intermediate (DenseMtx &D, Op_Vec &ops,
 											bool &keep_working,
-											Work_State *thread_keep_working);
+											const Work_State *thread_keep_working);
 	std::pair<Precode_Result, DenseMtx> intermediate (DenseMtx &D,
 										const Bitmask &mask,
 										const std::vector<uint32_t> &repair_esi,
 										Op_Vec &ops, bool &keep_working,
-										Work_State *thread_keep_working);
+										const Work_State *thread_keep_working);
 	DenseMtx encode (const DenseMtx &C, const uint32_t iSI) const;
 
 private:
@@ -108,29 +108,29 @@ private:
 		DenseMtx make_GAMMA() const;	// rfc 6330, pgg 24, used for HDPC
 	void add_G_ENC ();
 
-	DenseMtx intermediate (DenseMtx &D, Op_Vec &ops, bool &keep_working);
+	//DenseMtx intermediate (DenseMtx &D, Op_Vec &ops, bool &keep_working);
 	void decode_phase0 (const Bitmask &mask,
 									const std::vector<uint32_t> &repair_esi);
 	std::tuple<bool, uint16_t, uint16_t> decode_phase1 (DenseMtx &X,DenseMtx &D,
 											std::vector<uint16_t> &c,
 											Op_Vec &ops, bool &keep_working,
-											Work_State *thread_keep_working);
+											const Work_State *thread_keep_working);
 	bool decode_phase2 (DenseMtx &D, const uint16_t i,const uint16_t u,
 											Op_Vec &ops, bool &keep_working,
-											Work_State *thread_keep_working);
+											const Work_State *thread_keep_working);
 	void decode_phase3 (const DenseMtx &X, DenseMtx &D, const uint16_t i,
 											Op_Vec &ops);
 	void decode_phase4 (DenseMtx &D, const uint16_t i, const uint16_t u,
 											Op_Vec &ops, bool &keep_working,
-											Work_State *thread_keep_working);
+											const Work_State *thread_keep_working);
 	void decode_phase5 (DenseMtx &D, const uint16_t i, Op_Vec &ops,
 											bool &keep_working,
-											Work_State *thread_keep_working);
+											const Work_State *thread_keep_working);
 
-	inline bool stop (bool keep_working, Work_State *thread_keep_working)
+	inline bool stop (bool keep_working, const Work_State *thread_keep_working)
 	{
-		return keep_working == true ||
-							*thread_keep_working != Work_State::KEEP_WORKING;
+		return false == keep_working ||
+							Work_State::KEEP_WORKING != *thread_keep_working;
 	}
 };
 
