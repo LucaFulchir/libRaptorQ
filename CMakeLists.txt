@@ -116,7 +116,7 @@ find_package(Threads REQUIRED)
 find_package(git)
 find_package(eigen REQUIRED)
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
-find_package(LZ4 REQUIRED)
+find_package(RQ_LZ4 REQUIRED)
 include_directories(SYSTEM ${RQ_LZ4_INCLUDE_DIR})
 #lz4 build if necessary
 include(${CMAKE_CURRENT_SOURCE_DIR}/external/build_deps.cmake)

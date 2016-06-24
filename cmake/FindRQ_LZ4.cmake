@@ -42,7 +42,12 @@ IF(RQ_LZ4_FOUND)
 	ENDIF()
 ELSE(RQ_LZ4_FOUND)
 	IF(RQ_LZ4_FIND_REQUIRED)
-		MESSAGE(FATAL_ERROR "Could not find \"lz4\" library.")
+		MESSAGE(FATAL_ERROR "Could not find \"lz4\" library."
+                            "  Please install the \"lz4\" library"
+                            " or at least run:\n"
+                            "  cd ${CMAKE_CURRENT_SOURCE_DIR}\n"
+                            "  git submodule init\n"
+                            "  git submodule update\n")
 	ENDIF(RQ_LZ4_FIND_REQUIRED)
 ENDIF(RQ_LZ4_FOUND)
 
