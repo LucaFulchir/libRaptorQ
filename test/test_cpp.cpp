@@ -52,6 +52,10 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	// can simulate data trnsmision just by passing along a vector, but
 	// they do not need to be the same.
 
+	// make sure the size is a multiple of its iterator. not much sense
+	// otherwise.
+	assert ((mysize % sizeof(in_enc_align)) == 0);
+
 	std::vector<in_enc_align> myvec;
 
 	// initialize vector with random data
@@ -247,126 +251,163 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	return true;
 }
 
+uint32_t rnd_size (std::mt19937_64 &rnd, uint8_t size);
+uint32_t rnd_size (std::mt19937_64 &rnd, uint8_t size)
+{
+	std::uniform_int_distribution<uint32_t> distr(1, 10000);
+	uint32_t ret;
+	do {
+		ret = distr (rnd);
+	} while ((ret % size) != 0);
+	return ret;
+}
+
 int main (void)
 {
 	// get a random number generator
 	std::mt19937_64 rnd;
-	std::ifstream rand("/dev/random");
+	std::ifstream rand("/dev/urandom");
 	uint64_t seed = 0;
 	rand.read (reinterpret_cast<char *> (&seed), sizeof(seed));
 	rand.close ();
 	rnd.seed (seed);
 
 
-	std::uniform_int_distribution<uint32_t> distr(1, 10000);
-	// encode and decode
+	// encode and decoder
 	for (size_t i = 0; i < 1000; ++i) {
 		std::cout << "08-08-08\n";
-		bool ret = decode<uint8_t, uint8_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		bool ret = decode<uint8_t, uint8_t, uint8_t> (
+								rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "08-08-16\n";
-		ret = decode<uint8_t, uint8_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint8_t, uint8_t, uint16_t> (
+								rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "08-08-32\n";
-		ret = decode<uint8_t, uint8_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint8_t, uint8_t, uint32_t> (
+								rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "08-16-08\n";
-		ret = decode<uint8_t, uint16_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint8_t, uint16_t, uint8_t> (
+								rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "08-16-16\n";
-		ret = decode<uint8_t, uint16_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint8_t, uint16_t, uint16_t> (
+								rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "08-16-32\n";
-		ret = decode<uint8_t, uint16_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint8_t, uint16_t, uint32_t> (
+								rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "08-32-08\n";
-		ret = decode<uint8_t, uint32_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint8_t, uint32_t, uint8_t> (
+								rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "08-32-16\n";
-		ret = decode<uint8_t, uint32_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint8_t, uint32_t, uint16_t> (
+								rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "08-32-32\n";
-		ret = decode<uint8_t, uint32_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint8_t, uint32_t, uint32_t> (
+								rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "16-08-08\n";
-		ret = decode<uint16_t, uint8_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint16_t, uint8_t, uint8_t> (
+								rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "16-08-16\n";
-		ret = decode<uint16_t, uint8_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint16_t, uint8_t, uint16_t> (
+								rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "16-08-32\n";
-		ret = decode<uint16_t, uint8_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint16_t, uint8_t, uint32_t> (
+								rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "16-16-08\n";
-		ret = decode<uint16_t, uint16_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint16_t, uint16_t, uint8_t> (
+								rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "16-16-16\n";
-		ret = decode<uint16_t, uint16_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint16_t, uint16_t, uint16_t> (
+								rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "16-16-32\n";
-		ret = decode<uint16_t, uint16_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint16_t, uint16_t, uint32_t> (
+								rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "16-32-08\n";
-		ret = decode<uint16_t, uint32_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint16_t, uint32_t, uint8_t> (
+								rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "16-32-16\n";
-		ret = decode<uint16_t, uint32_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint16_t, uint32_t, uint16_t> (
+								rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "16-32-32\n";
-		ret = decode<uint16_t, uint32_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint16_t, uint32_t, uint32_t> (
+								rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "32-08-08\n";
-		ret = decode<uint32_t, uint8_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint32_t, uint8_t, uint8_t> (
+								rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "32-08-16\n";
-		ret = decode<uint32_t, uint8_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint32_t, uint8_t, uint16_t> (
+								rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "32-08-32\n";
-		ret = decode<uint32_t, uint8_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint32_t, uint8_t, uint32_t> (
+								rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "32-16-08\n";
-		ret = decode<uint32_t, uint16_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint32_t, uint16_t, uint8_t> (
+								rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "32-16-16\n";
-		ret = decode<uint32_t, uint16_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint32_t, uint16_t, uint16_t> (
+								rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "32-16-32\n";
-		ret = decode<uint32_t, uint16_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint32_t, uint16_t, uint32_t> (
+								rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "32-32-08\n";
-		ret = decode<uint32_t, uint32_t, uint8_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint32_t, uint32_t, uint8_t> (
+								rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "32-32-16\n";
-		ret = decode<uint32_t, uint32_t, uint16_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint32_t, uint32_t, uint16_t> (
+								rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 		std::cout << "32-32-32\n";
-		ret = decode<uint32_t, uint32_t, uint32_t> (distr(rnd), rnd, 20.0, 4);
+		ret = decode<uint32_t, uint32_t, uint32_t> (
+								rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
 		if (!ret)
 			return -1;
 
