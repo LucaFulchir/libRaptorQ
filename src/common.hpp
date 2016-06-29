@@ -66,7 +66,7 @@
 ////
 ///////////////////////////
 // NOTE: the C++ and C version should be kept in sync
-//		so that we can just static_cast<>() from the C++ to the C version.
+//		so that we can just static_cast<>() from one to the other
 
 // C version
 typedef enum {	RQ_TIME_NANOSEC		= 0,
@@ -82,8 +82,9 @@ typedef enum {	RQ_ERR_NONE = 0,
 				RQ_ERR_WRONG_INPUT = 2,
 				RQ_ERR_NEED_DATA = 3,
 				RQ_ERR_WORKING = 4,
-				RQ_ERR_CHECK_INIT = 5,
-				RQ_ERR_INTERNAL = 6
+				RQ_ERR_CHECK_INIT = 5,	// ?
+				RQ_ERR_INTERNAL = 6,	// ?
+				RQ_ERR_EXITING = 7
 			} RaptorQ_Error;
 typedef enum {
 	RQ_COMPUTE_NONE = 0x00,					// do nothing => get error
@@ -113,7 +114,8 @@ namespace RaptorQ__v1 {
 							NOT_NEEDED = RQ_ERR_NOT_NEEDED,
 							WRONG_INPUT = RQ_ERR_WRONG_INPUT,
 							NEED_DATA = RQ_ERR_NEED_DATA,
-							WORKING = RQ_ERR_WORKING
+							WORKING = RQ_ERR_WORKING,
+							EXITING = RQ_ERR_EXITING
 							};
 
 	enum class RAPTORQ_API Compute : uint8_t {

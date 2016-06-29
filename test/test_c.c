@@ -83,7 +83,12 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
         return false;
     }
     RaptorQ_future_wait (async_enc);
+	struct RaptorQ_Result enc_stat = RaptorQ_future_get (async_enc);
     RaptorQ_future_free (&async_enc);
+	if (enc_stat.error != RQ_ERR_NONE) {
+		printf ("ERR in getting future\n");
+		return false;
+	}
 
 	/* everything is encoded now.
 	 * well, it might be running in background, but don't worry:
@@ -263,7 +268,13 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 
 	// wait for the whole data to be decoded
 	RaptorQ_future_wait (async_dec);
+	struct RaptorQ_Result dec_stat = RaptorQ_future_get (async_dec);
     RaptorQ_future_free (&async_dec);
+	if (dec_stat.error != RQ_ERR_NONE) {
+		printf ("ERR in getting future\n");
+		return false;
+	}
+
 	struct RaptorQ_Dec_Result res = RaptorQ_decode (dec, (void **)&rec,
 															decoded_size, 0);
 	// we are assuming no errors, all blocks decoded.
@@ -273,7 +284,8 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	// on the same pointer.
 
 	if ((written != decoded_size) || (decoded_size != mysize)) {
-		fprintf(stderr, "Couldn't decode: %i - %lu\n", mysize, written);
+		fprintf(stderr, "Couldn't decode: %i - %lu: %lu\n", mysize,
+														decoded_size, written);
 		free (myvec);
 		free(received);
 		for (uint32_t k = 0; k < next_encoded; ++k)

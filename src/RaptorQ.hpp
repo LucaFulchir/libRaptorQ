@@ -919,11 +919,11 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
 	auto locked_dec = work.lock();
 	auto locked_notify = notify.lock();
 	if (locked_dec != nullptr && locked_notify != nullptr) {
-		auto stat = locked_dec->decode (state);
+		auto ret = locked_dec->decode (state);
 		// initialize, do not lock yet
 		std::unique_lock<std::mutex> locked_guard (locked_notify->first,
 															std::defer_lock);
-		switch (stat) {
+		switch (ret) {
 		case Impl::Decoder<In_It>::Decoder_Result::DECODED:
 			locked_guard.lock(); // lock only here
 			locked_notify->second.notify_one();
@@ -1015,13 +1015,13 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 {
 	do {
 		if (obj->exiting) {	// make sure we can exit
-			p.set_value ({Error::NONE, 0});
+			p.set_value ({Error::EXITING, 0});
 			break;
 		}
 		// pool is global (static), so wait only for our stuff.
 		std::unique_lock<std::mutex> lock (obj->pool_lock->first);
 		if (obj->exiting) { // make sure we can exit
-			p.set_value ({Error::NONE, 0});
+			p.set_value ({Error::EXITING, 0});
 			break;
 		}
 		auto status = obj->get_report (flags);
@@ -1032,7 +1032,7 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 
 		obj->pool_lock->second.wait (lock); // conditional wait
 		if (obj->exiting) {	// make sure we can exit
-			p.set_value ({Error::NONE, 0});
+			p.set_value ({Error::EXITING, 0});
 			break;
 		}
 		status = obj->get_report (flags);
@@ -1059,26 +1059,35 @@ template <typename In_It, typename Fwd_It>
 std::pair<Error, uint8_t> Decoder<In_It, Fwd_It>::get_report (
 														const Compute flags)
 {
-	if (Compute::NONE != (flags & Compute::COMPLETE) ||
-			Compute::NONE != (flags & Compute::PARTIAL_FROM_BEGINNING)) {
+	if (Compute::COMPLETE == (flags & Compute::COMPLETE) ||
+			Compute::PARTIAL_FROM_BEGINNING ==
+									(flags & Compute::PARTIAL_FROM_BEGINNING)) {
 		auto it = decoders.begin();
+		// get first non-reported block.
+		for (;it != decoders.end(); ++it) {
+			if (pool_last_reported <= it->first)
+				break;
+		}
+		uint16_t reportable = 0;
+		// get last reportable block
 		for (; it != decoders.end(); ++it) {
 			auto ptr = it->second.dec;
 			if (ptr != nullptr && !ptr->ready())
 				break;
+			++reportable;
 		}
-		if (it == decoders.end()) {
-			pool_last_reported = static_cast<int16_t> (decoders.size() - 1);
-			return {Error::NONE, pool_last_reported};
+		if (reportable > 0) {
+			pool_last_reported += reportable;
+			if (Compute::PARTIAL_FROM_BEGINNING ==
+									(flags & Compute::PARTIAL_FROM_BEGINNING)) {
+				return {Error::NONE, pool_last_reported};
+			} else {
+				// complete
+				if (pool_last_reported == _blocks)
+					return {Error::NONE, pool_last_reported};
+			}
 		}
-		if (Compute::NONE != (flags & Compute::PARTIAL_FROM_BEGINNING) &&
-									(pool_last_reported < (it->first - 1))) {
-			pool_last_reported = it->first - 1;
-			return {Error::NONE, pool_last_reported};
-		}
-		return {Error::WORKING, 0};
-	}
-	if (Compute::NONE != (flags & Compute::PARTIAL_ANY)) {
+	} else if (Compute::PARTIAL_ANY == (flags & Compute::PARTIAL_ANY)) {
 		for (auto &it : decoders) {
 			if (!it.second.reported) {
 				auto ptr = it.second.dec;
@@ -1098,6 +1107,8 @@ std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode (Fwd_It &start,
 														const uint8_t skip)
 {
 	// Decode from the beginning, up untill we can.
+	// return number of fwd_it written, plus skip bytes in case of
+	// blocks and iterators not being aligned.
 
 	uint64_t written = 0;
 	uint8_t new_skip = skip;
@@ -1141,7 +1152,6 @@ std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode (Fwd_It &start,
 			// we can not do "--start" since it's a forward iterator
 			start += static_cast<int64_t> (tmp_written - 1);
 		}
-		written += tmp_written;
 	}
 	return {written, new_skip};
 }

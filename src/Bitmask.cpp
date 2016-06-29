@@ -59,6 +59,7 @@ Bitmask::Bitmask (const uint16_t symbols)
 void Bitmask::free()
 {
 	mask.clear();
+	mask.resize (0);
 	holes = 0;
 }
 

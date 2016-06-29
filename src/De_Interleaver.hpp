@@ -49,6 +49,7 @@ template <typename Fwd_It>
 uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
 															const uint8_t skip)
 {
+	// return number ot FWD_IT written
 	uint64_t written = 0;
 	uint32_t byte = 0;
 	uint32_t subsym_byte = 0;

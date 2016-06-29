@@ -168,7 +168,7 @@ RaptorQ_Error RaptorQ_future_valid (struct RaptorQ_future *future)
 	if (future == nullptr)
 		return RQ_ERR_WRONG_INPUT;
 	if (future->f.valid())
-		return RQ_ERR_NONE;
+		return static_cast<RaptorQ_Error> (future->f.get().first);
 	return RQ_ERR_WORKING;
 }
 
@@ -178,45 +178,30 @@ RaptorQ_Error RaptorQ_future_wait_for (struct RaptorQ_future *future,
 {
 	if (future == nullptr)
 		return RQ_ERR_WRONG_INPUT;
+	std::future_status status = std::future_status::timeout;
 	switch (unit) {
 	case RQ_TIME_NANOSEC:
-			if (std::future_status::ready == future->f.wait_for (
-											std::chrono::nanoseconds (time))) {
-				return RQ_ERR_WORKING;
-			}
-			return RQ_ERR_NONE;
+		status = future->f.wait_for (std::chrono::nanoseconds (time));
+		break;
 	case RQ_TIME_MICROSEC:
-		if (std::future_status::ready == future->f.wait_for (
-											std::chrono::microseconds (time))) {
-			return RQ_ERR_WORKING;
-		}
-		return RQ_ERR_NONE;
+		status = future->f.wait_for (std::chrono::microseconds (time));
+		break;
 	case RQ_TIME_MILLISEC:
-		if (std::future_status::ready == future->f.wait_for (
-											std::chrono::milliseconds (time))) {
-			return RQ_ERR_WORKING;
-		}
-		return RQ_ERR_NONE;
+		status = future->f.wait_for (std::chrono::milliseconds (time));
+		break;
 	case RQ_TIME_SEC:
-		if (std::future_status::ready == future->f.wait_for (
-												std::chrono::seconds (time))) {
-			return RQ_ERR_WORKING;
-		}
-		return RQ_ERR_NONE;
+		status = future->f.wait_for (std::chrono::seconds (time));
+		break;
 	case RQ_TIME_MIN:
-		if (std::future_status::ready == future->f.wait_for (
-												std::chrono::minutes (time))) {
-			return RQ_ERR_WORKING;
-		}
-		return RQ_ERR_NONE;
+		status = future->f.wait_for (std::chrono::minutes (time));
+		break;
 	case RQ_TIME_HOUR:
-		if (std::future_status::ready == future->f.wait_for (
-												std::chrono::hours (time))) {
-			return RQ_ERR_WORKING;
-		}
-		return RQ_ERR_NONE;
+		status = future->f.wait_for (std::chrono::hours (time));
+		break;
 	}
-	return RQ_ERR_WRONG_INPUT;
+	if (status == std::future_status::ready)
+		return static_cast<RaptorQ_Error> (future->f.get().first);
+	return RQ_ERR_WORKING;
 }
 
 void RaptorQ_future_wait (struct RaptorQ_future *future)
@@ -705,7 +690,7 @@ RaptorQ_Dec_Result RaptorQ_decode (RaptorQ_ptr *dec, void **data,
 {
 	RaptorQ_Dec_Result c_ret = {0, 0};
 	if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE ||
-						dec->ptr == nullptr || data == nullptr || size >= skip){
+						dec->ptr == nullptr || data == nullptr || size <= skip){
 		return c_ret;
 	}
 	uint8_t *p_8;
