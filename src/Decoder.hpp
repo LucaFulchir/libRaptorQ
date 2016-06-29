@@ -369,6 +369,7 @@ typename Decoder<In_It>::Decoder_Result Decoder<In_It>::decode (
 					bitmask_repair.push_back (false);
 				// remember to drop the symbols on retries
 				if (drop_it != drop.end() && *drop_it == idx) {
+					++drop_it;
 					bitmask_repair.push_back (false);
 				} else {
 					bitmask_repair.push_back (true);
@@ -404,8 +405,10 @@ typename Decoder<In_It>::Decoder_Result Decoder<In_It>::decode (
 	std::vector<uint32_t> repair_esi;
 	repair_esi.reserve (received_repair.size() - dropped_repair);
 	for (auto rep : received_repair) {
-		if (drop_it != drop.end() && *drop_it == rep.first)
+		if (drop_it != drop.end() && *drop_it == rep.first) {
+			++drop_it;
 			continue;
+		}
 		repair_esi.push_back (rep.first);
 	}
 
@@ -421,6 +424,7 @@ typename Decoder<In_It>::Decoder_Result Decoder<In_It>::decode (
 		}
 		if (drop_it != drop.end() && symbol->first == *drop_it) {
 			++drop_it;
+			++symbol;
 			continue;
 		}
 		const uint16_t row = S_H + hole;
@@ -434,11 +438,13 @@ typename Decoder<In_It>::Decoder_Result Decoder<In_It>::decode (
 	// fill the remaining (redundant) repair symbols
 	// remember to drop the repair symbols as needed
 	drop_it = drop.begin();
-	for (uint16_t row = L_rows;
-							symbol != received_repair.end(); ++symbol, ++row) {
-		if (drop_it != drop.end() && *drop_it == symbol->first)
+	for (uint16_t row = L_rows; symbol != received_repair.end(); ++symbol) {
+		if (drop_it != drop.end() && *drop_it == symbol->first) {
+			++drop_it;
 			continue;
+		}
 		D.row (row) = symbol->second;
+		++row;
 	}
 
 	// do not lock this part, as it's the expensive part
