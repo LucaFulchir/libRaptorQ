@@ -38,7 +38,7 @@ public:
 		IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::De_Interleaver");
 	}
 	uint64_t operator() (Fwd_It &start, const Fwd_It end,
-														const uint8_t skip = 0);
+								const uint64_t max_bytes, const uint8_t skip);
 private:
 	const DenseMtx *_symbols;
 	const Partition _sub_blocks;
@@ -47,9 +47,10 @@ private:
 
 template <typename Fwd_It>
 uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
-															const uint8_t skip)
+													const uint64_t max_bytes,
+													const uint8_t skip)
 {
-	// return number ot FWD_IT written
+	// return number of BYTES written
 	uint64_t written = 0;
 	uint32_t byte = 0;
 	uint32_t subsym_byte = 0;
@@ -72,13 +73,15 @@ uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
 		}
 	}
 	while (start != end && sub_blk < (_sub_blocks.num(0) + _sub_blocks.num(1))){
+		if ((written + offset_al) >= max_bytes)
+			break;
 		element += static_cast<T> (static_cast<uint8_t>((*_symbols)(esi, byte)))
 															<< offset_al * 8;
 		++offset_al;
-		if (offset_al >= sizeof(T)) {
+		if (offset_al == sizeof(T)) {
 			*start = element;
 			++start;
-			++written;
+			written += offset_al;
 			element = static_cast<T> (0);
 			offset_al = 0;
 		}
@@ -102,12 +105,14 @@ uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
 		}
 	}
 	if (start != end && offset_al != 0) {
-		// we have more stuff in "al", but not enough to fill
+		// we have more stuff in "element", but not enough to fill
 		// the iterator.
 		*start = element;
 		++start;
-		++written;
+		written += offset_al;
 	}
+	if (written > 0)
+		written -= skip;
 	return written;
 }
 

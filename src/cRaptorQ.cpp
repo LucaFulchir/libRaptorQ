@@ -685,7 +685,107 @@ uint64_t RAPTORQ_API RaptorQ_bytes (struct RaptorQ_ptr *dec)
 
 }
 
-RaptorQ_Dec_Result RaptorQ_decode (RaptorQ_ptr *dec, void **data,
+uint64_t RaptorQ_decode_bytes (RaptorQ_ptr *dec, void **data,
+										const size_t size, const uint8_t skip)
+{
+	uint64_t written = 0;
+	if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE ||
+						dec->ptr == nullptr || data == nullptr || size <= skip){
+		return written;
+	}
+	uint8_t *p_8;
+	uint16_t *p_16;
+	uint32_t *p_32;
+	uint64_t *p_64;
+	switch (dec->type) {
+	case RaptorQ_type::RQ_DEC_8:
+		p_8 = reinterpret_cast<uint8_t*> (*data);
+		written = (reinterpret_cast<RaptorQ__v1::Decoder<uint8_t*, uint8_t*>*> (
+								dec->ptr))->decode_bytes (p_8,  p_8  + size, skip);
+		*data = p_8;
+		break;
+	case RaptorQ_type::RQ_DEC_16:
+		p_16 = reinterpret_cast<uint16_t*> (*data);
+		written = (reinterpret_cast<RaptorQ__v1::Decoder<uint16_t*, uint16_t*>*> (
+								dec->ptr))->decode_bytes (p_16, p_16 + size, skip);
+		*data = p_16;
+		break;
+	case RaptorQ_type::RQ_DEC_32:
+		p_32 = reinterpret_cast<uint32_t*> (*data);
+		written = (reinterpret_cast<RaptorQ__v1::Decoder<uint32_t*, uint32_t*>*> (
+								dec->ptr))->decode_bytes (p_32, p_32 + size, skip);
+		*data = p_32;
+		break;
+	case RaptorQ_type::RQ_DEC_64:
+		p_64 = reinterpret_cast<uint64_t*> (*data);
+		written = (reinterpret_cast<RaptorQ__v1::Decoder<uint64_t*, uint64_t*>*> (
+								dec->ptr))->decode_bytes (p_64, p_64 + size, skip);
+		*data = p_64;
+		break;
+	case RaptorQ_type::RQ_ENC_8:
+	case RaptorQ_type::RQ_ENC_16:
+	case RaptorQ_type::RQ_ENC_32:
+	case RaptorQ_type::RQ_ENC_64:
+	case RaptorQ_type::RQ_NONE:
+		break;
+	}
+	return written;
+}
+
+uint64_t RaptorQ_decode_block_bytes (RaptorQ_ptr *dec, void **data,
+															const size_t size,
+															const uint8_t skip,
+															const uint8_t sbn)
+{
+	uint64_t written = 0;
+	if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE ||
+									dec->ptr == nullptr || data == nullptr) {
+		return written;
+	}
+	uint8_t *p_8;
+	uint16_t *p_16;
+	uint32_t *p_32;
+	uint64_t *p_64;
+	switch (dec->type) {
+	case RaptorQ_type::RQ_DEC_8:
+		p_8 = reinterpret_cast<uint8_t*> (*data);
+		written = (reinterpret_cast<RaptorQ__v1::Decoder<uint8_t*, uint8_t*>*> (
+							dec->ptr))->decode_block_bytes (p_8, p_8 + size,
+																	skip, sbn);
+		*data = p_8;
+		break;
+	case RaptorQ_type::RQ_DEC_16:
+		p_16 = reinterpret_cast<uint16_t*> (*data);
+		written = (reinterpret_cast<RaptorQ__v1::Decoder<uint16_t*, uint16_t*>*> (
+							dec->ptr))->decode_block_bytes (p_16, p_16 + size,
+																	skip, sbn);
+		*data = p_16;
+		break;
+	case RaptorQ_type::RQ_DEC_32:
+		p_32 = reinterpret_cast<uint32_t*> (*data);
+		written = (reinterpret_cast<RaptorQ__v1::Decoder<uint32_t*, uint32_t*>*> (
+							dec->ptr))->decode_block_bytes (p_32, p_32 + size,
+																	skip, sbn);
+		*data = p_32;
+		break;
+	case RaptorQ_type::RQ_DEC_64:
+		p_64 = reinterpret_cast<uint64_t*> (*data);
+		written = (reinterpret_cast<RaptorQ__v1::Decoder<uint64_t*, uint64_t*>*> (
+							dec->ptr))->decode_block_bytes (p_64, p_64 + size,
+																	skip, sbn);
+		*data = p_64;
+		break;
+	case RaptorQ_type::RQ_ENC_8:
+	case RaptorQ_type::RQ_ENC_16:
+	case RaptorQ_type::RQ_ENC_32:
+	case RaptorQ_type::RQ_ENC_64:
+	case RaptorQ_type::RQ_NONE:
+		break;
+	}
+	return written;
+}
+
+RaptorQ_Dec_Result RaptorQ_decode_aligned (RaptorQ_ptr *dec, void **data,
 										const size_t size, const uint8_t skip)
 {
 	RaptorQ_Dec_Result c_ret = {0, 0};
@@ -697,30 +797,34 @@ RaptorQ_Dec_Result RaptorQ_decode (RaptorQ_ptr *dec, void **data,
 	uint16_t *p_16;
 	uint32_t *p_32;
 	uint64_t *p_64;
-	std::pair<uint64_t, uint8_t> ret = {0, 0};
+	std::pair<size_t, uint8_t> ret = {0, 0};
 	switch (dec->type) {
 	case RaptorQ_type::RQ_DEC_8:
 		p_8 = reinterpret_cast<uint8_t*> (*data);
 		ret = (reinterpret_cast<RaptorQ__v1::Decoder<uint8_t*, uint8_t*>*> (
-								dec->ptr))->decode (p_8,  p_8  + size, skip);
+												dec->ptr))->decode_aligned (
+													p_8,  p_8  + size, skip);
 		*data = p_8;
 		break;
 	case RaptorQ_type::RQ_DEC_16:
 		p_16 = reinterpret_cast<uint16_t*> (*data);
 		ret = (reinterpret_cast<RaptorQ__v1::Decoder<uint16_t*, uint16_t*>*> (
-								dec->ptr))->decode (p_16, p_16 + size, skip);
+												dec->ptr))->decode_aligned (
+													p_16, p_16 + size, skip);
 		*data = p_16;
 		break;
 	case RaptorQ_type::RQ_DEC_32:
 		p_32 = reinterpret_cast<uint32_t*> (*data);
 		ret = (reinterpret_cast<RaptorQ__v1::Decoder<uint32_t*, uint32_t*>*> (
-								dec->ptr))->decode (p_32, p_32 + size, skip);
+												dec->ptr))->decode_aligned (
+													p_32, p_32 + size, skip);
 		*data = p_32;
 		break;
 	case RaptorQ_type::RQ_DEC_64:
 		p_64 = reinterpret_cast<uint64_t*> (*data);
 		ret = (reinterpret_cast<RaptorQ__v1::Decoder<uint64_t*, uint64_t*>*> (
-								dec->ptr))->decode (p_64, p_64 + size, skip);
+												dec->ptr))->decode_aligned (
+													p_64, p_64 + size, skip);
 		*data = p_64;
 		break;
 	case RaptorQ_type::RQ_ENC_8:
@@ -735,41 +839,48 @@ RaptorQ_Dec_Result RaptorQ_decode (RaptorQ_ptr *dec, void **data,
 	return c_ret;
 }
 
-uint64_t RaptorQ_decode_block (RaptorQ_ptr *dec, void **data, const size_t size,
+RaptorQ_Dec_Result RaptorQ_decode_block_aligned (RaptorQ_ptr *dec, void **data,
+															const size_t size,
+															const uint8_t skip,
 															const uint8_t sbn)
 {
+	RaptorQ_Dec_Result c_ret = {0, 0};
 	if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE ||
 									dec->ptr == nullptr || data == nullptr) {
-		return false;
+		return c_ret;
 	}
 	uint8_t *p_8;
 	uint16_t *p_16;
 	uint32_t *p_32;
 	uint64_t *p_64;
-	uint64_t ret = 0;
+	std::pair<size_t, uint8_t> ret = {0, 0};
 	switch (dec->type) {
 	case RaptorQ_type::RQ_DEC_8:
 		p_8 = reinterpret_cast<uint8_t*> (*data);
 		ret = (reinterpret_cast<RaptorQ__v1::Decoder<uint8_t*, uint8_t*>*> (
-							dec->ptr))->decode_block (p_8, p_8 + size, sbn);
+							dec->ptr))->decode_block_aligned (p_8, p_8 + size,
+																	skip, sbn);
 		*data = p_8;
 		break;
 	case RaptorQ_type::RQ_DEC_16:
 		p_16 = reinterpret_cast<uint16_t*> (*data);
 		ret = (reinterpret_cast<RaptorQ__v1::Decoder<uint16_t*, uint16_t*>*> (
-							dec->ptr))->decode_block (p_16, p_16 + size, sbn);
+							dec->ptr))->decode_block_aligned (p_16, p_16 + size,
+																	skip, sbn);
 		*data = p_16;
 		break;
 	case RaptorQ_type::RQ_DEC_32:
 		p_32 = reinterpret_cast<uint32_t*> (*data);
 		ret = (reinterpret_cast<RaptorQ__v1::Decoder<uint32_t*, uint32_t*>*> (
-							dec->ptr))->decode_block (p_32, p_32 + size, sbn);
+							dec->ptr))->decode_block_aligned (p_32, p_32 + size,
+																	skip, sbn);
 		*data = p_32;
 		break;
 	case RaptorQ_type::RQ_DEC_64:
 		p_64 = reinterpret_cast<uint64_t*> (*data);
 		ret = (reinterpret_cast<RaptorQ__v1::Decoder<uint64_t*, uint64_t*>*> (
-							dec->ptr))->decode_block (p_64, p_64 + size, sbn);
+							dec->ptr))->decode_block_aligned (p_64, p_64 + size,
+																	skip, sbn);
 		*data = p_64;
 		break;
 	case RaptorQ_type::RQ_ENC_8:
@@ -779,7 +890,9 @@ uint64_t RaptorQ_decode_block (RaptorQ_ptr *dec, void **data, const size_t size,
 	case RaptorQ_type::RQ_NONE:
 		break;
 	}
-	return ret;
+	c_ret.written = std::get<0> (ret);
+	c_ret.skip = std::get<1> (ret);
+	return c_ret;
 }
 
 RaptorQ_Error RaptorQ_add_symbol_id (RaptorQ_ptr *dec, void **data,

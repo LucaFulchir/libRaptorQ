@@ -448,7 +448,7 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 
 	auto re_it = received.begin();
 	t.start();
-	auto decoded = dec.decode (re_it, received.end(), 0);
+	auto decoded = dec.decode_aligned (re_it, received.end(), 0);
 	uint64_t micro2 = t.stop();
 
 

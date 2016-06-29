@@ -35,6 +35,7 @@
 #include "Decoder.hpp"
 #include "Shared_Computation/Decaying_LF.hpp"
 #include "Thread_Pool.hpp"
+#include <algorithm>
 #include <cassert>
 #include <future>
 #include <map>
@@ -429,9 +430,19 @@ public:
 
 	std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
 
-	std::pair<size_t, uint8_t> decode (Fwd_It &start, const Fwd_It end,
-													const uint8_t skip = 0);
-	uint64_t decode_block (Fwd_It &start, const Fwd_It end, const uint8_t sbn);
+	// result in BYTES
+	uint64_t decode_bytes (Fwd_It &start, const Fwd_It end, const uint8_t skip);
+	uint64_t decode_block_bytes (Fwd_It &start, const Fwd_It end,
+															const uint8_t skip,
+															const uint8_t sbn);
+	// result in ITERATORS
+	// last *might* be half written depending on data alignments
+	std::pair<size_t, uint8_t> decode_aligned (Fwd_It &start, const Fwd_It end,
+															const uint8_t skip);
+	std::pair<size_t, uint8_t> decode_block_aligned (Fwd_It &start,
+															const Fwd_It end,
+															const uint8_t skip,
+															const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
 	Error add_symbol (In_It &start, const In_It end, const uint32_t id);
 	Error add_symbol (In_It &start, const In_It end, const uint32_t esi,
@@ -1102,13 +1113,14 @@ std::pair<Error, uint8_t> Decoder<In_It, Fwd_It>::get_report (
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode (Fwd_It &start,
-														const Fwd_It end,
+uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
 														const uint8_t skip)
 {
 	// Decode from the beginning, up untill we can.
-	// return number of fwd_it written, plus skip bytes in case of
-	// blocks and iterators not being aligned.
+	// return number of BYTES written, starting at "start + skip" bytes
+	//
+	// in case the last iterator is only half written, "start" will
+	// point to the half-written iterator.
 
 	uint64_t written = 0;
 	uint8_t new_skip = skip;
@@ -1116,7 +1128,7 @@ std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode (Fwd_It &start,
 		std::unique_lock<std::mutex> block_lock (_mtx);
 		auto it = decoders.find (sbn);
 		if (it == decoders.end())
-			return {written, new_skip};
+			return written;
 		auto dec_ptr = it->second.dec;
 		block_lock.unlock();
 
@@ -1125,39 +1137,63 @@ std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode (Fwd_It &start,
 				Work_State state = Work_State::KEEP_WORKING;
 				auto ret = dec_ptr->decode (&state);
 				if (Impl::Decoder<In_It>::Decoder_Result::DECODED != ret)
-					return {written, new_skip};;
+					return written;
 			} else {
-				return {written, new_skip};
+				return written;
 			}
 		}
 
 		Impl::De_Interleaver<Fwd_It> de_interleaving (dec_ptr->get_symbols(),
 													_sub_blocks, _alignment);
+		// FIXME FIXME FIXME FIXME FIXME:
+		// the size of the user data is *NOT* always aligned with the
+		// symbol, and not with the iterator.
+		// Therefore we need to limit the amount of written data
+		// when writing the last block. limit with data size, not block size.
 
+		uint64_t max_bytes = block_size (sbn);
+		if (sbn == (blocks() - 1)) {
+			// size of the data (_size) is different from the sum of the size of
+			// all blocks. get the real size, so we do not write more.
+			// we obviously need to consider this only for the last block.
+			uint64_t all_blocks = 0;
+			for (uint8_t id = 0; id < blocks(); ++id)
+				all_blocks += block_size (sbn);
+			const uint64_t diff = all_blocks - _size;
+			max_bytes -= diff;
+		}
 		auto tmp_start = start;
-		uint64_t tmp_written = de_interleaving (tmp_start, end, new_skip);
-		if (tmp_written == 0)
-			return {written, new_skip};
-		written += static_cast<size_t> (tmp_written);
-		new_skip = block_size (sbn) %
+		uint64_t bytes_written = de_interleaving (tmp_start, end, max_bytes,
+																	new_skip);
+		written += bytes_written;
+		uint64_t bytes_and_skip = new_skip + bytes_written;
+		new_skip = bytes_and_skip %
 					sizeof(typename std::iterator_traits<Fwd_It>::value_type);
+		if (bytes_written == 0)
+			return written;
+		//new_skip = block_size (sbn) %
+		//			sizeof(typename std::iterator_traits<Fwd_It>::value_type);
 		// if we ended decoding in the middle of a Fwd_It, do not advance
 		// start too much, or we will end up having additional zeros.
 		if (new_skip == 0) {
 			start = tmp_start;
 		} else {
-			// tmp_written > 0 due to earlier return
-			// moreover, RaptorQ handles at most 881GB per rfc, so
+			uint64_t it_written = bytes_and_skip /
+					sizeof(typename std::iterator_traits<Fwd_It>::value_type);
+			// RaptorQ handles at most 881GB per rfc, so
 			// casting uint64 to int64 is safe
 			// we can not do "--start" since it's a forward iterator
-			start += static_cast<int64_t> (tmp_written - 1);
+			start += std::max (static_cast<int64_t> (0),
+										static_cast<int64_t> (it_written - 1));
 		}
 	}
-	return {written, new_skip};
+	return written;
 }
 
 template <typename In_It, typename Fwd_It>
-uint64_t Decoder<In_It, Fwd_It>::decode_block (Fwd_It &start, const Fwd_It end,
+uint64_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
+															const Fwd_It end,
+															const uint8_t skip,
 															const uint8_t sbn)
 {
 	if (sbn >= _blocks)
@@ -1191,7 +1227,49 @@ uint64_t Decoder<In_It, Fwd_It>::decode_block (Fwd_It &start, const Fwd_It end,
 
 	Impl::De_Interleaver<Fwd_It> de_interleaving (dec_ptr->get_symbols(),
 													_sub_blocks, _alignment);
-	return de_interleaving (start, end);
+	uint64_t max_bytes = block_size (sbn);
+	if (sbn == (blocks() - 1)) {
+		// size of the data (_size) is different from the sum of the size of
+		// all blocks. get the real size, so we do not write more.
+		// we obviously need to consider this only for the last block.
+		uint64_t all_blocks = 0;
+		for (uint8_t id = 0; id < blocks(); ++id)
+			all_blocks += block_size (sbn);
+		const uint64_t diff = all_blocks - _size;
+		max_bytes -= diff;
+	}
+	return de_interleaving (start, end, max_bytes, skip);
+}
+
+template <typename In_It, typename Fwd_It>
+std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode_aligned (
+														Fwd_It &start,
+														const Fwd_It end,
+														const uint8_t skip)
+{
+	const uint64_t bytes = decode_bytes (start, end, skip);
+	const uint64_t skip_and_bytes = skip + bytes;
+	const uint64_t iterators = skip_and_bytes /
+					sizeof(typename std::iterator_traits<Fwd_It>::value_type);
+	const uint8_t new_skip = skip_and_bytes %
+					sizeof(typename std::iterator_traits<Fwd_It>::value_type);
+	return {iterators, new_skip};
+}
+
+template <typename In_It, typename Fwd_It>
+std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode_block_aligned (
+														Fwd_It &start,
+														const Fwd_It end,
+														const uint8_t skip,
+														const uint8_t sbn)
+{
+	const uint64_t bytes = decode_block_bytes (start, end, skip, sbn);
+	const uint64_t skip_and_bytes = skip + bytes;
+	const uint64_t iterators = skip_and_bytes /
+					sizeof(typename std::iterator_traits<Fwd_It>::value_type);
+	const uint8_t new_skip = skip_and_bytes %
+					sizeof(typename std::iterator_traits<Fwd_It>::value_type);
+	return {iterators, new_skip};
 }
 
 template <typename In_It, typename Fwd_It>

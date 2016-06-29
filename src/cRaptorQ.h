@@ -127,15 +127,26 @@ extern "C"
 		uint8_t skip;
 	};
 
-	struct RaptorQ_Dec_Result RAPTORQ_API RaptorQ_decode (
+	struct RaptorQ_Dec_Result RAPTORQ_API RaptorQ_decode_aligned (
 														struct RaptorQ_ptr *dec,
 														void **data,
 														const size_t size,
 														const uint8_t skip);
-	uint64_t RAPTORQ_API RaptorQ_decode_block(struct RaptorQ_ptr *dec,
-															void **data,
-															const size_t size,
-															const uint8_t sbn);
+	struct RaptorQ_Dec_Result RAPTORQ_API RaptorQ_decode_block_aligned (
+														struct RaptorQ_ptr *dec,
+														void **data,
+														const size_t size,
+														const uint8_t skip,
+														const uint8_t sbn);
+	uint64_t RAPTORQ_API RaptorQ_decode_bytes (struct RaptorQ_ptr *dec,
+														void **data,
+														const size_t size,
+														const uint8_t skip);
+	uint64_t RAPTORQ_API RaptorQ_decode_block_bytes (struct RaptorQ_ptr *dec,
+														void **data,
+														const size_t size,
+														const uint8_t skip,
+														const uint8_t sbn);
 
 	RaptorQ_Error RAPTORQ_API RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec,
 														void **data,

@@ -260,7 +260,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	// whole decoded data.
 	// note: the length of the decoded data is in bytes and might not fit
 	// a whole uint32_t.
-	uint64_t decoded_size =(uint64_t) (ceil (RaptorQ_bytes (dec)
+	uint64_t decoded_size =(uint64_t) (ceil ((double)RaptorQ_bytes (dec)
 														/ sizeof(uint32_t)));
 	uint32_t *received = (uint32_t *) malloc (decoded_size * sizeof(uint32_t));
 
@@ -275,15 +275,13 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		return false;
 	}
 
-	struct RaptorQ_Dec_Result res = RaptorQ_decode (dec, (void **)&rec,
-															decoded_size, 0);
+	uint64_t written = RaptorQ_decode_bytes (dec, (void **)&rec, decoded_size, 0);
 	// we are assuming no errors, all blocks decoded.
-	uint64_t written = res.written;
 	// "rec" now points to "received + written"
 	// This might help you to call RaptorQ_decode_sbn multiple time
 	// on the same pointer.
 
-	if ((written != decoded_size) || (decoded_size != mysize)) {
+	if ((written != mysize * sizeof(uint32_t)) || (decoded_size != mysize)) {
 		fprintf(stderr, "Couldn't decode: %i - %lu: %lu\n", mysize,
 														decoded_size, written);
 		free (myvec);

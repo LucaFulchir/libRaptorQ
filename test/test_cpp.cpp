@@ -216,17 +216,17 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	// you can actually call ".decode(...)" as many times
 	// as you want. It will only start decoding once
 	// it has enough data.
-	auto decoded = dec.decode(re_it, received.end(), 0);
+	auto decoded = dec.decode_bytes (re_it, received.end(), 0);
 
-	if (decoded.first * sizeof(out_dec_align) != mysize) {
-		if (decoded.first == 0) {
+	assert (mysize == dec.bytes());
+	if (decoded != mysize) {
+		if (decoded == 0) {
 			std::cout << "Couldn't decode, RaptorQ Algorithm failure. "
 															"Can't Retry.\n";
 			return true;
 		} else {
 			std::cout << "Partial Decoding? This should not have happened: " <<
-							decoded.first * sizeof(out_dec_align) << " vs " <<
-																mysize << "\n";
+										decoded  << " vs " << mysize << "\n";
 		}
 		return false;
 	} else {
