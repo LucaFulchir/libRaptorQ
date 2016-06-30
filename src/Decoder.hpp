@@ -355,8 +355,8 @@ typename Decoder<In_It>::Decoder_Result Decoder<In_It>::decode (
 	if (type == Save_Computation::ON) {
 		L_rows = precode_on->_params.L;
 		S_H = precode_on->_params.S + precode_on->_params.H;
-		// repair.rend() is the highest repair symbol
-		const auto it = received_repair.rend();
+		// repair.rbegin() is the highest repair symbol
+		const auto it = received_repair.rbegin();
 		if (it->first >= std::pow (2, 16)) {
 			DO_NOT_SAVE = true;
 		} else {
