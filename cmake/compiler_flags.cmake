@@ -41,7 +41,7 @@ endif()
 ###################
 
 #gnu options
-set(RQ_GNU_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv -fvisibility=hidden -fvisibility-inlines-hidden )
+set(RQ_GNU_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv -fvisibility=hidden )
 set(RQ_GNU_CXX_OPTIONS ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -pedantic -Wno-padded -Wno-unknown-pragmas -fstack-protector-all -fstrict-aliasing -fwrapv -fvisibility=hidden -fvisibility-inlines-hidden )
 
 # GCC internal compiler errors with:

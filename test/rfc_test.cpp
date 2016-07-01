@@ -18,6 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../src/RaptorQ/RFC.hpp"
 #include <array>
 #include <cmath>
 #include <chrono>
@@ -27,7 +28,6 @@
 #include <iostream>
 #include <memory>
 #include <random>
-#include "../src/RaptorQ.hpp"
 #include <stdlib.h>
 #include <string>
 #include <thread>
@@ -367,12 +367,12 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	const uint16_t subsymbol = 8;
 	const uint16_t symbol_size = 8;
 	auto enc_it = myvec.begin();
-	RaptorQ::Encoder<std::vector<uint32_t>::iterator,
+	RFC6330::Encoder<std::vector<uint32_t>::iterator,
 									std::vector<uint32_t>::iterator> enc (
 					enc_it, myvec.end(), subsymbol, symbol_size, 1073741824);
 
 	t.start();
-	enc.compute (RaptorQ::Compute::COMPLETE | RaptorQ::Compute::NO_BACKGROUND);
+	enc.compute (RFC6330::Compute::COMPLETE | RFC6330::Compute::NO_BACKGROUND);
 	uint64_t micro1 = t.stop();
 
 	if (micro1 == 0)
@@ -425,11 +425,11 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	auto oti_scheme = enc.OTI_Scheme_Specific();
 	auto oti_common = enc.OTI_Common();
 
-	RaptorQ::Decoder<std::vector<uint32_t>::iterator, std::vector<uint32_t>::
+	RFC6330::Decoder<std::vector<uint32_t>::iterator, std::vector<uint32_t>::
 										iterator> dec (oti_common, oti_scheme);
 
-	dec.compute (RaptorQ::Compute::COMPLETE | RaptorQ::Compute::NO_BACKGROUND |
-													RaptorQ::Compute::NO_POOL);
+	dec.compute (RFC6330::Compute::COMPLETE | RFC6330::Compute::NO_BACKGROUND |
+													RFC6330::Compute::NO_POOL);
 
 	std::vector<uint32_t> received;
 	received.reserve (mysize);
@@ -440,7 +440,7 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 		auto it = encoded[i].second.begin();
 		auto ret = dec.add_symbol (it, encoded[i].second.end(),
 															encoded[i].first);
-		if (ret != RaptorQ::Error::NONE && ret != RaptorQ::Error::NOT_NEEDED) {
+		if (ret != RFC6330::Error::NONE && ret != RFC6330::Error::NOT_NEEDED) {
 			std::cout << "Error in adding symbol to decoder!\n";
 			abort();
 		}
@@ -521,7 +521,7 @@ int main (int argc, char **argv)
 
 	uint16_t K_index = 0;
 
-	RaptorQ::set_thread_pool (threads, 1, RaptorQ::Work_State::KEEP_WORKING);
+	RFC6330::set_thread_pool (threads, 1, RaptorQ::Work_State::KEEP_WORKING);
 	std::vector<std::thread> t;
 	t.reserve (threads + 1);
 	if (!conformity) {

@@ -18,7 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../src/cRaptorQ.h"
+#include "../src/RaptorQ/RFC.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>

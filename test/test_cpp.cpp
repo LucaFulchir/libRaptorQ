@@ -18,10 +18,10 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../src/RaptorQ/RFC.hpp"
 #include <fstream>
 #include <iostream>
 #include <random>
-#include "../src/RaptorQ.hpp"
 #include <stdlib.h>
 #include <vector>
 
@@ -98,7 +98,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	auto enc_it = myvec.begin();
 
 	std::uniform_int_distribution<uint32_t> mem_distr (100, 200000);
-	RaptorQ::Encoder<typename std::vector<in_enc_align>::iterator,
+	RFC6330::Encoder<typename std::vector<in_enc_align>::iterator,
 							typename std::vector<out_enc_align>::iterator> enc (
 				enc_it, myvec.end(), subsymbol, symbol_size, mem_distr(rnd));
 	std::cout << "Size: " << mysize << " Blocks: " <<
@@ -108,7 +108,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 		return false;
 	}
 
-	enc.compute (RaptorQ::Compute::COMPLETE | RaptorQ::Compute::NO_BACKGROUND);
+	enc.compute (RFC6330::Compute::COMPLETE | RFC6330::Compute::NO_BACKGROUND);
 
 	if (drop_prob > static_cast<float> (90.0))
 		drop_prob = 90.0;	// this is still too high probably.
@@ -188,11 +188,11 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	// encoding done. now "encoded" is the vector with the trnasmitted data.
 	// let's decode it
 
-	RaptorQ::Decoder<typename std::vector<in_dec_align>::iterator,
+	RFC6330::Decoder<typename std::vector<in_dec_align>::iterator,
 							typename std::vector<out_dec_align>::iterator>
 												dec (oti_common, oti_scheme);
 
-	auto async_dec = dec.compute (RaptorQ::Compute::COMPLETE);
+	auto async_dec = dec.compute (RFC6330::Compute::COMPLETE);
 
 	std::vector<out_dec_align> received;
 	size_t out_size = static_cast<size_t> (
@@ -207,7 +207,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 		auto it = encoded[i].second.begin();
 		auto err = dec.add_symbol (it, encoded[i].second.end(),
 															encoded[i].first);
-		if (err != RaptorQ::Error::NONE && err != RaptorQ::Error::NOT_NEEDED) {
+		if (err != RFC6330::Error::NONE && err != RFC6330::Error::NOT_NEEDED) {
 			std::cout << "error adding?\n";
 			abort();
 		}

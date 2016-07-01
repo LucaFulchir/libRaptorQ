@@ -119,6 +119,8 @@ find_package(RQ_LZ4 REQUIRED)
 include_directories(SYSTEM ${RQ_LZ4_INCLUDE_DIR})
 #lz4 build if necessary
 include(${CMAKE_CURRENT_SOURCE_DIR}/external/build_deps.cmake)
+# our include tree
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # LATEX documentation
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/doc)
@@ -141,37 +143,41 @@ else()
 endif()
 
 
-SET(SOURCES src/Operation.cpp
-		src/Thread_Pool.cpp
-		src/Bitmask.cpp
-		src/Rand.cpp
-		src/Parameters.cpp
-		src/Graph.cpp
-		src/Shared_Computation/Decaying_LF.cpp
-		src/Precode_Matrix_Instantiation.cpp
-		src/RaptorQ.cpp
-		src/cRaptorQ.cpp)
+SET(SOURCES src/RaptorQ/v1/Operation.cpp
+    		src/RaptorQ/v1/Thread_Pool.cpp
+    		src/RaptorQ/v1/Bitmask.cpp
+    		src/RaptorQ/v1/Rand.cpp
+    		src/RaptorQ/v1/Parameters.cpp
+    		src/RaptorQ/v1/Graph.cpp
+    		src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp
+    		src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp
+    		src/RaptorQ/v1/RFC.cpp
+    		src/RaptorQ/v1/RFC_API_C.cpp)
 
-SET(HEADERS	src/Interleaver.hpp
-		src/Thread_Pool.hpp
-		src/multiplication.hpp
-		src/table2.hpp
-		src/degree.hpp
-		src/common.hpp
-		src/Encoder.hpp
-		src/Decoder.hpp
-		src/Rand.hpp
-		src/Operation.hpp
-		src/Precode_Matrix.hpp
-		src/Precode_Matrix_Init.hpp
-		src/Precode_Matrix_Solver.hpp
-		src/Parameters.hpp
-		src/Graph.hpp
-		src/De_Interleaver.hpp
-		src/RaptorQ.hpp
-		src/Shared_Computation/Decaying_LF.hpp
-		src/Shared_Computation/LZ4_Wrapper.hpp
-		src/cRaptorQ.h)
+SET(HEADERS	src/RaptorQ/RFC.hpp
+			src/RaptorQ/RFC.h
+            src/RaptorQ/v1/Interleaver.hpp
+    		src/RaptorQ/v1/Thread_Pool.hpp
+    		src/RaptorQ/v1/multiplication.hpp
+    		src/RaptorQ/v1/table2.hpp
+    		src/RaptorQ/v1/degree.hpp
+    		src/RaptorQ/v1/common.hpp
+    		src/RaptorQ/v1/Encoder.hpp
+    		src/RaptorQ/v1/Decoder.hpp
+    		src/RaptorQ/v1/Rand.hpp
+    		src/RaptorQ/v1/Operation.hpp
+    		src/RaptorQ/v1/Precode_Matrix.hpp
+    		src/RaptorQ/v1/Precode_Matrix_Init.hpp
+    		src/RaptorQ/v1/Precode_Matrix_Solver.hpp
+    		src/RaptorQ/v1/Parameters.hpp
+    		src/RaptorQ/v1/Graph.hpp
+    		src/RaptorQ/v1/De_Interleaver.hpp
+    		src/RaptorQ/v1/RFC.hpp
+			src/RaptorQ/v1/RFC_API_Iterators.hpp
+    		src/RaptorQ/v1/RFC_API.hpp
+    		src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
+    		src/RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp
+    		src/RaptorQ/v1/RFC_API.h)
 
 
 include(cmake/compiler_flags.cmake)
