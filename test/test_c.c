@@ -260,8 +260,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	// whole decoded data.
 	// note: the length of the decoded data is in bytes and might not fit
 	// a whole uint32_t.
-	uint64_t decoded_size =(uint64_t) (ceil ((double)RaptorQ_bytes (dec)
-														/ sizeof(uint32_t)));
+	uint64_t decoded_size =(uint64_t) (RaptorQ_bytes (dec)
+														/ sizeof(uint32_t));
+	// this is not necessary in this example, but remember that integer
+	// division acts as a floor()
+	decoded_size += RaptorQ_bytes (dec) % sizeof(uint32_t);
 	uint32_t *received = (uint32_t *) malloc (decoded_size * sizeof(uint32_t));
 
 	uint32_t *rec = received;
