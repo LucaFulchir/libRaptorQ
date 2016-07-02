@@ -22,11 +22,5 @@
 
 // load all versions
 // only one at the moment
-#include "RaptorQ/v1/common.hpp"
-#include "RaptorQ/v1/RFC_API.hpp"
-#include "RaptorQ/v1/Thread_Pool.hpp"
-
-// default version: newest one
-namespace RFC6330 = RFC6330__v1;
-namespace RaptorQ = RaptorQ__v1;
+#include "RaptorQ/v1/API_Wrapper.h"
 

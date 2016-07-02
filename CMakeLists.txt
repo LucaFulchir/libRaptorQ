@@ -152,10 +152,10 @@ SET(SOURCES src/RaptorQ/v1/Operation.cpp
     		src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp
     		src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp
     		src/RaptorQ/v1/RFC.cpp
-    		src/RaptorQ/v1/RFC_API_C.cpp)
+    		src/RaptorQ/v1/API_Wrapper_C.cpp)
 
-SET(HEADERS	src/RaptorQ/RFC.hpp
-			src/RaptorQ/RFC.h
+SET(HEADERS	src/RaptorQ/RFC6330.hpp
+			src/RaptorQ/RFC6330.h
             src/RaptorQ/v1/Interleaver.hpp
     		src/RaptorQ/v1/Thread_Pool.hpp
     		src/RaptorQ/v1/multiplication.hpp
@@ -173,11 +173,11 @@ SET(HEADERS	src/RaptorQ/RFC.hpp
     		src/RaptorQ/v1/Graph.hpp
     		src/RaptorQ/v1/De_Interleaver.hpp
     		src/RaptorQ/v1/RFC.hpp
-			src/RaptorQ/v1/RFC_API_Iterators.hpp
-    		src/RaptorQ/v1/RFC_API.hpp
+			src/RaptorQ/v1/API_Iterators.hpp
     		src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
     		src/RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp
-    		src/RaptorQ/v1/RFC_API.h)
+			src/RaptorQ/v1/API_Wrapper.hpp
+    		src/RaptorQ/v1/API_Wrapper.h)
 
 
 include(cmake/compiler_flags.cmake)

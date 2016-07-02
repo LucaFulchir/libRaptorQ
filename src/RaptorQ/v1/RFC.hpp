@@ -33,7 +33,7 @@
 #include "RaptorQ/v1/De_Interleaver.hpp"
 #include "RaptorQ/v1/Decoder.hpp"
 #include "RaptorQ/v1/Encoder.hpp"
-#include "RaptorQ/v1/RFC_API_Iterators.hpp"
+#include "RaptorQ/v1/API_Iterators.hpp"
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
 #include "RaptorQ/v1/Thread_Pool.hpp"
 #include <algorithm>

@@ -19,8 +19,8 @@
  */
 
 #include "RaptorQ/v1/RFC.hpp"
-#include "RaptorQ/v1/RFC_API.h"
-#include "RaptorQ/v1/RFC_API.hpp"
+#include "RaptorQ/v1/API_Wrapper.h"
+#include "RaptorQ/v1/API_Wrapper.hpp"
 #include <chrono>
 #include <future>
 #include <memory>

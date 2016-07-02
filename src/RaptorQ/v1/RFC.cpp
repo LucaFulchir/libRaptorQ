@@ -18,7 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "RaptorQ/v1/RFC_API.hpp"
+#include "RaptorQ/v1/API_Wrapper.hpp"
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
 
 namespace RFC6330__v1 {

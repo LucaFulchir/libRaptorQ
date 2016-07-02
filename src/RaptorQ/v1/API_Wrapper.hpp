@@ -21,7 +21,7 @@
 #pragma once
 
 #include "RaptorQ/v1/common.hpp"
-#include "RaptorQ/v1/RFC_API_Iterators.hpp"
+#include "RaptorQ/v1/API_Iterators.hpp"
 #include "RaptorQ/v1/RFC.hpp"
 #include <cmath>
 #include <future>
