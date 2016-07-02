@@ -148,14 +148,14 @@ inline Compute operator& (const Compute a, const Compute b)
 #endif
 
 
+#define RQ_UNUSED(x)	((void)x)
+
+
 // Now just some macros to check the iterator type
 #ifdef __cplusplus
 
 #include <cassert>
 #include <iterator>
-
-// FIXME: RAPTORQ_UNUSED
-#define UNUSED(x)	((void)x)
 
 #define IS_RANDOM(IT, CLASS) \
 		static_assert ( \

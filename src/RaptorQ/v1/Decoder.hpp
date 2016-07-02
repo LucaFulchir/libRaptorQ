@@ -204,7 +204,7 @@ Error Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 		return Error::WRONG_INPUT;
 
 	std::lock_guard<std::mutex> guard (lock);
-	UNUSED(guard);
+	RQ_UNUSED(guard);
 
 	if (mask.get_holes() == 0 || mask.exists (esi))
 		return Error::NOT_NEEDED;	// not even needed.
@@ -496,7 +496,7 @@ typename Decoder<In_It>::Decoder_Result Decoder<In_It>::decode (
 	}
 
 	std::lock_guard<std::mutex> dec_lock (lock);
-	UNUSED(dec_lock);
+	RQ_UNUSED(dec_lock);
 
 	if (precode_res == Precode_Result::FAILED) {
 		if (combination_drop_sym > total_overhead)

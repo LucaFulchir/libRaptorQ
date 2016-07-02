@@ -87,7 +87,7 @@ public:
 		IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
 		auto _alignment = sizeof(typename
 									std::iterator_traits<Rnd_It>::value_type);
-		UNUSED(_alignment);	// used only for asserts
+		RQ_UNUSED(_alignment);	// used only for asserts
 		assert(_symbol_size >= _alignment &&
 						"RaptorQ: symbol_size must be >= alignment");
 		assert((_symbol_size % _alignment) == 0 &&
@@ -426,7 +426,7 @@ Work_Exit_Status Encoder<Rnd_It, Fwd_It>::Block_Work::do_work (
 		if (!locked_enc->generate_symbols (state))
 			return Work_Exit_Status::STOPPED;	// only explanation.
 		std::lock_guard<std::mutex> mtx (locked_notify->first);
-		UNUSED(mtx);
+		RQ_UNUSED(mtx);
 		locked_notify->second.notify_one();
 	}
 	return Work_Exit_Status::DONE;
@@ -464,7 +464,7 @@ std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
 
 	if (Compute::NONE != (flags & Compute::NO_POOL)) {
 		std::unique_lock<std::mutex> lock (_mtx);
-		UNUSED(lock);
+		RQ_UNUSED(lock);
 		if (encoders.size() != 0) {
 			// You can only say you won't use the pool *before* you start
 			// decoding something!
@@ -508,7 +508,7 @@ std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
 		wait_threads (this, flags, std::move(p));
 	} else {
 		std::unique_lock<std::mutex> pool_wait_lock (_mtx);
-		UNUSED(pool_wait_lock);
+		RQ_UNUSED(pool_wait_lock);
 		pool_wait.emplace_back(wait_threads, this, flags, std::move(p));
 	}
 	return future;
@@ -551,7 +551,7 @@ void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
 
 	// delete ourselves from the waiting thread vector.
 	std::unique_lock<std::mutex> lock (obj->_mtx);
-	UNUSED (lock);
+	RQ_UNUSED (lock);
 	for (auto it = obj->pool_wait.begin(); it != obj->pool_wait.end(); ++it) {
 		if (it->get_id() == std::this_thread::get_id()) {
 			it->detach();
@@ -651,7 +651,7 @@ template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::free (const uint8_t sbn)
 {
 	std::unique_lock<std::mutex> lock (_mtx);
-	UNUSED(lock);
+	RQ_UNUSED(lock);
 	auto it = encoders.find (sbn);
 	if (it != encoders.end())
 		encoders.erase (it);
@@ -825,7 +825,7 @@ std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
 
 	if (Compute::NONE != (flags & Compute::NO_POOL)) {
 		std::unique_lock<std::mutex> lock (_mtx);
-		UNUSED(lock);
+		RQ_UNUSED(lock);
 		if (decoders.size() != 0) {
 			// You can only say you won't use the pool *before* you start
 			// decoding something!
@@ -852,7 +852,7 @@ std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
 		wait_threads (this, flags, std::move(p));
 	} else {
 		std::unique_lock<std::mutex> pool_wait_lock (_mtx);
-		UNUSED(pool_wait_lock);
+		RQ_UNUSED(pool_wait_lock);
 		pool_wait.emplace_back(wait_threads, this, flags, std::move(p));
 	}
 	return future;
@@ -895,7 +895,7 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 
 	// delete ourselves from the waiting thread vector.
 	std::unique_lock<std::mutex> lock (obj->_mtx);
-	UNUSED (lock);
+	RQ_UNUSED (lock);
 	for (auto it = obj->pool_wait.begin(); it != obj->pool_wait.end(); ++it) {
 		if (it->get_id() == std::this_thread::get_id()) {
 			it->detach();

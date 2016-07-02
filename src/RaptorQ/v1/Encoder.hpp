@@ -68,8 +68,6 @@ public:
 	void stop();
 	bool ready() const;
 
-	// FIXME: unused? we might move "precode_XX" initialization into generate_
-	uint16_t padded() const;
 private:
 	const uint8_t _SBN;
 	const Save_Computation type;
@@ -123,14 +121,6 @@ template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::stop()
 {
 	keep_working = false;
-}
-
-template <typename Rnd_It, typename Fwd_It>
-uint16_t Encoder<Rnd_It, Fwd_It>::padded() const
-{
-	if (type == Save_Computation::ON)
-		return precode_on->_params.K_padded;
-	return precode_off->_params.K_padded;
 }
 
 template <typename Rnd_It, typename Fwd_It>
