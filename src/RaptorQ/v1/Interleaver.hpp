@@ -209,7 +209,7 @@ public:
 		}
 		auto data = _data_from + static_cast<int64_t> (i);
 		if (data >= _data_to) {
-			// Padding. remember to cast it to the same time as the iterator
+			// Padding. remember to cast it to the same tipe as the iterator
 			// value
 			return static_cast<
 						typename std::iterator_traits<Rnd_It>::value_type> (0);

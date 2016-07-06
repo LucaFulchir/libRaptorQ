@@ -34,8 +34,6 @@
 /////////////////////
 
 namespace RFC6330__v1 {
-
-
 namespace Impl {
 
 template <typename Rnd_It, typename Fwd_It>

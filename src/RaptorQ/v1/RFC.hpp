@@ -151,7 +151,7 @@ private:
 
 	class Block_Work : public Impl::Pool_Work {
 	public:
-		std::weak_ptr<RaptorQ__v1::Impl::Encoder<Rnd_It, Fwd_It>> work;
+		std::weak_ptr<RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It>> work;
 		std::weak_ptr<std::pair<std::mutex, std::condition_variable>> notify;
 
 		Work_Exit_Status do_work (RaptorQ__v1::Work_State *state) override;
@@ -161,13 +161,14 @@ private:
 	// TODO: tagged pointer
 	class Enc {
 	public:
-		Enc (const Impl::Interleaver<Rnd_It> &interleaver, const uint8_t sbn)
+		Enc (const Impl::Interleaver<Rnd_It> *interleaver, const uint8_t sbn)
 		{
-			enc = std::make_shared<RaptorQ__v1::Impl::Encoder<Rnd_It, Fwd_It>> (
+			enc = std::make_shared<
+							RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It>> (
 															interleaver, sbn);
 			reported = false;
 		}
-		std::shared_ptr<RaptorQ__v1::Impl::Encoder<Rnd_It, Fwd_It>> enc;
+		std::shared_ptr<RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It>> enc;
 		bool reported;
 	};
 
@@ -490,7 +491,7 @@ std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
 			std::tie (enc, success) = encoders.emplace (
 									std::piecewise_construct,
 									std::forward_as_tuple (block),
-									std::forward_as_tuple (interleave, block));
+									std::forward_as_tuple (&interleave, block));
 			assert (success == true);
 			std::unique_ptr<Block_Work> work = std::unique_ptr<Block_Work>(
 															new Block_Work());
@@ -629,7 +630,7 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 		if (it == encoders.end()) {
 			bool success;
 			std::tie (it, success) = encoders.emplace (std::make_pair (sbn,
-														Enc (interleave, sbn)));
+													Enc (&interleave, sbn)));
 			auto shared_enc = it->second.enc;
 			lock.unlock();
 			RaptorQ__v1::Work_State state =
