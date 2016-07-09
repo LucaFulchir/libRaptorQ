@@ -83,8 +83,8 @@ public:
 														_mem,
 														_symbol_size)
 	{
-		IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
-		IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
+		IS_RANDOM(Rnd_It, "RFC6330__v1::Encoder");
+		IS_FORWARD(Fwd_It, "RFC6330__v1::Encoder");
 		auto _alignment = sizeof(typename
 									std::iterator_traits<Rnd_It>::value_type);
 		RQ_UNUSED(_alignment);	// used only for asserts
@@ -296,7 +296,7 @@ private:
 	// worrying about deleting used stuff.
 	class Block_Work : public Impl::Pool_Work {
 	public:
-		std::weak_ptr<RaptorQ__v1::Impl::Decoder<In_It>> work;
+		std::weak_ptr<RaptorQ__v1::Impl::Raw_Decoder<In_It>> work;
 		std::weak_ptr<std::pair<std::mutex, std::condition_variable>> notify;
 
 		Work_Exit_Status do_work (RaptorQ__v1::Work_State *state) override;
@@ -307,11 +307,11 @@ private:
 	public:
 		Dec (const uint16_t symbols, const uint16_t symbol_size)
 		{
-			dec = std::make_shared<RaptorQ__v1::Impl::Decoder<In_It>> (symbols,
+			dec = std::make_shared<RaptorQ__v1::Impl::Raw_Decoder<In_It>> (symbols,
 																symbol_size);
 			reported = false;
 		}
-		std::shared_ptr<RaptorQ__v1::Impl::Decoder<In_It>> dec;
+		std::shared_ptr<RaptorQ__v1::Impl::Raw_Decoder<In_It>> dec;
 		bool reported;
 	};
 
@@ -775,19 +775,19 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
 		std::unique_lock<std::mutex> locked_guard (locked_notify->first,
 															std::defer_lock);
 		switch (ret) {
-		case RaptorQ__v1::Impl::Decoder<In_It>::Decoder_Result::DECODED:
+		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::DECODED:
 			locked_guard.lock(); // lock only here
 			locked_notify->second.notify_one();
 			#pragma GCC diagnostic push
 			#pragma GCC diagnostic ignored "-Wattributes"
 			[[clang::fallthrough]];
 			#pragma GCC diagnostic pop
-		case RaptorQ__v1::Impl::Decoder<In_It>::Decoder_Result::NEED_DATA:
+		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::NEED_DATA:
 			locked_dec->drop_concurrent();
 			return Work_Exit_Status::DONE;
-		case RaptorQ__v1::Impl::Decoder<In_It>::Decoder_Result::STOPPED:
+		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::STOPPED:
 			return Work_Exit_Status::STOPPED;
-		case RaptorQ__v1::Impl::Decoder<In_It>::Decoder_Result::CAN_RETRY:
+		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::CAN_RETRY:
 			return Work_Exit_Status::REQUEUE;
 		}
 	}
@@ -977,7 +977,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
 				RaptorQ__v1::Work_State state =
 										RaptorQ__v1::Work_State::KEEP_WORKING;
 				auto ret = dec_ptr->decode (&state);
-				if (RaptorQ__v1::Impl::Decoder<In_It>::
+				if (RaptorQ__v1::Impl::Raw_Decoder<In_It>::
 											Decoder_Result::DECODED != ret) {
 					return written;
 				}
@@ -1037,7 +1037,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
 	if (sbn >= _blocks)
 		return 0;
 
-	std::shared_ptr<RaptorQ__v1::Impl::Decoder<In_It>> dec_ptr = nullptr;
+	std::shared_ptr<RaptorQ__v1::Impl::Raw_Decoder<In_It>> dec_ptr = nullptr;
 	std::unique_lock<std::mutex> lock (_mtx);
 	auto it = decoders.find (sbn);
 

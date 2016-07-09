@@ -43,7 +43,7 @@ extern template class Precode_Matrix<Save_Computation::OFF>;
 extern template class Precode_Matrix<Save_Computation::ON>;
 
 template <typename In_It>
-class RAPTORQ_API Decoder
+class RAPTORQ_API Raw_Decoder
 {
 	// decode () can be launched multiple times,
 	// But each time the list of source and repair symbols might
@@ -54,7 +54,7 @@ class RAPTORQ_API Decoder
 	using Vect = Eigen::Matrix<Impl::Octet, 1, Eigen::Dynamic, Eigen::RowMajor>;
 	using T_in = typename std::iterator_traits<In_It>::value_type;
 public:
-	Decoder (const uint16_t symbols, const uint16_t symbol_size)
+	Raw_Decoder (const uint16_t symbols, const uint16_t symbol_size)
 		:_symbols (symbols), combination (0), combination_drop_sym (0),
 			keep_working (true), type (test_computation()), mask (_symbols)
 	{
@@ -64,7 +64,7 @@ public:
 		source_symbols = DenseMtx (_symbols, symbol_size);
 		concurrent = 0;
 	}
-	~Decoder();
+	~Raw_Decoder();
 
 	enum class RAPTORQ_API Decoder_Result : uint8_t {
 		DECODED = 0,
@@ -80,7 +80,7 @@ public:
 	bool can_decode() const;
 	void stop();
 	bool ready() const;
-	// should we add work? we have a maximum amount of
+	// should we add work? we have a maximum amount of concurent decoders
 	bool add_concurrent (const uint16_t max_concurrent);
 	void drop_concurrent();
 
@@ -137,25 +137,25 @@ private:
 ///////////////////////////////////
 
 template <typename In_It>
-Decoder<In_It>::~Decoder()
+Raw_Decoder<In_It>::~Raw_Decoder()
 {
 	stop();
 }
 
 template <typename In_It>
-void Decoder<In_It>::stop()
+void Raw_Decoder<In_It>::stop()
 {
 	keep_working = false;
 }
 
 template <typename In_It>
-bool Decoder<In_It>::ready() const
+bool Raw_Decoder<In_It>::ready() const
 {
 	return mask.get_holes() == 0;
 }
 
 template <typename In_It>
-bool Decoder<In_It>::can_decode() const
+bool Raw_Decoder<In_It>::can_decode() const
 {
 	const int32_t total_overhead =
 								static_cast<int32_t> (received_repair.size()) -
@@ -166,7 +166,7 @@ bool Decoder<In_It>::can_decode() const
 }
 
 template <typename In_It>
-bool Decoder<In_It>::add_concurrent (const uint16_t max_concurrent)
+bool Raw_Decoder<In_It>::add_concurrent (const uint16_t max_concurrent)
 {
 	std::unique_lock<std::mutex> guard (lock);
 	if (max_concurrent > concurrent) {
@@ -177,7 +177,7 @@ bool Decoder<In_It>::add_concurrent (const uint16_t max_concurrent)
 }
 
 template <typename In_It>
-void Decoder<In_It>::drop_concurrent()
+void Raw_Decoder<In_It>::drop_concurrent()
 {
 	std::unique_lock<std::mutex> guard (lock);
 	// "if" should not be necessary. But I forgot to add --make-bug-free flag.
@@ -186,7 +186,7 @@ void Decoder<In_It>::drop_concurrent()
 }
 
 template <typename In_It>
-Error Decoder<In_It>::add_symbol (In_It &start, const In_It end,
+Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 															const uint32_t esi)
 {
 	// true if added succesfully
@@ -265,7 +265,7 @@ Error Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 }
 
 template <typename In_It>
-typename Decoder<In_It>::Decoder_Result Decoder<In_It>::decode (
+typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 												Work_State *thread_keep_working)
 {
 	// this method can be launched concurrently multiple times.
@@ -528,7 +528,7 @@ typename Decoder<In_It>::Decoder_Result Decoder<In_It>::decode (
 }
 
 template <typename In_It>
-DenseMtx* Decoder<In_It>::get_symbols()
+DenseMtx* Raw_Decoder<In_It>::get_symbols()
 {
 	return &source_symbols;
 }
