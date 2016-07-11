@@ -157,6 +157,7 @@ SET(SOURCES src/RaptorQ/v1/Operation.cpp
 SET(HEADERS	src/RaptorQ/RFC6330.hpp
 			src/RaptorQ/RFC6330.h
 			src/RaptorQ/v1/RaptorQ.hpp
+			src/RaptorQ/v1/RaptorQ_Iterators.hpp
             src/RaptorQ/v1/Interleaver.hpp
     		src/RaptorQ/v1/Thread_Pool.hpp
     		src/RaptorQ/v1/multiplication.hpp

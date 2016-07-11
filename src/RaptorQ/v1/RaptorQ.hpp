@@ -21,7 +21,7 @@
 #pragma once
 
 #include "RaptorQ/v1/common.hpp"
-#include "RaptorQ/v1/API_Iterators.hpp"
+#include "RaptorQ/v1/RaptorQ_Iterators.hpp"
 #include "RaptorQ/v1/Encoder.hpp"
 #include "RaptorQ/v1/Decoder.hpp"
 #include <future>
@@ -30,9 +30,6 @@
 namespace RaptorQ__v1 {
 namespace Impl {
 
-// nope. Decoder needs new iterator!
-template <typename Rnd_It, typename Fwd_It>
-using Symbol_Iterator = RFC6330__v1::Symbol_Iterator<Rnd_It, Fwd_It>;
 
 template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_LOCAL Encoder
@@ -44,8 +41,10 @@ public:
     // with data at the beginning. Less work.
     Encoder (const Rnd_It data_from, const Rnd_It data_to,
                                             const uint16_t symbol_size);
-    Symbol_Iterator<Rnd_It, Fwd_It> begin ();
-    Symbol_Iterator<Rnd_It, Fwd_It> end ();
+
+    RaptorQ__v1::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> begin ();
+    RaptorQ__v1::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end
+														(const uint32_t repair);
 
 
 	uint64_t add_data (Rnd_It from, const Rnd_It to);
@@ -65,7 +64,7 @@ private:
 	Raw_Encoder<Rnd_It, Fwd_It> encoder;
 	DenseMtx precomputed;
 	std::vector<typename std::iterator_traits<Rnd_It>::value_type> data;
-	const uint16_t _symbol_size, _symbols;
+	const uint16_t _symbols, _symbol_size;
 	const RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
     Data_State state;
 };
@@ -84,6 +83,8 @@ public:
     Decoder (const uint64_t bytes, const uint16_t symbol_size,
 															const Report type);
 
+	RaptorQ__v1::Decoder::Symbol_Iterator<In_It, Fwd_It> begin ();
+    RaptorQ__v1::Decoder::Symbol_Iterator<In_It, Fwd_It> end ();
 
 	Error add_symbol (In_It from, const In_It to, const uint32_t esi);
 	using Decoder_Result = typename Raw_Decoder<In_It>::Decoder_Result;
@@ -95,14 +96,17 @@ public:
 
 	std::future<std::pair<Error, uint16_t>> ready();
 
-	uint64_t decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi,
-															const size_t skip);
-	uint64_t decode_bytes (Fwd_It &start, const Fwd_It end,
-								const uint64_t from_byte, const size_t skip);
-	std::pair<size_t, size_t> decode_aligned (Fwd_It &start, const Fwd_It end,
+	// return number of symbols.
+	// simbol_size % sizeof(FWD) == 0 else assert!
+	// returns number of iterators written
+	uint64_t decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi);
+	std::pair<uint64_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
 									const size_t from_byte, const size_t skip);
 private:
+	static uint16_t get_symbols (const uint64_t bytes,
+													const uint16_t symbol_size);
 	Raw_Decoder<In_It> dec;
+	const uint16_t _symbols, _symbol_size;
 	const Report _type;
 	RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
 };
@@ -121,9 +125,8 @@ Encoder<Rnd_It, Fwd_It>::~Encoder()
 template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::Encoder (const uint16_t symbols,
 													const uint16_t symbol_size)
-	: interleaver (nullptr), encoder (symbols),
-										_symbol_size (symbol_size),
-										_symbols (symbols)
+	: interleaver (nullptr), encoder (symbols), _symbols (symbols),
+													_symbol_size (symbol_size)
 {
 	IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
 	IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
@@ -136,12 +139,27 @@ Encoder<Rnd_It, Fwd_It>::Encoder (const Rnd_It data_from, const Rnd_It data_to,
     : interleaver (new RFC6330__v1::Impl::Interleaver<Rnd_It> (data_from,
 													data_to, _symbol_size,
 														SIZE_MAX, symbol_size)),
-	  encoder (interleaver.get(), 0), _symbol_size (0),	// unused
-									_symbols (0)		// unused
+	  encoder (interleaver.get(), 0), _symbols (0), _symbol_size (0)
+										// these last 2 constants are unused
 {
 	IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
 	IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
     state = Data_State::NEED_DATA;
+}
+
+template <typename Rnd_It, typename Fwd_It>
+RaptorQ__v1::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
+												Encoder<Rnd_It, Fwd_It>::begin()
+{
+	return RaptorQ__v1::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (this, 0);
+}
+
+template <typename Rnd_It, typename Fwd_It>
+RaptorQ__v1::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
+							Encoder<Rnd_It, Fwd_It>::end (const uint32_t repair)
+{
+	return RaptorQ__v1::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (nullptr,
+															_symbols + repair);
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -212,16 +230,41 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 ///////////////////
 
 template <typename In_It, typename Fwd_It>
-Decoder<In_It, Fwd_It>::Decoder (const uint64_t bytes,
-													const uint16_t symbol_size,
-															const Report type)
-	:_type (type)
+uint16_t Decoder<In_It, Fwd_It>::get_symbols (const uint64_t bytes,
+													const uint16_t symbol_size)
 {
 	uint16_t symbols = static_cast<uint16_t> (bytes / symbol_size);
 	if (bytes % symbol_size != 0)
 		++symbols;
-	dec = Raw_Decoder<In_It> (symbols, symbol_size);
+	return symbols;
 }
+
+template <typename In_It, typename Fwd_It>
+Decoder<In_It, Fwd_It>::Decoder (const uint64_t bytes,
+								const uint16_t symbol_size, const Report type)
+	:_symbols (get_symbols (bytes, symbol_size)), _symbol_size (symbol_size),
+																	_type (type)
+{
+	IS_INPUT(In_It, "RaptorQ__v1::Decoder");
+	IS_FORWARD(Fwd_It, "RaptorQ__v1::Decoder");
+	dec = Raw_Decoder<In_It> (_symbols, symbol_size);
+}
+
+template <typename In_It, typename Fwd_It>
+RaptorQ__v1::Decoder::Symbol_Iterator<In_It, Fwd_It>
+												Decoder<In_It, Fwd_It>::begin()
+{
+	return RaptorQ__v1::Decoder::Symbol_Iterator<In_It, Fwd_It> (this, 0);
+}
+
+template <typename In_It, typename Fwd_It>
+RaptorQ__v1::Decoder::Symbol_Iterator<In_It, Fwd_It>
+												Decoder<In_It, Fwd_It>::end ()
+{
+	return RaptorQ__v1::Decoder::Symbol_Iterator<In_It, Fwd_It> (nullptr,
+																	_symbols);
+}
+
 
 template <typename In_It, typename Fwd_It>
 Error Decoder<In_It, Fwd_It>::add_symbol (In_It from, const In_It to,
@@ -249,11 +292,13 @@ void Decoder<In_It, Fwd_It>::stop()
 }
 
 template <typename In_It, typename Fwd_It>
-uint64_t Decoder<In_It, Fwd_It>::decode_bytes(Fwd_It &start, const Fwd_It end,
-								const uint64_t from_byte, const size_t skip)
+std::pair<uint64_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
+													const Fwd_It end,
+													const uint64_t from_byte,
+													const size_t skip)
 {
 	if (!dec.ready())
-		return 0;
+		return {0, 0};
 	auto decoded = dec->get_symbols();
 	uint16_t esi = from_byte / decoded.cols();
 	uint16_t byte = from_byte % decoded.cols();
@@ -284,31 +329,21 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes(Fwd_It &start, const Fwd_It end,
 		*start = element;
 		written += offset_al;
 	}
-	return written;
-}
-
-template <typename In_It, typename Fwd_It>
-std::pair<size_t, size_t> Decoder<In_It, Fwd_It>::decode_aligned (Fwd_It &start,
-													const Fwd_It end,
-													const uint64_t from_byte,
-													const size_t skip)
-{
-	using T = typename std::iterator_traits<Fwd_It>::value_type;
-	uint64_t written = decode_bytes (start, end, from_byte, skip);
-	size_t it_written = (written + skip) / sizeof(T);
-	size_t last_iterator = (written + skip) % sizeof(T);
-	return {it_written, last_iterator};
+	return {written, offset_al};
 }
 
 template <typename In_It, typename Fwd_It>
 uint64_t Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
-															const uint16_t esi,
-															const size_t skip)
+															const uint16_t esi)
 {
+	using T = typename std::iterator_traits<Fwd_It>::value_type;
+	assert ((_symbol_size % sizeof(T)) == 0);
 	if (!dec.ready())
 		return 0;
 	size_t esi_byte = esi * dec->cols();
-	return decode_bytes (start, end, esi_byte, skip);
+	auto pair = decode_bytes (start, end, esi_byte, 0);
+	assert (pair.second == 0 );
+	return pair.first / _symbol_size;
 }
 
 }   // namespace Impl
