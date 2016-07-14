@@ -154,8 +154,8 @@ SET(SOURCES src/RaptorQ/v1/Operation.cpp
     		src/RaptorQ/v1/RFC.cpp
     		src/RaptorQ/v1/API_Wrapper_C.cpp)
 
-SET(HEADERS	src/RaptorQ/RFC6330.hpp
-			src/RaptorQ/RFC6330.h
+SET(HEADERS	src/RaptorQ/RFC6330_v1.hpp
+			src/RaptorQ/RFC6330_v1.h
 			src/RaptorQ/v1/RaptorQ.hpp
 			src/RaptorQ/v1/RaptorQ_Iterators.hpp
             src/RaptorQ/v1/Interleaver.hpp

@@ -323,7 +323,7 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll () const
 	switch (_type) {
 	case Report::PARTIAL_FROM_BEGINNING:
 		lock.lock();
-		id = last_reported;
+		id = std::max (0, last_reported);
 		to_report = 0;
 		if (id < 0)
 			id = 0;

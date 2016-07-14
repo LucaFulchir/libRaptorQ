@@ -18,7 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../src/RaptorQ/RFC6330.hpp"
+#include "../src/RaptorQ/RFC6330_v1.hpp"
 #include <fstream>
 #include <iostream>
 #include <random>
