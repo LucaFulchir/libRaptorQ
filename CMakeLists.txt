@@ -335,9 +335,6 @@ if(DYNAMIC_LIB MATCHES "ON")
         RaptorQ PRIVATE
         ${CXX_COMPILER_FLAGS}
     )
-    if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
-        set_target_properties(RaptorQ PROPERTIES OUTPUT_NAME RaptorQ-${RQ_VERSION})
-    endif()
     if(LTO MATCHES "ON")
         target_compile_options(RaptorQ PRIVATE -flto -fuse-ld=gold)
     endif()
