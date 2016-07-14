@@ -64,6 +64,7 @@ private:
 	Raw_Encoder<Rnd_It, Fwd_It> encoder;
 	DenseMtx precomputed;
 	std::vector<typename std::iterator_traits<Rnd_It>::value_type> data;
+	std::mutex data_mtx;
 	const uint16_t _symbols, _symbol_size;
 	const RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
     Data_State state;
@@ -180,6 +181,8 @@ uint64_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It from, const Rnd_It to)
 
 	if (state != Data_State::NEED_DATA)
 		return written;
+	std::unique_lock<std::mutex> lock (data_mtx);
+	RQ_UNUSED (lock);
 	while (from != to) {
 		if ((data.size() * sizeof (T) >= _symbols * _symbol_size)) {
 			state = Data_State::FULL;
@@ -198,10 +201,11 @@ bool Encoder<Rnd_It, Fwd_It>::compute_sync()
 	if (state == Data_State::INIT) {
 		return encoder.generate_symbols (&work);
 	} else {
+		if (precomputed.rows() != 0)
+			return true;
 		precomputed = encoder.get_precomputed (&work);
 		return precomputed.rows() != 0;
 	}
-	return false;
 }
 
 template <typename Rnd_It, typename Fwd_It>
