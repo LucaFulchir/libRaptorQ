@@ -20,5 +20,8 @@
 
 #pragma once
 
-#include "RaptorQ/v1/API_Wrapper.h"
+#include "RaptorQ/v1/API_Wrapper_Raw.hpp"
+
+// default version: newest one
+namespace RaptorQ = RaptorQ__v1;
 

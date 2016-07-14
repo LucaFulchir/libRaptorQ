@@ -35,6 +35,7 @@ class RAPTORQ_LOCAL Decoder;
 
 
 
+namespace It {
 namespace Encoder {
 
 template <typename Rnd_It, typename Fwd_It>
@@ -153,7 +154,8 @@ private:
     Impl::Decoder<In_It, Fwd_It> *_dec;
     uint32_t _esi;
 };
-} // namespace Decoder
 
+} // namespace Decoder
+} // namespace It
 } // namespace RaptorQ
 

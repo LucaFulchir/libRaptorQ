@@ -156,6 +156,7 @@ SET(SOURCES src/RaptorQ/v1/Operation.cpp
 
 SET(HEADERS	src/RaptorQ/RFC6330_v1.hpp
 			src/RaptorQ/RFC6330_v1.h
+			src/RaptorQ/RaptorQ_v1.hpp
 			src/RaptorQ/v1/RaptorQ.hpp
 			src/RaptorQ/v1/RaptorQ_Iterators.hpp
             src/RaptorQ/v1/Interleaver.hpp
@@ -178,6 +179,7 @@ SET(HEADERS	src/RaptorQ/RFC6330_v1.hpp
 			src/RaptorQ/v1/API_Iterators.hpp
     		src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
     		src/RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp
+			src/RaptorQ/v1/API_Wrapper_Raw.hpp
 			src/RaptorQ/v1/API_Wrapper.hpp
     		src/RaptorQ/v1/API_Wrapper.h)
 
