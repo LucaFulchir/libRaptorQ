@@ -115,6 +115,7 @@ private:
 	std::mutex _mtx;
 	std::condition_variable _cond;
 	std::vector<std::thread> waiting;
+	int32_t last_reported;
 	const uint16_t _symbols, _symbol_size;
 	const Report _type;
 	RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
@@ -273,6 +274,7 @@ Decoder<In_It, Fwd_It>::Decoder (const uint64_t bytes,
 	IS_FORWARD(Fwd_It, "RaptorQ__v1::Decoder");
 	dec = Raw_Decoder<In_It> (_symbols, symbol_size);
 	symbols_tracker = std::vector<bool> (2 * _symbols, false);
+	last_reported = -1;
 }
 
 template <typename In_It, typename Fwd_It>
@@ -310,28 +312,43 @@ template <typename In_It, typename Fwd_It>
 std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll () const
 {
 
+
+	std::unique_lock<std::mutex> lock (_mtx, std::defer_lock);
+	int32_t id;
+	uint32_t to_report;
 	switch (_type) {
 	case Report::PARTIAL_FROM_BEGINNING:
-		for (uint32_t id = 0; id < symbols_tracker.size(); id += 2) {
+		lock.lock();
+		id = last_reported;
+		to_report = 0;
+		if (id < 0)
+			id = 0;
+		for (; id < symbols_tracker.size(); id += 2) {
 			if (symbols_tracker[id] == true) {
 				++id;
 				if (symbols_tracker[id] == false)
-					return {Error::NONE, id / 2};
+					symbols_tracker[id] = true;
+					++to_report;
 			} else {
 				break;
 			}
 		}
-		if (dec->ready())
-			return {Error::NONE, 0};
-		if (dec.can_decode())
+		if (to_report > 0 || dec->ready()) {
+			last_reported += to_report;
+			return {Error::NONE, last_reported};
+		}
+		if (!dec.can_decode())
 			return {Error::NEED_DATA, 0};
 		return {Error::WORKING, 0};
 	case Report::PARTIAL_ANY:
-		for (uint32_t id = 0; id < symbols_tracker.size(); id += 2) {
+		for (id = 0; id < symbols_tracker.size(); id += 2) {
 			if (symbols_tracker[id] == true) {
 				++id;
-				if (symbols_tracker[id] == false)
+				lock.lock();
+				if (symbols_tracker[id] == false) {
+					symbols_tracker[id] = true;
 					return {Error::NONE, id / 2};
+				}
 			}
 		}
 		if (dec->ready())
@@ -340,13 +357,14 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll () const
 			return {Error::NEED_DATA, 0};
 		return {Error::WORKING, 0};
 	case Report::COMPLETE:
-		for (uint32_t id = 0; id < symbols_tracker.size(); id += 2) {
+		for (id = last_reported; id < symbols_tracker.size(); id += 2) {
 			if (symbols_tracker[id] == false) {
 				if (dec.can_decode())
 					return {Error::WORKING, 0};
 				return {Error::NEED_DATA, 0};
 			}
 		}
+		last_reported = symbols_tracker.size();
 		return {Error::NONE, 0};
 	}
 	return {Error::WORKING, 0};
