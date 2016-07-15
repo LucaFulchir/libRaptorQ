@@ -23,7 +23,8 @@ enable_language(CXX)
 enable_language(C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
-set(RQ_VERSION 0.1.6)
+set(RQ_VERSION 0.1.7)
+set(RQ_ABI 0)
 
 message(STATUS "libRaptorQ version ${RQ_VERSION}")
 
@@ -176,7 +177,7 @@ endif()
 
 if(PROFILING MATCHES "ON")
     if (CMAKE_C_COMPILER_ID MATCHES "Clang")
-        set(PROFILE_GET           "-fprofile-instr-generate -g")
+        set(PROFILE_GET           -fprofile-instr-generate)
         set(PROFILE_GET_FILE      RaptorQ.profraw)
         set(PROFILE_SET_FILE      RaptorQ.profdata)
         set(PROFILE_SET           "-fprofile-instr-use=${PROFILE_SET_FILE}")
@@ -198,21 +199,19 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
     # PRE-run: build a library, generate the profile.
     add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS})
     target_link_libraries(RaptorQ_Static_Profiling ${STDLIB} ${RQ_UBSAN})
-    set(CMAKE_CXX_FLAGS )
     target_compile_options(
         RaptorQ_Static_Profiling PRIVATE
         ${CXX_COMPILER_FLAGS}
+        ${PROFILE_GET}
     )
-    set_target_properties(RaptorQ_Static_Profiling PROPERTIES COMPILER_FLAGS ${PROFILE_GET})
 
     # build the C example test for profiling
     add_executable(test_c_profiled test/test_c.c)
     add_dependencies(test_c_profiled RaptorQ_Static_Profiling)
-    set(CMAKE_C_FLAGS )
-    set(CMAKE_CXX_FLAGS )
     target_compile_options(
         test_c_profiled PRIVATE
         ${C_COMPILER_FLAGS}
+        ${PROFILE_GET}
     )
     target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB} m ${CMAKE_THREAD_LIBS_INIT})
     set_target_properties(test_c_profiled PROPERTIES LINK_FLAGS ${PROFILE_GET})
@@ -256,14 +255,14 @@ endif()
 if(STATIC_LIB MATCHES "ON")
     add_library(RaptorQ_Static STATIC ${SOURCES} ${HEADERS})
     if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
-        set_target_properties(RaptorQ_Static PROPERTIES OUTPUT_NAME RaptorQ-${RQ_VERSION})
+        set_target_properties(RaptorQ_Static PROPERTIES OUTPUT_NAME RaptorQ.${RQ_ABI})
     endif()
     target_compile_options(
         RaptorQ_Static PRIVATE
         ${CXX_COMPILER_FLAGS}
     )
     if(LTO MATCHES "ON")
-        target_compile_options(RaptorQ_Static PRIVATE -flto -fuse-ld=gold)
+        target_compile_options(RaptorQ_Static PRIVATE -flto)
     endif()
     if(PROFILING MATCHES "ON")
         add_dependencies(RaptorQ_Static profile)
@@ -285,7 +284,7 @@ if(STATIC_LIB MATCHES "ON")
     target_link_libraries(make_deterministic ${STDLIB} ${RQ_UBSAN})
     add_custom_command(
         OUTPUT deterministic.run
-        COMMAND make_deterministic ${CMAKE_BINARY_DIR}/lib/libRaptorQ-${RQ_VERSION}.a
+        COMMAND make_deterministic ${CMAKE_BINARY_DIR}/lib/libRaptorQ.${RQ_ABI}.a
         DEPENDS RaptorQ_Static
         COMMENT "Removing creation date from library..."
         VERBATIM
@@ -307,12 +306,9 @@ if(DYNAMIC_LIB MATCHES "ON")
         RaptorQ PRIVATE
         ${CXX_COMPILER_FLAGS}
     )
-    if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
-        set_target_properties(RaptorQ PROPERTIES OUTPUT_NAME RaptorQ-${RQ_VERSION})
-    endif()
 
     if(LTO MATCHES "ON")
-        target_compile_options(RaptorQ PRIVATE -flto -fuse-ld=gold)
+        target_compile_options(RaptorQ PRIVATE -flto)
     endif()
     if(PROFILING MATCHES "ON")
         add_dependencies(RaptorQ profile)
@@ -322,6 +318,8 @@ if(DYNAMIC_LIB MATCHES "ON")
         RaptorQ
         PROPERTIES
         LINK_FLAGS "-Wl,-z,now,-z,relro ${LD_OPT}"
+        SOVERSION ${RQ_ABI}
+        VERSION ${RQ_VERSION}
     )
     set_property(TARGET RaptorQ PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 endif()
