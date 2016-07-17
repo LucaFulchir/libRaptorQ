@@ -68,7 +68,7 @@ uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
 	using T = typename std::iterator_traits<Fwd_It>::value_type;
 	T element = static_cast<T> (0);
 	if (skip != 0) {
-		uint8_t *p = reinterpret_cast<uint8_t *> (&start);
+		uint8_t *p = reinterpret_cast<uint8_t *> (&*start);
 		for (size_t keep = 0; keep < skip; ++keep) {
 			element += static_cast<T> (*(p++)) << keep * 8;
 		}

@@ -4,8 +4,8 @@
 [![build status](https://www.fenrirproject.org/Luker/libRaptorQ/badges/master/build.svg)](https://www.fenrirproject.org/Luker/libRaptorQ/commits/master)  
 [Homepage](https://www.fenrirproject.org/Luker/libRaptorQ/wikis/home)
 
-stable  release: **v0.1.6**  
-current release: **v0.2.0-prealpha**  
+stable  release: **v0.1.7**  
+current release: **v0.2-prealpha**  
 **CURRENTLY BREAKING APIs, stick with the stable release**
 
 RaptorQ is a **Forward Error Correction** algorithm designed to deliver your data

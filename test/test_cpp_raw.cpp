@@ -18,9 +18,11 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../src/RaptorQ/RFC6330_v1.hpp"
+#include "../src/RaptorQ/RaptorQ_v1.hpp"
+#include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <stdlib.h>
 #include <vector>
@@ -85,48 +87,42 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	// std::pair<symbol id (esi), symbol>
 	std::vector<std::pair<uint32_t, std::vector<out_enc_align>>> encoded;
 
-	// symbol and sub-symbol sizes
-	// sub symbol must be multiple of alignment,
-	// symbol must be multiple of subsymbol
-	std::uniform_int_distribution<uint16_t> sub_sym_distr (1, 16);
-	const uint16_t subsymbol = sizeof(in_enc_align) * sub_sym_distr(rnd);
-	std::uniform_int_distribution<uint16_t> sym_distr (1, 100);
-	const uint16_t symbol_size = subsymbol * sym_distr (rnd);
-	std::cout << "Subsymbol: " << subsymbol << " Symbol: " << symbol_size<<"\n";
+	// symbol size must be multiple of iterator.
+	// symbol size max = uint16_t
+	uint16_t max_symsize = static_cast<uint16_t>(
+			std::min (static_cast<size_t> (myvec.size()),
+				static_cast<size_t> (std::numeric_limits<uint16_t>::max()
+													/ sizeof(in_enc_align))));
+	std::uniform_int_distribution<uint16_t> sym_distr (1, max_symsize);
+	const uint16_t symbol_size = sym_distr (rnd);
 	size_t aligned_symbol_size = static_cast<size_t> (
 		std::ceil(static_cast<float> (symbol_size) / sizeof(out_enc_align)));
 	auto enc_it = myvec.begin();
 
-	std::uniform_int_distribution<uint32_t> mem_distr (100, 200000);
-	RFC6330::Encoder<typename std::vector<in_enc_align>::iterator,
+	RaptorQ::Encoder<typename std::vector<in_enc_align>::iterator,
 							typename std::vector<out_enc_align>::iterator> enc (
-				enc_it, myvec.end(), subsymbol, symbol_size, mem_distr(rnd));
-	std::cout << "Size: " << mysize << " Blocks: " <<
-									static_cast<int32_t>(enc.blocks()) << "\n";
-	if (!enc) {
-		std::cout << "Coud not initialize encoder.\n";
+											enc_it, myvec.end(), symbol_size);
+	std::cout << "Size: " << mysize << " symbols: " <<
+								static_cast<int32_t>(enc.symbols()) <<
+								" symbol size: " <<
+								static_cast<int32_t>(enc.symbol_size()) << "\n";
+	if (!enc.compute_sync()) {
+		std::cout << "Enc-RaptorQ failure! really bad!\n";
 		return false;
 	}
 
-	enc.compute (RFC6330::Compute::COMPLETE | RFC6330::Compute::NO_BACKGROUND);
-
 	if (drop_prob > static_cast<float> (90.0))
 		drop_prob = 90.0;	// this is still too high probably.
-	std::uniform_real_distribution<float> drop (0.0, 100.0);
 
-	int32_t repair;
 
-	// start encoding
-	int32_t blockid = -1;
-	for (auto block : enc) {
-		repair = overhead;
-		++blockid;
-		std::cout << "Block " << blockid << " with " << block.symbols() <<
-																" symbols\n";
+	{
+		std::uniform_real_distribution<float> drop (0.0, 100.0);
+		// start encoding
+		int32_t repair = overhead;
 		// Now get the source and repair symbols.
 		// make sure that at the end we end with "block.symbols() + overhead"
 		// symbols, so that decoding is possible
-		for (auto sym_it = block.begin_source(); sym_it != block.end_source();
+		for (auto sym_it = enc.begin_source(); sym_it != enc.end_source();
 																	++sym_it) {
 			float dropped = drop (rnd);
 			if (dropped <= drop_prob) {
@@ -151,8 +147,8 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 		}
 		// now get (overhead + source_symbol_lost) repair symbols.
 		std::cout << "Source Packet lost: " << repair - overhead << "\n";
-		auto sym_it = block.begin_repair();
-		for (; repair >= 0 && sym_it != block.end_repair (block.max_repair());
+		auto sym_it = enc.begin_repair();
+		for (; repair >= 0 && sym_it != enc.end_repair (enc.max_repair());
 																	++sym_it) {
 			// repair symbols can be lost, too!
 			float dropped = drop (rnd);
@@ -169,30 +165,27 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			auto written = (*sym_it) (it, repair_sym.end());
 			if (written != aligned_symbol_size) {
 				std::cout << written << "-vs-" << aligned_symbol_size <<
-									" bCould not get the whole repair symbol!\n";
+									" Could not get the whole repair symbol!\n";
 				return false;
 			}
 			// finally add it to the encoded vector
 			encoded.emplace_back ((*sym_it).id(), std::move(repair_sym));
 		}
-		if (sym_it == block.end_repair (block.max_repair())) {
+		if (sym_it == enc.end_repair (enc.max_repair())) {
 			// we dropped waaaay too many symbols! how much are you planning to
 			// lose, again???
 			std::cout << "Maybe losing " << drop_prob << "% is too much?\n";
 			return false;
 		}
 	}
-	auto oti_scheme = enc.OTI_Scheme_Specific();
-	auto oti_common = enc.OTI_Common();
-
 	// encoding done. now "encoded" is the vector with the trnasmitted data.
 	// let's decode it
 
-	RFC6330::Decoder<typename std::vector<in_dec_align>::iterator,
-							typename std::vector<out_dec_align>::iterator>
-												dec (oti_common, oti_scheme);
+	using Decoder_type = RaptorQ::Decoder<
+								typename std::vector<in_dec_align>::iterator,
+								typename std::vector<out_dec_align>::iterator>;
+	Decoder_type dec (mysize, symbol_size, Decoder_type::Report::COMPLETE);
 
-	auto async_dec = dec.compute (RFC6330::Compute::COMPLETE);
 
 	std::vector<out_dec_align> received;
 	size_t out_size = static_cast<size_t> (
@@ -207,30 +200,33 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 		auto it = encoded[i].second.begin();
 		auto err = dec.add_symbol (it, encoded[i].second.end(),
 															encoded[i].first);
-		if (err != RFC6330::Error::NONE && err != RFC6330::Error::NOT_NEEDED) {
+		if (err != RaptorQ::Error::NONE && err != RaptorQ::Error::NOT_NEEDED) {
 			std::cout << "error adding?\n";
 			abort();
 		}
 	}
 
-	async_dec.wait();
+	auto res = dec.decode();
+	if (res != Decoder_type::Decoder_Result::DECODED) {
+		std::cout << "Couldn't decode.\n";
+		return false;
+	}
 
 	auto re_it = received.begin();
 	// decode all blocks
 	// you can actually call ".decode(...)" as many times
 	// as you want. It will only start decoding once
 	// it has enough data.
-	auto decoded = dec.decode_bytes (re_it, received.end(), 0);
+	auto decoded = dec.decode_bytes (re_it, received.end(), 0, 0);
 
-	assert (mysize == dec.bytes());
-	if (decoded != mysize) {
-		if (decoded == 0) {
+	if (decoded.first != mysize) {
+		if (decoded.first == 0) {
 			std::cout << "Couldn't decode, RaptorQ Algorithm failure. "
 															"Can't Retry.\n";
 			return true;
 		} else {
 			std::cout << "Partial Decoding? This should not have happened: " <<
-										decoded  << " vs " << mysize << "\n";
+									decoded.first  << " vs " << mysize << "\n";
 		}
 		return false;
 	} else {

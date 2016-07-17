@@ -59,7 +59,7 @@ public:
 		: _SBN(SBN), type (test_computation()),
 		  precode_on  (init_precode_on  (symbols->source_symbols(SBN))),
 		  precode_off (init_precode_off (symbols->source_symbols(SBN))),
-		  _symbols(symbols)
+		  _symbols (symbols)
 	{
 		IS_RANDOM(Rnd_It, "RaptorQ__v1::Impl::Encoder");
 		IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::Encoder");
@@ -130,8 +130,6 @@ private:
 template <typename Rnd_It, typename Fwd_It>
 Raw_Encoder<Rnd_It, Fwd_It>::~Raw_Encoder()
 {
-	const uint16_t size = precode_on->_params.L;
-	const Cache_Key key (size, 0, std::vector<bool>());
 	stop();
 }
 

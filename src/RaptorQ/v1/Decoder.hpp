@@ -320,9 +320,8 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 		auto rec_it = received_repair.begin();
 		for (auto sel_it = selector.begin(); sel_it != selector.end();
 															++sel_it,++rec_it) {
-			if (*sel_it)
-				continue;
-			drop.push_back (rec_it->first);
+			if (!*sel_it)
+				drop.push_back (rec_it->first);
 		}
 		// next selector for next retry.
 		if (combination_drop_sym == 0) {
@@ -385,11 +384,8 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 
 	DenseMtx D = DenseMtx (L_rows + overhead, source_symbols.cols());
 
-	// initialize D
-	for (uint16_t row = 0; row < S_H; ++row) {
-		for (uint16_t col = 0; col < D.cols(); ++col)
-			D (row, col) = 0;
-	}
+	// initialize D: first S_H rows == 0
+	D.block(0, 0, S_H, D.cols()).setZero();
 	// put non-repair symbols (source symbols) in place
 	if (mask.get_holes() == 0) {
 		// other thread completed its work before us?
@@ -434,11 +430,16 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 		++hole;
 	}
 	// fill the padding symbols (always zero)
-	for (uint16_t row = S_H + _symbols; row < L_rows; ++row)
-		D.row (row).setZero();
+	D.block (S_H + _symbols, 0, (L_rows - S_H) - _symbols, D.cols()).setZero();
+	//for (uint16_t row = S_H + _symbols; row < L_rows; ++row)
+	//	D.row (row).setZero();
 	// fill the remaining (redundant) repair symbols
 	// remember to drop the repair symbols as needed
 	drop_it = drop.begin();
+	if (drop_it != drop.end() && symbol != received_repair.end()) {
+		while (*drop_it < symbol->first)
+			++drop_it;
+	}
 	for (uint16_t row = L_rows; symbol != received_repair.end(); ++symbol) {
 		if (drop_it != drop.end() && *drop_it == symbol->first) {
 			++drop_it;

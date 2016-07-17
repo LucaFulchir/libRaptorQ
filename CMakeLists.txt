@@ -24,6 +24,7 @@ enable_language(C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
 set(RQ_VERSION 0.2-prealpha)
+set(RQ_ABI 1)
 message(STATUS "libRaptorQ version ${RQ_VERSION}")
 
 # default values
@@ -188,7 +189,7 @@ include(cmake/compiler_flags.cmake)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_definitions(-DUSING_CLANG)
-    set(LD_OPT "-flto -fuse-ld=gold")
+    set(LD_OPT "-flto -fuse-ld=gold" )
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     set(LD_OPT "")
 endif()
@@ -200,22 +201,26 @@ endif()
 
 
 if(PROFILING MATCHES "ON")
-    if (CMAKE_C_COMPILER_ID MATCHES "Clang")
-        set(PROFILE_GET           "-fprofile-instr-generate -g")
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        set(PROFILE_GET           -fprofile-instr-generate)
         set(PROFILE_GET_FILE      RaptorQ.profraw)
         set(PROFILE_SET_FILE      RaptorQ.profdata)
         set(PROFILE_SET           "-fprofile-instr-use=${PROFILE_SET_FILE}")
-    elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         set(PROFILE_GET           -fprofile-generate)
         # gcc creates a couple more files than clang for prifiling. Track them.
         set(PROFILE_GET_FILE
-CMakeFiles/RaptorQ_Static_Profiling.dir/src/Graph.cpp.gcda
-CMakeFiles/RaptorQ_Static_Profiling.dir/src/Parameters.cpp.gcda
-CMakeFiles/RaptorQ_Static_Profiling.dir/src/Rand.cpp.gcda
-CMakeFiles/RaptorQ_Static_Profiling.dir/src/Precode_Matrix.cpp.gcda
-CMakeFiles/RaptorQ_Static_Profiling.dir/src/Precode_Matrix_solver.cpp.gcda
-CMakeFiles/RaptorQ_Static_Profiling.dir/src/cRaptorQ.cpp.gcda
-CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
+CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/Graph.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/Rand.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/Operation.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/RFC.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/Parameters.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/Bitmask.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/Thread_Pool.cpp.gcda
+CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/API_Wrapper_C.cpp.gcda)
         set(PROFILE_SET_FILE      ${PROFILE_GET_FILE})
         set(PROFILE_SET           -fprofile-use)
     endif()
@@ -224,26 +229,25 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
     add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS})
     target_link_libraries(RaptorQ_Static_Profiling ${STDLIB} ${RQ_LZ4_DEP} ${RQ_UBSAN})
 	add_dependencies(RaptorQ_Static_Profiling LZ4)
-    set(CMAKE_CXX_FLAGS )
     target_compile_options(
         RaptorQ_Static_Profiling PRIVATE
         ${CXX_COMPILER_FLAGS}
+		${PROFILE_GET}
     )
     set_target_properties(RaptorQ_Static_Profiling PROPERTIES COMPILER_FLAGS ${PROFILE_GET})
 
     # build the C example test for profiling
     add_executable(test_c_profiled test/test_c.c)
     add_dependencies(test_c_profiled RaptorQ_Static_Profiling)
-    set(CMAKE_C_FLAGS )
-    set(CMAKE_CXX_FLAGS )
     target_compile_options(
         test_c_profiled PRIVATE
         ${C_COMPILER_FLAGS}
+		${PROFILE_GET}
     )
     target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB} m ${CMAKE_THREAD_LIBS_INIT})
     set_target_properties(test_c_profiled PROPERTIES LINK_FLAGS ${PROFILE_GET})
 
-    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_custom_command(
             OUTPUT ${PROFILE_GET_FILE}
             COMMAND LLVM_PROFILE_FILE=${PROFILE_GET_FILE} ./test_c_profiled
@@ -251,7 +255,7 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
             COMMENT "Running profiling test..."
             VERBATIM
         )
-    elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         add_custom_command(
             OUTPUT ${PROFILE_GET_FILE}
             COMMAND ./test_c_profiled
@@ -260,7 +264,7 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
             VERBATIM
         )
     endif()
-    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         # the profile must be translated into readable form
         add_custom_command(
             OUTPUT ${PROFILE_SET_FILE}
@@ -283,14 +287,14 @@ if(STATIC_LIB MATCHES "ON")
     add_library(RaptorQ_Static STATIC ${SOURCES} ${HEADERS})
 	add_dependencies(RaptorQ_Static LZ4)
     if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
-        set_target_properties(RaptorQ_Static PROPERTIES OUTPUT_NAME RaptorQ-${RQ_VERSION})
+        set_target_properties(RaptorQ_Static PROPERTIES OUTPUT_NAME RaptorQ.${RQ_ABI})
     endif()
     target_compile_options(
         RaptorQ_Static PRIVATE
         ${CXX_COMPILER_FLAGS}
     )
     if(LTO MATCHES "ON")
-        target_compile_options(RaptorQ_Static PRIVATE -flto -fuse-ld=gold)
+        target_compile_options(RaptorQ_Static PRIVATE -flto)
     endif()
     if(PROFILING MATCHES "ON")
         add_dependencies(RaptorQ_Static profile)
@@ -312,7 +316,7 @@ if(STATIC_LIB MATCHES "ON")
 	target_link_libraries(make_deterministic ${STDLIB} ${RQ_UBSAN})
     add_custom_command(
         OUTPUT deterministic.run
-        COMMAND make_deterministic ${CMAKE_CURRENT_BINARY_DIR}/lib/libRaptorQ-${RQ_VERSION}.a
+        COMMAND make_deterministic ${CMAKE_CURRENT_BINARY_DIR}/lib/libRaptorQ.${RQ_ABI}.a
         DEPENDS RaptorQ_Static
         COMMENT "Removing creation date from library..."
         VERBATIM
@@ -336,7 +340,7 @@ if(DYNAMIC_LIB MATCHES "ON")
         ${CXX_COMPILER_FLAGS}
     )
     if(LTO MATCHES "ON")
-        target_compile_options(RaptorQ PRIVATE -flto -fuse-ld=gold)
+        target_compile_options(RaptorQ PRIVATE -flto)
     endif()
     if(PROFILING MATCHES "ON")
         add_dependencies(RaptorQ profile)
@@ -346,11 +350,7 @@ if(DYNAMIC_LIB MATCHES "ON")
         RaptorQ
         PROPERTIES
         LINK_FLAGS "-Wl,-z,now,-z,relro ${LD_OPT}"
-    )
-set_target_properties (
-	RaptorQ
-	PROPERTIES
-		SO_VERSION libRaptorQ.1
+		SOVERSION ${RQ_ABI}
 		VERSION ${RQ_VERSION}
 	)
     set_property(TARGET RaptorQ PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
@@ -359,10 +359,10 @@ endif()
 
 # add main tests
 add_executable(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
-    target_compile_options(
-        libRaptorQ-test PRIVATE
-        ${CXX_COMPILER_FLAGS}
-    )
+target_compile_options(
+	libRaptorQ-test PRIVATE
+	${CXX_COMPILER_FLAGS}
+)
 add_dependencies(libRaptorQ-test RaptorQ)
 target_link_libraries(libRaptorQ-test ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 add_custom_target(tests DEPENDS libRaptorQ-test)
@@ -370,23 +370,32 @@ add_custom_target(tests DEPENDS libRaptorQ-test)
 # build examples
 # C interface
 add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
-    target_compile_options(
-        test_c PRIVATE
-        ${C_COMPILER_FLAGS}
-		-Wno-disabled-macro-expansion
-    )
+target_compile_options(
+	test_c PRIVATE
+	${C_COMPILER_FLAGS}
+	-Wno-disabled-macro-expansion
+)
 add_dependencies(test_c RaptorQ)
 target_link_libraries(test_c RaptorQ m ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
-# CPP interface
-add_executable(test_cpp EXCLUDE_FROM_ALL test/test_cpp.cpp)
-    target_compile_options(
-        test_cpp PRIVATE
-		${CXX_COMPILER_FLAGS}
-    )
-add_dependencies(test_cpp RaptorQ)
-target_link_libraries(test_cpp ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
-add_custom_target(examples DEPENDS test_c test_cpp)
+# CPP interface - RFC interface
+add_executable(test_cpp_rfc EXCLUDE_FROM_ALL test/test_cpp_rfc.cpp)
+target_compile_options(
+	test_cpp_rfc PRIVATE
+	${CXX_COMPILER_FLAGS}
+)
+add_dependencies(test_cpp_rfc RaptorQ)
+target_link_libraries(test_cpp_rfc ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+
+# CPP interface - RAW interface
+add_executable(test_cpp_raw EXCLUDE_FROM_ALL test/test_cpp_raw.cpp)
+target_compile_options(
+	test_cpp_raw PRIVATE
+	${CXX_COMPILER_FLAGS}
+)
+add_dependencies(test_cpp_raw RaptorQ)
+target_link_libraries(test_cpp_raw ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw)
 
 add_custom_target(everything DEPENDS Make_static_deterministic tests examples docs)
 
