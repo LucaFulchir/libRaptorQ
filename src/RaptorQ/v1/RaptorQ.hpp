@@ -590,7 +590,7 @@ std::pair<uint64_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
 		written += offset_al;
 	}
 	return {written, offset_al};
-	}
+}
 
 template <typename In_It, typename Fwd_It>
 uint64_t Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,

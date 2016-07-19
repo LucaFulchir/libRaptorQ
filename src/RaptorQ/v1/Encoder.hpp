@@ -234,11 +234,8 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_raw_symbols(const uint16_t K_S_H,
 	auto C = (*_symbols)[_SBN];
 
 	// fill matrix D: full zero for the first S + H symbols
-	uint16_t row;
-	for (row = 0; row < S_H; ++row ) {
-		for (uint16_t col = 0; col < D.cols(); ++col)
-			D (row, col) = 0;
-	}
+	D.block (0, 0, S_H, D.cols()).setZero();
+	uint16_t row = S_H;
 	// now the C[0...K] symbols follow
 	for (; row < S_H + _symbols->source_symbols (_SBN); ++row) {
 		auto symbol = C[row - S_H];
@@ -252,10 +249,7 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_raw_symbols(const uint16_t K_S_H,
 	}
 
 	// finally fill with eventual padding symbols (K...K_padded)
-	for (; row < D.rows(); ++row ) {
-		for (uint16_t col = 0; col < D.cols(); ++col)
-			D (row, col) = 0;
-	}
+	D.block (row, 0, D.rows() - row, D.cols()).setZero();
 	return D;
 }
 
@@ -334,6 +328,7 @@ template <typename Rnd_It, typename Fwd_It>
 uint64_t Raw_Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
 														const Fwd_It end) const
 {
+	// returns iterators written
 	// ESI means that the first _symbols.source_symbols() are the
 	// original symbols, and the next ones are repair symbols.
 

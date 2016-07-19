@@ -47,8 +47,6 @@ float div_ceil (const float a, const float b)
 namespace RFC6330__v1 {
 namespace Impl {
 
-void test (void);
-
 //
 // Partition: see RFC6330: each object is partitioned in
 //		N1 blocks of size S1, plus N2 blocks of size S2. This class tracks it
@@ -174,7 +172,7 @@ public:
 										const uint16_t k)
 			:_data_from (data_from), _data_to (data_to), _start (start),
 								_end (end), _idx(idx), _sub_blocks (sub_blocks),
-								_symbol_size (symbol_size),
+								_symbol_size (symbol_size), // FIXME: useles??
 								_symbol_id (symbol_id), _k(k)
 	{}
 
@@ -194,14 +192,14 @@ public:
 	{
 		size_t i;
 		if (pos < _sub_blocks.tot (0)) {
-			auto sub_blk_id = pos / _sub_blocks.size (0);
+			size_t sub_blk_id = pos / _sub_blocks.size (0);
 			i = _start +
 					sub_blk_id * _k * _sub_blocks.size (0) +// right sub block
 					_symbol_id * _sub_blocks.size (0) +	// get right subsymbol
 					pos % _sub_blocks.size (0);			// get right alignment
 		} else {
-			auto pos_part2 = pos - _sub_blocks.tot (0);
-			auto sub_blk_id = pos_part2 / _sub_blocks.size (1);
+			size_t pos_part2 = pos - _sub_blocks.tot (0);
+			size_t sub_blk_id = pos_part2 / _sub_blocks.size (1);
 			i = _start + _sub_blocks.tot (0) * _k +	// skip previous partition
 					sub_blk_id * _k * _sub_blocks.size (1) +// right sub block
 					_symbol_id * _sub_blocks.size (1) +	// get right subsymbol
@@ -431,7 +429,7 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 						"RaptorQ: RFC: ceil(ceil(F/T)/Z must be <= K'_max");
 	if (_source_blocks == 0 || _sub_blocks == 0 ||
 					symbol_size < _alignment || symbol_size % _alignment != 0 ||
-							div_ceil (div_ceil ( input_size, _symbol_size),
+								div_ceil (div_ceil (input_size, _symbol_size),
 								_source_blocks) > RaptorQ__v1::Impl::K_max) {
 		_alignment = 0;
 		return;

@@ -94,14 +94,15 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 				static_cast<size_t> (std::numeric_limits<uint16_t>::max()
 													/ sizeof(in_enc_align))));
 	std::uniform_int_distribution<uint16_t> sym_distr (1, max_symsize);
-	const uint16_t symbol_size = sym_distr (rnd);
-	size_t aligned_symbol_size = static_cast<size_t> (
-		std::ceil(static_cast<float> (symbol_size) / sizeof(out_enc_align)));
+	const uint16_t in_aligned_symbol_size = sym_distr (rnd);
+	uint16_t symbol_size = in_aligned_symbol_size * sizeof(in_enc_align);
+	const uint16_t out_aligned_symbol_size = static_cast<uint16_t> (std::ceil (
+					static_cast<float> (symbol_size) / sizeof (out_enc_align)));
 	auto enc_it = myvec.begin();
 
 	RaptorQ::Encoder<typename std::vector<in_enc_align>::iterator,
 							typename std::vector<out_enc_align>::iterator> enc (
-											enc_it, myvec.end(), symbol_size);
+								enc_it, myvec.end(), in_aligned_symbol_size);
 	std::cout << "Size: " << mysize << " symbols: " <<
 								static_cast<int32_t>(enc.symbols()) <<
 								" symbol size: " <<
@@ -132,13 +133,13 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			}
 			// create a place where to save our source symbol
 			std::vector<out_enc_align> source_sym;
-			source_sym.reserve (aligned_symbol_size);
-			source_sym.insert (source_sym.begin(), aligned_symbol_size, 0);
+			source_sym.reserve (out_aligned_symbol_size);
+			source_sym.insert (source_sym.begin(), out_aligned_symbol_size, 0);
 			auto it = source_sym.begin();
 			// save the symbol
 			auto written = (*sym_it) (it, source_sym.end());
-			if (written != aligned_symbol_size) {
-				std::cout << written << "-vs-" << aligned_symbol_size <<
+			if (written != out_aligned_symbol_size) {
+				std::cout << written << "-vs-" << out_aligned_symbol_size <<
 									" Could not get the whole source symbol!\n";
 				return false;
 			}
@@ -158,13 +159,13 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			--repair;
 			// create a place where to save our source symbol
 			std::vector<out_enc_align> repair_sym;
-			repair_sym.reserve (aligned_symbol_size);
-			repair_sym.insert (repair_sym.begin(), aligned_symbol_size, 0);
+			repair_sym.reserve (out_aligned_symbol_size);
+			repair_sym.insert (repair_sym.begin(), out_aligned_symbol_size, 0);
 			auto it = repair_sym.begin();
 			// save the repair symbol
 			auto written = (*sym_it) (it, repair_sym.end());
-			if (written != aligned_symbol_size) {
-				std::cout << written << "-vs-" << aligned_symbol_size <<
+			if (written != out_aligned_symbol_size) {
+				std::cout << written << "-vs-" << out_aligned_symbol_size <<
 									" Could not get the whole repair symbol!\n";
 				return false;
 			}
