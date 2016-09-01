@@ -38,6 +38,7 @@ include(GNUInstallDirs)
 option(DYNAMIC_LIB "Build dynamic library" ON)
 option(STATIC_LIB "Build static library" ON)
 option(CLANG_STDLIB "Use clang's libc++" OFF)
+option(USE_LZ4 "Use LZ4 compression for result caching" ON)
 
 # defaults: only enable LTO/PROFILING with known compielrs
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -116,8 +117,11 @@ find_package(Threads REQUIRED)
 find_package(git)
 find_package(eigen REQUIRED)
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
-find_package(RQ_LZ4 REQUIRED)
-include_directories(SYSTEM ${RQ_LZ4_INCLUDE_DIR})
+if (USE_LZ4 MATCHES "ON")
+    find_package(RQ_LZ4 REQUIRED)
+    include_directories(SYSTEM ${RQ_LZ4_INCLUDE_DIR})
+    add_definitions(-DRQ_USE_LZ4)
+endif()
 #lz4 build if necessary
 include(${CMAKE_CURRENT_SOURCE_DIR}/external/build_deps.cmake)
 # our include tree
@@ -179,11 +183,13 @@ SET(HEADERS	src/RaptorQ/RFC6330_v1.hpp
     		src/RaptorQ/v1/RFC.hpp
 			src/RaptorQ/v1/API_Iterators.hpp
     		src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
-    		src/RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp
 			src/RaptorQ/v1/API_Wrapper_Raw.hpp
 			src/RaptorQ/v1/API_Wrapper.hpp
     		src/RaptorQ/v1/API_Wrapper.h)
-
+if (USE_LZ4 MATCHES "ON")
+    SET (HEADERS ${HEADERS}
+            src/RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp)
+endif()
 
 include(cmake/compiler_flags.cmake)
 
@@ -323,7 +329,7 @@ if(STATIC_LIB MATCHES "ON")
     )
 
 	add_custom_target(
-	    Make_static_deterministic ALL
+	    make_static_deterministic ALL
 	    DEPENDS deterministic.run
 	)
 endif()
@@ -397,7 +403,7 @@ add_dependencies(test_cpp_raw RaptorQ)
 target_link_libraries(test_cpp_raw ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw)
 
-add_custom_target(everything DEPENDS Make_static_deterministic tests examples docs)
+add_custom_target(everything DEPENDS make_static_deterministic tests examples docs)
 
 
 install(FILES ${HEADERS} DESTINATION include/RaptorQ/)

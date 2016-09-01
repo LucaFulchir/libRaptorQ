@@ -25,7 +25,9 @@
 #include "RaptorQ/v1/Parameters.hpp"
 #include "RaptorQ/v1/Precode_Matrix.hpp"
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
-#include "RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp"
+#ifdef RQ_USE_LZ4
+	#include "RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp"
+#endif
 #include "RaptorQ/v1/Thread_Pool.hpp"
 #include <memory>
 #include <mutex>
@@ -458,10 +460,15 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 	if (type == Save_Computation::ON) {
 		std::vector<uint8_t> compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
+#ifdef RQ_USE_LZ4
 		LZ4<LZ4_t::DECODER> lz4;
 		auto uncompressed = lz4.decode (compressed);
 		DenseMtx precomputed = raw_to_Mtx (uncompressed,
 													key._mt_size + overhead);
+#else
+		DenseMtx precomputed = raw_to_Mtx (compressed,
+													key._mt_size + overhead);
+#endif
 		if (precomputed.rows() != 0) {
 			missing = precomputed * D;
 			DO_NOT_SAVE = true;
@@ -489,10 +496,14 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 			for (auto &op : ops)
 				op->build_mtx (res);
 			// TODO: lots of wasted ram? how to compress things directly?
-			const auto raw_mtx = Mtx_to_raw (res);
+			auto raw_mtx = Mtx_to_raw (res);
+#ifdef RQ_USE_LZ4
 			LZ4<LZ4_t::ENCODER> lz4;
 			auto compressed = lz4.encode (raw_mtx);
 			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed, key);
+#else
+			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (raw_mtx, key);
+#endif
 		}
 	}
 

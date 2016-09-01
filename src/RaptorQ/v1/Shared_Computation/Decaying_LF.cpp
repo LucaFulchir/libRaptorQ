@@ -19,7 +19,6 @@
  */
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
 #include <cmath>
-#include <lz4.h>
 
 
 namespace RaptorQ__v1 {

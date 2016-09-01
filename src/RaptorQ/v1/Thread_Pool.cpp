@@ -62,25 +62,9 @@ void Thread_Pool::resize_pool (const size_t size,
     std::lock_guard<std::mutex> guard_pool (pool_mtx);
     RQ_UNUSED(guard_pool);
 
-	uint16_t x = 1;
-
     while (pool.size() > size) {
 		std::lock_guard<std::mutex> guard_data (data_mtx);
 		RQ_UNUSED(guard_data);
-		auto it2 = pool.begin();
-		for (; it2 != pool.end(); ++it2) {
-			std::weak_ptr<Work_State_Overlay> sec = it2->second;
-			std::shared_ptr<Work_State_Overlay> state = sec.lock();
-			if (nullptr != state) {
-				++x;
-			} else {
-				if (it2->first.joinable()) {
-					++x;
-				} else {
-					++x;
-				}
-			}
-		}
 		auto it = pool.begin();
 		for (; it != pool.end(); ++it) {
 			// delete a thread that is still waiting
@@ -98,7 +82,7 @@ void Thread_Pool::resize_pool (const size_t size,
 			} else {
 				// thread terminated.
 				// will never happen here, but whatever...
-				assert (false);
+				assert (false && "libRaptorQ: thread already terminated");
 				it->first.detach();
 				pool.erase (it);
 				break;
