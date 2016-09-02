@@ -149,6 +149,7 @@ endif()
 
 
 SET(SOURCES src/RaptorQ/v1/Operation.cpp
+            src/RaptorQ/v1/caches.cpp
     		src/RaptorQ/v1/Thread_Pool.cpp
     		src/RaptorQ/v1/Bitmask.cpp
     		src/RaptorQ/v1/Rand.cpp
@@ -162,6 +163,7 @@ SET(SOURCES src/RaptorQ/v1/Operation.cpp
 SET(HEADERS	src/RaptorQ/RFC6330_v1.hpp
 			src/RaptorQ/RFC6330_v1.h
 			src/RaptorQ/RaptorQ_v1.hpp
+            src/RaptorQ/v1/caches.hpp
 			src/RaptorQ/v1/RaptorQ.hpp
 			src/RaptorQ/v1/RaptorQ_Iterators.hpp
             src/RaptorQ/v1/Interleaver.hpp
