@@ -30,6 +30,83 @@ struct RAPTORQ_LOCAL RaptorQ_ptr
 	RaptorQ_ptr (const RaptorQ_type _type) : ptr (nullptr), type (_type) {}
 };
 
+void RAPTORQ_LOCAL RaptorQ_test_del (struct RaptorQ_ptr **ptr);
+void RAPTORQ_LOCAL RaptorQ_test_del (struct RaptorQ_ptr **ptr)
+{
+	if (ptr == nullptr || *ptr == nullptr || (*ptr)->type == RaptorQ_type::NONE
+													|| (*ptr)->ptr == nullptr) {
+		if (ptr != nullptr) {
+			delete *ptr;
+			*ptr = nullptr;
+			return;
+		}
+		return;
+	}
+	switch ((*ptr)->type) {
+	case RaptorQ_type::ENC_8:
+		if(!(reinterpret_cast<RaptorQ::Encoder<uint8_t*, uint8_t*>*> (
+																(*ptr)->ptr))) {
+			RaptorQ_free (ptr);
+			return;
+		}
+		break;
+	case RaptorQ_type::ENC_16:
+		if(!(reinterpret_cast<RaptorQ::Encoder<uint16_t, uint16_t*>*> (
+																(*ptr)->ptr))) {
+			RaptorQ_free (ptr);
+			return;
+		}
+		break;
+	case RaptorQ_type::ENC_32:
+		if(!(reinterpret_cast<RaptorQ::Encoder<uint32_t*, uint32_t*>*> (
+																(*ptr)->ptr))) {
+			RaptorQ_free (ptr);
+			return;
+		}
+		break;
+	case RaptorQ_type::ENC_64:
+		if(!(reinterpret_cast<RaptorQ::Encoder<uint64_t*, uint64_t*>*> (
+																(*ptr)->ptr))) {
+			RaptorQ_free (ptr);
+			return;
+		}
+		break;
+	case RaptorQ_type::DEC_8:
+		if(!(reinterpret_cast<RaptorQ::Decoder<uint8_t*, uint8_t*>*> (
+																(*ptr)->ptr))) {
+			RaptorQ_free (ptr);
+			return;
+		}
+		break;
+	case RaptorQ_type::DEC_16:
+		if(!(reinterpret_cast<RaptorQ::Decoder<uint16_t*, uint16_t*>*> (
+																(*ptr)->ptr))) {
+			RaptorQ_free (ptr);
+			return;
+		}
+		break;
+	case RaptorQ_type::DEC_32:
+		if(!(reinterpret_cast<RaptorQ::Decoder<uint32_t*, uint32_t*>*> (
+																(*ptr)->ptr))) {
+			RaptorQ_free (ptr);
+			return;
+		}
+		break;
+	case RaptorQ_type::DEC_64:
+		if(!(reinterpret_cast<RaptorQ::Decoder<uint64_t*, uint64_t*>*> (
+																(*ptr)->ptr))) {
+			RaptorQ_free (ptr);
+			return;
+		}
+		break;
+	case RaptorQ_type::NONE:
+		assert(false && "RaptorQ: C Wrapper: should not have gotten here");
+		break;
+	}
+	return;
+}
+
+
 struct RaptorQ_ptr *RaptorQ_Enc (const RaptorQ_type type, void *data,
 											const uint64_t size,
 											const uint16_t min_subsymbol_size,
@@ -82,7 +159,9 @@ struct RaptorQ_ptr *RaptorQ_Enc (const RaptorQ_type type, void *data,
 	case RaptorQ_type::NONE:
 		return new RaptorQ_ptr (RaptorQ_type::NONE);
 	}
-	return ret.release();
+	auto raw_ptr = ret.release();
+	RaptorQ_test_del (&raw_ptr);
+	return raw_ptr;
 }
 
 struct RaptorQ_ptr *RaptorQ_Dec (const RaptorQ_type type,
@@ -115,7 +194,9 @@ struct RaptorQ_ptr *RaptorQ_Dec (const RaptorQ_type type,
 	case RaptorQ_type::NONE:
 		return new RaptorQ_ptr (RaptorQ_type::NONE);
 	}
-	return ret.release();
+	auto raw_ptr = ret.release();
+	RaptorQ_test_del (&raw_ptr);
+	return raw_ptr;
 }
 
 ///////////

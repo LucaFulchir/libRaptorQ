@@ -82,8 +82,8 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	 * if needed you'll just block on the call.
 	 */
 
-	if (drop_prob > 90.0)
-		drop_prob = 90.0;	// this is still too high probably.
+	if (drop_prob > (float) (90.0))
+		drop_prob = (float) (90.0);	// this is still too high probably.
 
 
 	// we used a lot of memory before so there will be only one block.
@@ -171,7 +171,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		}
 		if (sym_rep == RaptorQ_max_repair (enc, block)) {
 			fprintf(stderr, "Maybe losing %f%% symbols is too much?\n",
-																	drop_prob);
+															(double)drop_prob);
 			free (myvec);
 			for (uint32_t k = 0; k < next_encoded; ++k)
 				free (encoded[k].symbol);
@@ -269,7 +269,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		if (myvec[i] != received[i]) {
 			fprintf(stderr, "FAILED, but we though otherwise! %i - %f: %i "
 													"%i -- %i\n",
-													mysize, drop_prob, i,
+													mysize, (double)drop_prob,i,
 													myvec[i], received[i]);
 			free (myvec);
 			free (received);
