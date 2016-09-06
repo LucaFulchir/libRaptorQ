@@ -1,3 +1,7 @@
+v0.1.8(unreleased):
+    * someone forgot to update the changelog :p
+    * fixed initializing encoder/decoder with more than 256 blocks
+    * fixed untriggerable bug on writing decoding data.
 v0.1.4:
     * finally reached a usable state
 
