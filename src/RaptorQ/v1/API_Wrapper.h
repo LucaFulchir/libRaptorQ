@@ -51,10 +51,14 @@ extern "C"
 	///////////////////////////
 	// Precomputation caching
 	///////////////////////////
-	uint64_t RAPTORQ_API RaptorQ_shared_cache_size(const uint64_t shared_cache,
+	RaptorQ_Compress RAPTORQ_API RaptorQ_supported_compressions();
+	RaptorQ_Compress RAPTORQ_API RaptorQ_get_compression();
+	bool RAPTORQ_API RaptorQ_set_compression (
 											const RaptorQ_Compress compression);
-	RaptorQ_Error RAPTORQ_API RaptorQ_local_cache_size (const uint64_t local_cache,
-											const RaptorQ_Compress compression);
+
+	uint64_t RAPTORQ_API RaptorQ_shared_cache_size(const uint64_t shared_cache);
+	RaptorQ_Error RAPTORQ_API RaptorQ_local_cache_size (
+													const uint64_t local_cache);
 	uint64_t RAPTORQ_API RaptorQ_get_shared_cache_size ();
 	uint64_t RAPTORQ_API RaptorQ_get_local_cache_size ();
 

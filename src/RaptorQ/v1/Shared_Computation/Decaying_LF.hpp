@@ -28,6 +28,7 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <utility>
 
 
 namespace RaptorQ__v1 {
@@ -109,8 +110,8 @@ public:
 
     size_t get_size() const;
     bool resize (const size_t new_size);
-    bool add (User_Data &raw, const Key &key);
-    User_Data get (const Key &key);
+    bool add (const Compress algo, User_Data &raw, const Key &key);
+    std::pair<Compress, User_Data> get (const Key &key);
 private:
     DLF ();
     // keep everything in a linked list, ordered by score.
@@ -124,13 +125,14 @@ private:
     public:
 		DLF_Data (const DLF_Data &d);
 		DLF_Data (const Key k, const uint32_t _score, const uint32_t _tick,
-															User_Data &_raw)
-			: key (k), score (_score), tick(_tick), raw(_raw)
+										User_Data &_raw, const Compress alg)
+			: key (k), score (_score), tick(_tick), raw(_raw), algorithm (alg)
 		{}
         Key key;
         std::atomic<uint32_t> score;
         std::atomic<uint32_t> tick;
         User_Data raw;
+		Compress algorithm;
 
         bool operator< (const DLF_Data &rhs) const;
 		DLF_Data& operator= (const DLF_Data &rhs);
@@ -161,6 +163,7 @@ typename DLF<User_Data, Key>::DLF_Data&
 	auto _score = d.score.load();
 	auto _tick = d.tick.load();
 	key = d.key;
+	algorithm = d.algorithm;
 	score = _score;
 	tick = _tick;
 	raw = d.raw;
@@ -206,18 +209,19 @@ bool DLF<User_Data, Key>::resize (const size_t new_size)
 }
 
 template<typename User_Data, typename Key>
-User_Data DLF<User_Data, Key>::get (const Key &key)
+std::pair<Compress, User_Data> DLF<User_Data, Key>::get (const Key &key)
 {
     std::lock_guard<std::mutex> guard (biglock);
     for (auto &tmp : data) {
         if (tmp.key == key)
-            return tmp.raw;
+			return {tmp.algorithm, tmp.raw};
     }
-    return User_Data ();
+	return {Compress::NONE, User_Data ()};
 }
 
 template<typename User_Data, typename Key>
-bool DLF<User_Data, Key>::add (User_Data &raw, const Key &key)
+bool DLF<User_Data, Key>::add (const Compress algorithm, User_Data &raw,
+																const Key &key)
 {
     std::lock_guard<std::mutex> guard (biglock);
     for (auto &tmp : data) {
@@ -237,7 +241,7 @@ bool DLF<User_Data, Key>::add (User_Data &raw, const Key &key)
         auto tmp_tick = global_tick.load();
 		//DLF_Data tmp (key, tmp_tick + 1, tmp_tick, raw);
 		//data.push_back(tmp);
-		data.emplace_back (key, tmp_tick + 1, tmp_tick, raw);
+		data.emplace_back (key, tmp_tick + 1, tmp_tick, raw, algorithm);
         std::sort (data.begin(), data.end());
         actual_size += sizeof(DLF_Data) + raw.size();
         return true;

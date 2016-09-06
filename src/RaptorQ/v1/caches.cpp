@@ -20,25 +20,50 @@
 
 #include "RaptorQ/v1/caches.hpp"
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
-namespace RaptorQ__v1 {
-
-std::vector<Compress> supported_compressions()
-{
 #ifdef RQ_USE_LZ4
-	return std::vector<Compress> {Compress::NONE, Compress::LZ4};
-#else
-	return std::vector<Compress> {Compress::NONE};
+    #include "RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp"
 #endif
 
+
+namespace RaptorQ__v1 {
+
+Compress supported_compressions()
+{
+#ifdef RQ_USE_LZ4
+	return Compress::NONE | Compress::LZ4;
+#else
+	return Compress::NONE;
+#endif
 }
 
-uint64_t shared_cache_size (const uint64_t shared_cache,
-													const Compress compresion)
+Compress get_compression()
+{
+	return Impl::compression;
+}
+
+bool set_compression (const Compress compression)
+{
+	switch (compression) {
+	case Compress::NONE:
+		Impl::compression = compression;
+		return true;
+	case Compress::LZ4:
+#ifdef RQ_USE_LZ4
+		Impl::compression = compression;
+		return true;
+#else
+		return false;
+#endif
+	}
+	return false;
+}
+
+uint64_t shared_cache_size (const uint64_t shared_cache)
 {
     return 0;
 }
 
-bool local_cache_size (const uint64_t local_cache, const Compress compresion)
+bool local_cache_size (const uint64_t local_cache)
 {
     return RaptorQ__v1::Impl::DLF<std::vector<uint8_t>,
 									RaptorQ__v1::Impl::Cache_Key>::
@@ -57,4 +82,60 @@ uint64_t get_local_cache_size()
 															get()->get_size();
 }
 
-}   // namespace RaptorQ__v1
+namespace Impl {
+std::pair<Compress, std::vector<uint8_t>> compress (
+											const std::vector<uint8_t> &data)
+{
+	Compress algo = get_compression();
+    if (algo == Compress::NONE)
+		return {algo, data};
+#ifdef RQ_USE_LZ4
+    if (algo == Compress::LZ4) {
+        LZ4<LZ4_t::ENCODER> lz4;
+		return {algo, lz4.encode (data)};
+    }
+	return {Compress::NONE, std::vector<uint8_t>()};
+#endif
+}
+
+std::vector<uint8_t> decompress (const Compress algorithm,
+											const std::vector<uint8_t> &data)
+{
+    if (algorithm == Compress::NONE)
+        return data;
+#ifdef RQ_USE_LZ4
+    if (algorithm == Compress::LZ4) {
+        LZ4<LZ4_t::DECODER> lz4;
+        return lz4.decode (data);
+    }
+    return std::vector<uint8_t>();
+#endif
+}
+
+} // namespace Impl
+} // namespace RaptorQ__v1
+
+
+namespace RFC6330__v1 {
+Compress supported_compressions()
+{ return RaptorQ__v1::supported_compressions(); }
+
+Compress get_compression()
+{ return RaptorQ__v1::get_compression(); }
+
+bool set_compression (const Compress compression)
+{ return RaptorQ__v1::set_compression (compression); }
+
+uint64_t shared_cache_size (const uint64_t shared_cache)
+{ return RaptorQ__v1::shared_cache_size (shared_cache); }
+
+bool local_cache_size (const uint64_t local_cache)
+{ return RaptorQ__v1::local_cache_size (local_cache); }
+
+uint64_t get_shared_cache_size()
+{ return RaptorQ__v1::get_shared_cache_size(); }
+
+uint64_t get_local_cache_size()
+{ return RaptorQ__v1::get_local_cache_size(); }
+
+} // namespace RFC6330__v1

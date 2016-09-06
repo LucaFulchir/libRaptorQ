@@ -103,8 +103,8 @@ typedef enum {
 } RaptorQ_Work;
 
 typedef enum {
-	RQ_COMPRESS_NONE = 0,
-	RQ_COMPRESS_LZ4 = 1,
+	RQ_COMPRESS_NONE = 0x00,
+	RQ_COMPRESS_LZ4 = 0x01,
 } RaptorQ_Compress;
 
 #ifndef __cplusplus
@@ -116,6 +116,16 @@ namespace RaptorQ__v1 {
 	enum class Compress : uint8_t { NONE = RQ_COMPRESS_NONE,
 									LZ4 = RQ_COMPRESS_LZ4
 									};
+inline Compress operator| (const Compress a, const Compress b)
+{
+	return static_cast<Compress> (static_cast<uint8_t> (a) |
+													static_cast<uint8_t> (b));
+}
+inline Compress operator& (const Compress a, const Compress b)
+{
+	return static_cast<Compress> (static_cast<uint8_t> (a) &
+													static_cast<uint8_t> (b));
+}
 	enum class RAPTORQ_API Error : uint8_t {
 							NONE = RQ_ERR_NONE,
 							NOT_NEEDED = RQ_ERR_NOT_NEEDED,

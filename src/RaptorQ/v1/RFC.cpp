@@ -35,18 +35,4 @@ bool set_thread_pool (const size_t threads,
 	return true;
 }
 
-uint64_t shared_cache_size (const uint64_t shared_cache,
-													const Compress compression)
-{ return RaptorQ__v1::shared_cache_size (shared_cache, compression); }
-
-bool local_cache_size (const uint64_t local_cache,
-													const Compress compression)
-{ return RaptorQ__v1::local_cache_size (local_cache, compression); }
-
-uint64_t get_shared_cache_size()
-{ return RaptorQ__v1::get_shared_cache_size(); }
-
-uint64_t get_local_cache_size()
-{ return RaptorQ__v1::get_local_cache_size(); }
-
 }   // namespace RFC6330__v1

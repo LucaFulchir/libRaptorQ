@@ -21,15 +21,13 @@
 #pragma once
 
 #include "RaptorQ/v1/common.hpp"
+#include "RaptorQ/v1/caches.hpp"
 #include "RaptorQ/v1/Interleaver.hpp"
 #include "RaptorQ/v1/multiplication.hpp"
 #include "RaptorQ/v1/Parameters.hpp"
 #include "RaptorQ/v1/Precode_Matrix.hpp"
 #include "RaptorQ/v1/Rand.hpp"
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
-#ifdef RQ_USE_LZ4
-	#include "RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp"
-#endif
 #include "RaptorQ/v1/Thread_Pool.hpp"
 #include <Eigen/Dense>
 #include <Eigen/SparseLU>
@@ -158,16 +156,11 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 	if (type == Save_Computation::ON) {
 		const uint16_t size = precode_on->_params.L;
 		const Cache_Key key (size, 0, std::vector<bool>());
-		std::vector<uint8_t> compressed = DLF<std::vector<uint8_t>, Cache_Key>::
+		auto compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
-		if (compressed.size() != 0) {
-#ifdef RQ_USE_LZ4
-			LZ4<LZ4_t::DECODER> lz4;
-			auto uncompressed = lz4.decode (compressed);
+		if (compressed.second.size() != 0) {
+			auto uncompressed = decompress (compressed.first,compressed.second);
 			DenseMtx precomputed = raw_to_Mtx (uncompressed, key._mt_size);
-#else
-			DenseMtx precomputed = raw_to_Mtx (compressed, key._mt_size);
-#endif
 			if (precomputed.rows() != 0) {
 				return precomputed;
 			}
@@ -208,14 +201,9 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 		op->build_mtx (res);
 	if (encoded_symbols.cols() != 0 && size > 100) {
 		auto raw_mtx = Mtx_to_raw (res);
-#ifdef RQ_USE_LZ4
-		LZ4<LZ4_t::ENCODER> lz4;
-		auto compressed = lz4.encode (raw_mtx);
-		DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed, key);
-#else
-		DLF<std::vector<uint8_t>, Cache_Key>::get()->add (raw_mtx, key);
-#endif
-
+		auto compressed = compress (raw_mtx);
+		DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed.first,
+														compressed.second, key);
 	}
 	return res;
 }
@@ -294,16 +282,11 @@ bool Raw_Encoder<Rnd_It, Fwd_It>::generate_symbols (
 	if (type == Save_Computation::ON) {
 		const uint16_t size = precode_on->_params.L;
 		const Cache_Key key (size, 0, std::vector<bool>());
-		std::vector<uint8_t> compressed = DLF<std::vector<uint8_t>, Cache_Key>::
+		auto compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
-		if (compressed.size() != 0) {
-#ifdef RQ_USE_LZ4
-			LZ4<LZ4_t::DECODER> lz4;
-			auto uncompressed = lz4.decode (compressed);
-			DenseMtx precomputed = raw_to_Mtx (uncompressed, key._mt_size);
-#else
-			DenseMtx precomputed = raw_to_Mtx (compressed, key._mt_size);
-#endif
+		if (compressed.second.size() != 0) {
+			auto decompressed = decompress (compressed.first,compressed.second);
+			DenseMtx precomputed = raw_to_Mtx (decompressed, key._mt_size);
 			if (precomputed.rows() != 0) {
 				// we have a precomputed matrix! let's use that!
 				encoded_symbols = precomputed * D;
@@ -327,13 +310,9 @@ bool Raw_Encoder<Rnd_It, Fwd_It>::generate_symbols (
 			for (auto &op : ops)
 				op->build_mtx (res);
 			auto raw_mtx = Mtx_to_raw (res);
-#ifdef RQ_USE_LZ4
-			LZ4<LZ4_t::ENCODER> lz4;
-			compressed = lz4.encode (raw_mtx);
-			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed, key);
-#else
-			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (raw_mtx, key);
-#endif
+			compressed = compress (raw_mtx);
+			DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed.first,
+														compressed.second, key);
 		}
 	} else {
 		std::tie (precode_res, encoded_symbols) = precode_off->intermediate (D,

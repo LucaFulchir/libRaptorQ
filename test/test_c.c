@@ -331,7 +331,12 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 int main (void)
 {
 	// set local cache size to 100MB
-	RaptorQ_local_cache_size (100*1024*1024, RQ_COMPRESS_LZ4);
+#ifdef RQ_USE_LZ4
+	RaptorQ_set_compression (RQ_COMPRESS_LZ4);
+#else
+	RaptorQ_set_compression (RQ_COMPRESS_NONE);
+#endif
+	RaptorQ_local_cache_size (100*1024*1024);
     RaptorQ_set_thread_pool (2, 2, RQ_WORK_ABORT_COMPUTATION);
 	// encode and decode
 	bool ret = decode (501, 20.0, 4);

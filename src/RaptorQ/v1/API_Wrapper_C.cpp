@@ -213,18 +213,31 @@ struct RaptorQ_ptr *RaptorQ_Dec (const RaptorQ_type type,
 // Precomputation caching
 ///////////////////////////
 
-uint64_t RaptorQ_shared_cache_size (const uint64_t shared_cache,
-											const RaptorQ_Compress compression)
+RaptorQ_Compress RaptorQ_supported_compressions()
 {
-	return RaptorQ__v1::shared_cache_size (shared_cache,
-							static_cast<RaptorQ__v1::Compress> (compression));
+	return static_cast<RaptorQ_Compress>(RaptorQ__v1::supported_compressions());
 }
 
-RaptorQ_Error RaptorQ_local_cache_size (const uint64_t local_cache,
-											const RaptorQ_Compress compression)
+RaptorQ_Compress RaptorQ_get_compression()
+{
+	return static_cast<RaptorQ_Compress>(RaptorQ__v1::get_compression());
+}
+
+bool RaptorQ_set_compression (const RaptorQ_Compress compression)
+{
+	return static_cast<RaptorQ_Compress> (RaptorQ__v1::set_compression (
+							static_cast<RaptorQ__v1::Compress> (compression)));
+}
+
+uint64_t RaptorQ_shared_cache_size (const uint64_t shared_cache)
+{
+	return RaptorQ__v1::shared_cache_size (shared_cache);
+}
+
+RaptorQ_Error RaptorQ_local_cache_size (const uint64_t local_cache)
 {
 	return static_cast<RaptorQ_Error> (RaptorQ__v1::local_cache_size (
-				local_cache, static_cast<RaptorQ__v1::Compress> (compression)));
+																local_cache));
 }
 
 uint64_t RaptorQ_get_shared_cache_size ()

@@ -18,18 +18,45 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#pragma once
+
 #include "RaptorQ/v1/common.hpp"
 #include <vector>
+#include <utility>
 
 namespace RaptorQ__v1 {
 
-std::vector<Compress> RAPTORQ_API supported_compressions();
+Compress RAPTORQ_API supported_compressions();
+Compress RAPTORQ_API get_compression();
+bool     RAPTORQ_API set_compression (const Compress compression);
 
-uint64_t RAPTORQ_API shared_cache_size (const uint64_t shared_cache,
-													const Compress compresion);
-bool RAPTORQ_API local_cache_size (const uint64_t local_cache,
-													const Compress compresion);
+uint64_t RAPTORQ_API shared_cache_size (const uint64_t shared_cache);
+bool RAPTORQ_API local_cache_size (const uint64_t local_cache);
 uint64_t RAPTORQ_API get_shared_cache_size();
 uint64_t RAPTORQ_API get_local_cache_size();
 
+namespace Impl {
+
+static Compress compression = Compress::NONE;
+
+std::pair<Compress, std::vector<uint8_t>> RAPTORQ_API compress (
+											const std::vector<uint8_t> &data);
+std::vector<uint8_t> RAPTORQ_API decompress (const Compress algorithm,
+											const std::vector<uint8_t> &data);
+
+} // namespace Impl
+
 }   // namespace RaptorQ__v1
+
+namespace RFC6330__v1 {
+
+// NOTE: Copy of the above. keep in sync!
+Compress RAPTORQ_API supported_compressions();
+Compress RAPTORQ_API get_compression();
+bool     RAPTORQ_API set_compression (const Compress compression);
+uint64_t RAPTORQ_API shared_cache_size (const uint64_t shared_cache);
+bool RAPTORQ_API local_cache_size (const uint64_t local_cache);
+uint64_t RAPTORQ_API get_shared_cache_size();
+uint64_t RAPTORQ_API get_local_cache_size();
+
+} // namespace RFC6330__v1
