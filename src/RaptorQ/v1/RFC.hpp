@@ -216,6 +216,7 @@ public:
 	//		uint8_t	alignment;
 	//	};
 	//};
+	~Decoder();
 	Decoder (const RQ_OTI_Common_Data common,
                             const RQ_OTI_Scheme_Specific_Data scheme)
 	{
@@ -352,6 +353,11 @@ Encoder<Rnd_It, Fwd_It>::~Encoder()
 		if (ptr != nullptr)
 			ptr->stop();
 	}
+	do {
+		std::unique_lock<std::mutex> lock (_mtx);
+		if (pool_wait.size() != 0)
+			pool_lock->second.wait (lock);
+	} while (pool_wait.size() != 0);
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -560,6 +566,7 @@ void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
 			break;
 		}
 	}
+	obj->pool_lock->second.notify_all();
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -706,6 +713,24 @@ uint32_t Encoder<Rnd_It, Fwd_It>::max_repair (const uint8_t sbn) const
 /////////////////
 
 template <typename In_It, typename Fwd_It>
+Decoder<In_It, Fwd_It>::~Decoder()
+{
+	exiting = true;	// stop notifying thread
+	pool_lock->second.notify_all();
+	for (auto &it : decoders) {	// stop existing computations
+		auto ptr = it.second.dec;
+		if (ptr != nullptr)
+			ptr->stop();
+	}
+	do {
+		std::unique_lock<std::mutex> lock (_mtx);
+		if (pool_wait.size() != 0)
+			pool_lock->second.wait (lock);
+	} while (pool_wait.size() != 0);
+}
+
+
+template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::free (const uint8_t sbn)
 {
 	_mtx.lock();
@@ -776,12 +801,10 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
 															std::defer_lock);
 		switch (ret) {
 		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::DECODED:
-			locked_guard.lock(); // lock only here
+			locked_guard.lock();
 			locked_notify->second.notify_one();
-			#pragma GCC diagnostic push
-			#pragma GCC diagnostic ignored "-Wattributes"
-			[[clang::fallthrough]];
-			#pragma GCC diagnostic pop
+			locked_dec->drop_concurrent();
+			return Work_Exit_Status::DONE;
 		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::NEED_DATA:
 			locked_dec->drop_concurrent();
 			return Work_Exit_Status::DONE;
@@ -904,6 +927,7 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 			break;
 		}
 	}
+	obj->pool_lock->second.notify_all();
 }
 
 template <typename In_It, typename Fwd_It>
