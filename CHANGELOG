@@ -1,3 +1,14 @@
+v0.2.0 (prealpha):
+    * new, simpler RAW API (single-block)
+    * precomputation caching
+    * cached result can be compressed (raw/LZ4)
+    * RFC API: global multithreading instead of per-class
+    * computations can be stopped
+v0.1.8 (unreleased):
+    * someone forgot to update the changelog :p
+        * was bugfixing only, no new feature
+    * fixed initializing encoder/decoder with more than 256 blocks
+    * fixed untriggerable bug on writing decoding data.
 v0.1.4:
     * finally reached a usable state
 
