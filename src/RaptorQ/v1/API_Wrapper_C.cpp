@@ -38,6 +38,83 @@ struct RAPTORQ_LOCAL RaptorQ_future
 	std::future<std::pair<RFC6330__v1::Error, uint8_t>> f;
 };
 
+void RAPTORQ_LOCAL RFC6330_test_del (struct RaptorQ_ptr **ptr);
+void RAPTORQ_LOCAL RFC6330_test_del (struct RaptorQ_ptr **ptr)
+{
+    if (ptr == nullptr || *ptr == nullptr ||
+										(*ptr)->type == RaptorQ_type::RQ_NONE
+                                                    || (*ptr)->ptr == nullptr) {
+        if (ptr != nullptr) {
+            delete *ptr;
+            *ptr = nullptr;
+            return;
+        }
+        return;
+    }
+    switch ((*ptr)->type) {
+    case RaptorQ_type::RQ_ENC_8:
+        if(!(reinterpret_cast<RFC6330__v1::Encoder<uint8_t*, uint8_t*>*> (
+                                                                (*ptr)->ptr))) {
+            RaptorQ_free (ptr);
+            return;
+        }
+        break;
+    case RaptorQ_type::RQ_ENC_16:
+        if(!(reinterpret_cast<RFC6330__v1::Encoder<uint16_t, uint16_t*>*> (
+                                                                (*ptr)->ptr))) {
+            RaptorQ_free (ptr);
+            return;
+        }
+        break;
+    case RaptorQ_type::RQ_ENC_32:
+        if(!(reinterpret_cast<RFC6330__v1::Encoder<uint32_t*, uint32_t*>*> (
+                                                                (*ptr)->ptr))) {
+            RaptorQ_free (ptr);
+            return;
+        }
+        break;
+    case RaptorQ_type::RQ_ENC_64:
+        if(!(reinterpret_cast<RFC6330__v1::Encoder<uint64_t*, uint64_t*>*> (
+                                                                (*ptr)->ptr))) {
+            RaptorQ_free (ptr);
+            return;
+        }
+        break;
+    case RaptorQ_type::RQ_DEC_8:
+        if(!(reinterpret_cast<RFC6330__v1::Decoder<uint8_t*, uint8_t*>*> (
+                                                                (*ptr)->ptr))) {
+            RaptorQ_free (ptr);
+            return;
+        }
+        break;
+    case RaptorQ_type::RQ_DEC_16:
+        if(!(reinterpret_cast<RFC6330__v1::Decoder<uint16_t*, uint16_t*>*> (
+                                                                (*ptr)->ptr))) {
+            RaptorQ_free (ptr);
+            return;
+        }
+        break;
+    case RaptorQ_type::RQ_DEC_32:
+        if(!(reinterpret_cast<RFC6330__v1::Decoder<uint32_t*, uint32_t*>*> (
+                                                                (*ptr)->ptr))) {
+            RaptorQ_free (ptr);
+            return;
+        }
+        break;
+    case RaptorQ_type::RQ_DEC_64:
+        if(!(reinterpret_cast<RFC6330__v1::Decoder<uint64_t*, uint64_t*>*> (
+                                                                (*ptr)->ptr))) {
+            RaptorQ_free (ptr);
+            return;
+        }
+        break;
+    case RaptorQ_type::RQ_NONE:
+        assert(false && "RaptorQ: C Wrapper: should not have gotten here");
+        break;
+    }
+    return;
+}
+
 
 struct RaptorQ_ptr *RaptorQ_Enc (const RaptorQ_type type, void *data,
 											const uint64_t size,
@@ -91,7 +168,9 @@ struct RaptorQ_ptr *RaptorQ_Enc (const RaptorQ_type type, void *data,
 	case RaptorQ_type::RQ_NONE:
 		return new RaptorQ_ptr (RaptorQ_type::RQ_NONE);
 	}
-	return ret.release();
+	auto raw_ptr = ret.release();
+	RFC6330_test_del (&raw_ptr);
+	return raw_ptr;
 }
 
 struct RaptorQ_ptr *RaptorQ_Dec (const RaptorQ_type type,
@@ -124,7 +203,9 @@ struct RaptorQ_ptr *RaptorQ_Dec (const RaptorQ_type type,
 	case RaptorQ_type::RQ_NONE:
 		return new RaptorQ_ptr (RaptorQ_type::RQ_NONE);
 	}
-	return ret.release();
+	auto raw_ptr = ret.release();
+	RFC6330_test_del (&raw_ptr);
+	return raw_ptr;
 }
 
 ///////////////////////////

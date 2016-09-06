@@ -24,6 +24,7 @@
 #include "RaptorQ/v1/multiplication.hpp"
 #include "RaptorQ/v1/table2.hpp"
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <tuple>
 #include <utility>
@@ -31,14 +32,14 @@
 
 // force promotion to double in division
 namespace {
-float RAPTORQ_LOCAL div_floor (const float a, const float b);
-float RAPTORQ_LOCAL div_ceil (const float a, const float b);
+double RAPTORQ_LOCAL div_floor (const double a, const double b);
+double RAPTORQ_LOCAL div_ceil (const double a, const double b);
 
-float div_floor (const float a, const float b)
+double div_floor (const double a, const double b)
 {
 	return std::floor (a / b);
 }
-float div_ceil (const float a, const float b)
+double div_ceil (const double a, const double b)
 {
 	return std::ceil (a / b);
 }
@@ -385,9 +386,9 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 	// derive number of source blocks and sub blocks. seed RFC 6330, pg 8
 	std::vector<uint16_t> sizes;
 	size_t iter_size =sizeof(typename std::iterator_traits<Rnd_It>::value_type);
-	const float input_size = static_cast<size_t>(_data_to - _data_from) *
+	const double input_size = static_cast<double>(_data_to - _data_from) *
 																	iter_size;
-	const float Kt = div_ceil(input_size, symbol_size);
+	const double Kt = div_ceil(input_size, symbol_size);
 	const size_t N_max = static_cast<size_t> (div_floor (_symbol_size,
 														min_subsymbol_size));
 
@@ -415,7 +416,13 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 		// NOTE: tmp starts from 1, but "sizes" stores from 0.
 		sizes.push_back (RaptorQ__v1::Impl::K_padded[idx == 0 ? 0 : --idx]);
 	}
-	_source_blocks = static_cast<uint8_t> (div_ceil (Kt, sizes[N_max - 1]));
+	const uint64_t test_blocks = static_cast<uint64_t> (
+											div_ceil (Kt, sizes[N_max - 1]));
+	if (test_blocks > std::numeric_limits<uint8_t>::max()) {
+		_alignment = 0;
+		return;
+	}
+	_source_blocks = static_cast<uint8_t> (test_blocks);
 	tmp = static_cast<size_t> (div_ceil (Kt, _source_blocks));
 	for (size_t i = 0; i < sizes.size(); ++i) {
 		// rfc: ceil (Kt / Z) <= KL(n)
