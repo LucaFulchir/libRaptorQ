@@ -28,7 +28,6 @@
 
 namespace RaptorQ__v1 {
 
-
 template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder
 {

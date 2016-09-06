@@ -35,15 +35,13 @@ bool set_thread_pool (const size_t threads,
 	return true;
 }
 
+uint64_t shared_cache_size (const uint64_t shared_cache,
+													const Compress compression)
+{ return RaptorQ__v1::shared_cache_size (shared_cache, compression); }
 
-// TODO: is cache used only by rfc?
-// these are not just for rfc?
-
-uint64_t shared_cache_size (const uint64_t shared_cache)
-{ return RaptorQ__v1::shared_cache_size (shared_cache); }
-
-bool local_cache_size (const uint64_t local_cache)
-{ return RaptorQ__v1::local_cache_size (local_cache); }
+bool local_cache_size (const uint64_t local_cache,
+													const Compress compression)
+{ return RaptorQ__v1::local_cache_size (local_cache, compression); }
 
 uint64_t get_shared_cache_size()
 { return RaptorQ__v1::get_shared_cache_size(); }

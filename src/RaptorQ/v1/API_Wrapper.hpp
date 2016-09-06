@@ -43,8 +43,10 @@ namespace RFC6330__v1 {
 //// Free Functions
 ////////////////////
 
-uint64_t RAPTORQ_API shared_cache_size (const uint64_t shared_cache);
-bool RAPTORQ_API local_cache_size (const uint64_t local_cache);
+uint64_t RAPTORQ_API shared_cache_size (const uint64_t shared_cache,
+													const Compress compression);
+bool RAPTORQ_API local_cache_size (const uint64_t local_cache,
+													const Compress compression);
 uint64_t RAPTORQ_API get_shared_cache_size();
 uint64_t RAPTORQ_API get_local_cache_size();
 
@@ -99,7 +101,6 @@ public:
         return 0;
     }
 
-	// TODO: introduce memory limits on threading ?
 	std::future<std::pair<Error, uint8_t>> compute (const Compute flags)
     {
         if (rfc_encoder != nullptr)

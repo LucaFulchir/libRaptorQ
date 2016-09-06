@@ -22,16 +22,27 @@
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
 namespace RaptorQ__v1 {
 
-uint64_t shared_cache_size (const uint64_t shared_cache)
+std::vector<Compress> supported_compressions()
+{
+#ifdef RQ_USE_LZ4
+	return std::vector<Compress> {Compress::NONE, Compress::LZ4};
+#else
+	return std::vector<Compress> {Compress::NONE};
+#endif
+
+}
+
+uint64_t shared_cache_size (const uint64_t shared_cache,
+													const Compress compresion)
 {
     return 0;
 }
 
-bool local_cache_size (const uint64_t local_cache)
+bool local_cache_size (const uint64_t local_cache, const Compress compresion)
 {
     return RaptorQ__v1::Impl::DLF<std::vector<uint8_t>,
 									RaptorQ__v1::Impl::Cache_Key>::
-													get()->resize (local_cache);
+												get()->resize (local_cache);
 }
 
 uint64_t get_shared_cache_size()

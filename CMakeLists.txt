@@ -144,50 +144,52 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
 else()
     add_definitions(-DRQ_UNIX)
     # used by ftok to get a key. Track both the file and the version
-    add_definitions(-DRQ_SHMPATH="${CMAKE_INSTALL_PREFIX}/lib/libRaptorQ.so-${RQ_VERSION}")
+    add_definitions(-DRQ_SHMPATH="${CMAKE_INSTALL_LIBDIR}/libRaptorQ.so-${RQ_VERSION}")
 endif()
 
 
-SET(SOURCES src/RaptorQ/v1/Operation.cpp
+SET(SOURCES src/RaptorQ/v1/API_Wrapper_C.cpp
+            src/RaptorQ/v1/Bitmask.cpp
             src/RaptorQ/v1/caches.cpp
-    		src/RaptorQ/v1/Thread_Pool.cpp
-    		src/RaptorQ/v1/Bitmask.cpp
-    		src/RaptorQ/v1/Rand.cpp
-    		src/RaptorQ/v1/Parameters.cpp
-    		src/RaptorQ/v1/Graph.cpp
-    		src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp
-    		src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp
-    		src/RaptorQ/v1/RFC.cpp
-    		src/RaptorQ/v1/API_Wrapper_C.cpp)
+            src/RaptorQ/v1/Graph.cpp
+            src/RaptorQ/v1/Operation.cpp
+            src/RaptorQ/v1/Parameters.cpp
+            src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp
+            src/RaptorQ/v1/Rand.cpp
+            src/RaptorQ/v1/RFC.cpp
+            src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp
+    		src/RaptorQ/v1/Thread_Pool.cpp)
 
-SET(HEADERS	src/RaptorQ/RFC6330_v1.hpp
-			src/RaptorQ/RFC6330_v1.h
-			src/RaptorQ/RaptorQ_v1.hpp
+SET(HEADERS
+            src/RaptorQ/v1/API_Iterators.hpp
+            src/RaptorQ/v1/API_Wrapper.h
+            src/RaptorQ/v1/API_Wrapper.hpp
+            src/RaptorQ/v1/API_Wrapper_Raw.hpp
             src/RaptorQ/v1/caches.hpp
-			src/RaptorQ/v1/RaptorQ.hpp
-			src/RaptorQ/v1/RaptorQ_Iterators.hpp
-            src/RaptorQ/v1/Interleaver.hpp
-    		src/RaptorQ/v1/Thread_Pool.hpp
-    		src/RaptorQ/v1/multiplication.hpp
-    		src/RaptorQ/v1/table2.hpp
-    		src/RaptorQ/v1/degree.hpp
-    		src/RaptorQ/v1/common.hpp
+            src/RaptorQ/v1/common.hpp
+            src/RaptorQ/v1/De_Interleaver.hpp
+            src/RaptorQ/v1/Decoder.hpp
+            src/RaptorQ/v1/degree.hpp
     		src/RaptorQ/v1/Encoder.hpp
-    		src/RaptorQ/v1/Decoder.hpp
-    		src/RaptorQ/v1/Rand.hpp
-    		src/RaptorQ/v1/Operation.hpp
-    		src/RaptorQ/v1/Precode_Matrix.hpp
+            src/RaptorQ/v1/Graph.hpp
+            src/RaptorQ/v1/Interleaver.hpp
+            src/RaptorQ/v1/multiplication.hpp
+            src/RaptorQ/v1/Operation.hpp
+            src/RaptorQ/v1/Parameters.hpp
+            src/RaptorQ/v1/Precode_Matrix.hpp
     		src/RaptorQ/v1/Precode_Matrix_Init.hpp
     		src/RaptorQ/v1/Precode_Matrix_Solver.hpp
-    		src/RaptorQ/v1/Parameters.hpp
-    		src/RaptorQ/v1/Graph.hpp
-    		src/RaptorQ/v1/De_Interleaver.hpp
-    		src/RaptorQ/v1/RFC.hpp
-			src/RaptorQ/v1/API_Iterators.hpp
-    		src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
-			src/RaptorQ/v1/API_Wrapper_Raw.hpp
-			src/RaptorQ/v1/API_Wrapper.hpp
-    		src/RaptorQ/v1/API_Wrapper.h)
+            src/RaptorQ/v1/Rand.hpp
+			src/RaptorQ/v1/RaptorQ.hpp
+			src/RaptorQ/v1/RaptorQ_Iterators.hpp
+            src/RaptorQ/v1/RFC.hpp
+            src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
+            src/RaptorQ/v1/table2.hpp
+    		src/RaptorQ/v1/Thread_Pool.hpp
+            src/RaptorQ/RFC6330_v1.hpp
+			src/RaptorQ/RFC6330_v1.h
+			src/RaptorQ/RaptorQ_v1.hpp)
+
 if (USE_LZ4 MATCHES "ON")
     SET (HEADERS ${HEADERS}
             src/RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp)

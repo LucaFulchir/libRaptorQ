@@ -21,6 +21,7 @@
 #include "RaptorQ/v1/RFC.hpp"
 #include "RaptorQ/v1/API_Wrapper.h"
 #include "RaptorQ/v1/API_Wrapper.hpp"
+#include "RaptorQ/v1/caches.hpp"
 #include <chrono>
 #include <future>
 #include <memory>
@@ -212,15 +213,18 @@ struct RaptorQ_ptr *RaptorQ_Dec (const RaptorQ_type type,
 // Precomputation caching
 ///////////////////////////
 
-uint64_t RaptorQ_shared_cache_size (const uint64_t shared_cache)
+uint64_t RaptorQ_shared_cache_size (const uint64_t shared_cache,
+											const RaptorQ_Compress compression)
 {
-	return RFC6330__v1::shared_cache_size (shared_cache);
+	return RaptorQ__v1::shared_cache_size (shared_cache,
+							static_cast<RaptorQ__v1::Compress> (compression));
 }
 
-RaptorQ_Error RaptorQ_local_cache_size (const uint64_t local_cache)
+RaptorQ_Error RaptorQ_local_cache_size (const uint64_t local_cache,
+											const RaptorQ_Compress compression)
 {
-	return static_cast<RaptorQ_Error> (RFC6330__v1::local_cache_size (
-																local_cache));
+	return static_cast<RaptorQ_Error> (RaptorQ__v1::local_cache_size (
+				local_cache, static_cast<RaptorQ__v1::Compress> (compression)));
 }
 
 uint64_t RaptorQ_get_shared_cache_size ()

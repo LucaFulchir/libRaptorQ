@@ -245,7 +245,7 @@ Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 		// matrices, that we can use for precomputation.
 		// this *should* not be a big performance hit as the repair symbols
 		// should already be *almost* in order.
-		// TODO: b-tree?
+		// TODO: b-tree? map?
 		int32_t idx = static_cast<int32_t> (received_repair.size()) - 1;
 		while (idx >= 1) {
 			const uint32_t idx_u = static_cast<uint32_t> (idx);

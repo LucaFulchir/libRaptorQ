@@ -19,11 +19,16 @@
  */
 
 #include "RaptorQ/v1/common.hpp"
+#include <vector>
 
 namespace RaptorQ__v1 {
 
-uint64_t RAPTORQ_API shared_cache_size (const uint64_t shared_cache);
-bool RAPTORQ_API local_cache_size (const uint64_t local_cache);
+std::vector<Compress> RAPTORQ_API supported_compressions();
+
+uint64_t RAPTORQ_API shared_cache_size (const uint64_t shared_cache,
+													const Compress compresion);
+bool RAPTORQ_API local_cache_size (const uint64_t local_cache,
+													const Compress compresion);
 uint64_t RAPTORQ_API get_shared_cache_size();
 uint64_t RAPTORQ_API get_local_cache_size();
 

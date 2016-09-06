@@ -102,12 +102,20 @@ typedef enum {
 	RQ_WORK_ABORT_COMPUTATION = 1,
 } RaptorQ_Work;
 
+typedef enum {
+	RQ_COMPRESS_NONE = 0,
+	RQ_COMPRESS_LZ4 = 1,
+} RaptorQ_Compress;
+
 #ifndef __cplusplus
 #include <stdint.h>
 #else
 // C++ version. keep the enum synced
 #include <cstdint>
 namespace RaptorQ__v1 {
+	enum class Compress : uint8_t { NONE = RQ_COMPRESS_NONE,
+									LZ4 = RQ_COMPRESS_LZ4
+									};
 	enum class RAPTORQ_API Error : uint8_t {
 							NONE = RQ_ERR_NONE,
 							NOT_NEEDED = RQ_ERR_NOT_NEEDED,
@@ -124,6 +132,7 @@ namespace RaptorQ__v1 {
 } // namespace RaptorQ__v1
 namespace RFC6330__v1 {
 	using Error = RaptorQ__v1::Error; // easier
+	using Compress = RaptorQ__v1::Compress; // easier
 	enum class RAPTORQ_API Compute : uint8_t {
 		NONE = RQ_COMPUTE_NONE,
 		PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
