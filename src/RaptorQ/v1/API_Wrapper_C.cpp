@@ -750,7 +750,7 @@ uint32_t RaptorQ_id (const uint32_t esi, const uint8_t sbn)
 // Decoding
 ///////////
 
-uint64_t RAPTORQ_API RaptorQ_bytes (struct RaptorQ_ptr *dec)
+uint64_t RaptorQ_bytes (struct RaptorQ_ptr *dec)
 {
 	if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE)
 		return 0;

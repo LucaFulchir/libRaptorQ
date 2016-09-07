@@ -43,7 +43,7 @@ extern template class Precode_Matrix<Save_Computation::OFF>;
 extern template class Precode_Matrix<Save_Computation::ON>;
 
 template <typename In_It>
-class RAPTORQ_API Raw_Decoder
+class RAPTORQ_LOCAL Raw_Decoder
 {
 	// decode () can be launched multiple times,
 	// But each time the list of source and repair symbols might
@@ -66,7 +66,7 @@ public:
 	}
 	~Raw_Decoder();
 
-	enum class RAPTORQ_API Decoder_Result : uint8_t {
+	enum class RAPTORQ_LOCAL Decoder_Result : uint8_t {
 		DECODED = 0,
 		STOPPED = 1,
 		CAN_RETRY = 2,
@@ -93,7 +93,7 @@ private:
 	uint16_t concurrent;	// currently running decoders retry
 	bool keep_working;
 	const Save_Computation type;
-	Impl::Bitmask mask;
+	Bitmask mask;
 	std::vector<bool> selector;
 	DenseMtx source_symbols;
 	std::vector<std::pair<uint32_t, Vect>> received_repair;

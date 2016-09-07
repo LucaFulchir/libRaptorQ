@@ -61,7 +61,7 @@ enum class RAPTORQ_API Save_Computation : uint8_t {
 	ON = 1
 };
 
-enum class RAPTORQ_API Precode_Result : uint8_t {
+enum class RAPTORQ_LOCAL Precode_Result : uint8_t {
 	DONE = 0,
 	STOPPED = 1,
 	FAILED = 2
@@ -82,8 +82,8 @@ public:
 
 
 	std::pair<Precode_Result, DenseMtx> intermediate (DenseMtx &D, Op_Vec &ops,
-											bool &keep_working,
-											const Work_State *thread_keep_working);
+										bool &keep_working,
+										const Work_State *thread_keep_working);
 	std::pair<Precode_Result, DenseMtx> intermediate (DenseMtx &D,
 										const Bitmask &mask,
 										const std::vector<uint32_t> &repair_esi,

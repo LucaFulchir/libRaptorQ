@@ -40,7 +40,7 @@ extern template class Precode_Matrix<Save_Computation::OFF>;
 extern template class Precode_Matrix<Save_Computation::ON>;
 
 template <typename Rnd_It, typename Fwd_It>
-class RAPTORQ_API Raw_Encoder
+class RAPTORQ_LOCAL Raw_Encoder
 {
 public:
 	Raw_Encoder (const uint16_t symbols)

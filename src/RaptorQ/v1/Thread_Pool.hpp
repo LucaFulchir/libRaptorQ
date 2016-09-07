@@ -38,8 +38,8 @@ enum class RAPTORQ_API Work_Exit_Status : uint8_t {
 	REQUEUE = 2
 };
 
-namespace Impl {
 
+namespace Impl {
 
 enum class RAPTORQ_LOCAL Work_State_Overlay : uint8_t {
 		KEEP_WORKING = static_cast<uint8_t> (
@@ -51,7 +51,7 @@ enum class RAPTORQ_LOCAL Work_State_Overlay : uint8_t {
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wweak-vtables"
-class RAPTORQ_API Pool_Work
+class RAPTORQ_LOCAL Pool_Work
 {
 public:
 	Work_Exit_Status virtual do_work (RaptorQ__v1::Work_State *state) = 0;

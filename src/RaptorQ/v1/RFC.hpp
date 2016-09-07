@@ -65,7 +65,7 @@ static const uint64_t max_data = 946270874880;	// ~881 GB
 
 
 template <typename Rnd_It, typename Fwd_It>
-class RAPTORQ_API Encoder
+class RAPTORQ_LOCAL Encoder
 {
 public:
 
@@ -190,7 +190,7 @@ private:
 };
 
 template <typename In_It, typename Fwd_It>
-class RAPTORQ_API Decoder
+class RAPTORQ_LOCAL Decoder
 {
 public:
 
@@ -503,7 +503,7 @@ std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
 															new Block_Work());
 			work->work = enc->second.enc;
 			work->notify = pool_lock;
-			Impl::Thread_Pool::get().add_work (std::move(work));
+			Thread_Pool::get().add_work (std::move(work));
 		}
 	}
 	lock.unlock();

@@ -30,7 +30,7 @@ namespace Impl {
 enum class LZ4_t : uint8_t { ENCODER=0, DECODER=1 };
 
 template<LZ4_t type>
-class RAPTORQ_API LZ4
+class RAPTORQ_LOCAL LZ4
 {
 public:
     LZ4();
