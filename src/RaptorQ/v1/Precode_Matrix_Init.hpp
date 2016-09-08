@@ -20,8 +20,8 @@
 
 #pragma once
 
-#include "RaptorQ/v1/Rand.hpp"
 #include "RaptorQ/v1/Precode_Matrix.hpp"
+#include "RaptorQ/v1/Rand.hpp"
 
 ///////////////////
 //

@@ -18,7 +18,8 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "RaptorQ/v1/Precode_Matrix.hpp"
+#include "RaptorQ/v1/Bitmask.hpp"
+#include <cmath>
 
 
 // force promotion to float in division
@@ -34,13 +35,9 @@ float div_ceil (const float a, const float b)
 {
 	return std::ceil (a / b);
 }
-}
+} // empty namespace
 
-///////////////////
-//
-// Bitmask
-//
-///////////////////
+
 
 namespace RaptorQ__v1 {
 namespace Impl {

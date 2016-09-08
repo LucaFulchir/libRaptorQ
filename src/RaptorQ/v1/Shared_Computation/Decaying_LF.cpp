@@ -17,6 +17,7 @@
  * and a copy of the GNU Lesser General Public License
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
 #include <cmath>
 
@@ -48,6 +49,7 @@ DenseMtx raw_to_Mtx (const std::vector<uint8_t> &raw, const uint16_t cols)
 	}
 	return ret;
 }
+
 
 bool Cache_Key::operator< (const Cache_Key &rhs) const
 {

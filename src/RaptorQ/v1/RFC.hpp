@@ -295,7 +295,7 @@ public:
 private:
 	// using shared pointers to avoid locking too much or
 	// worrying about deleting used stuff.
-	class Block_Work : public Impl::Pool_Work {
+	class RAPTORQ_LOCAL Block_Work : public Impl::Pool_Work {
 	public:
 		std::weak_ptr<RaptorQ__v1::Impl::Raw_Decoder<In_It>> work;
 		std::weak_ptr<std::pair<std::mutex, std::condition_variable>> notify;
@@ -304,7 +304,7 @@ private:
 		~Block_Work() override {}
 	};
 	// TODO: tagged pointer
-	class Dec {
+	class RAPTORQ_LOCAL Dec {
 	public:
 		Dec (const uint16_t symbols, const uint16_t symbol_size)
 		{

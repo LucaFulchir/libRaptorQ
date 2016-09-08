@@ -165,6 +165,7 @@ SET(HEADERS
             src/RaptorQ/v1/API_Wrapper.h
             src/RaptorQ/v1/API_Wrapper.hpp
             src/RaptorQ/v1/API_Wrapper_Raw.hpp
+            src/RaptorQ/v1/Bitmask.hpp
             src/RaptorQ/v1/caches.hpp
             src/RaptorQ/v1/common.hpp
             src/RaptorQ/v1/De_Interleaver.hpp

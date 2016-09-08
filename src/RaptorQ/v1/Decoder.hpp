@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "RaptorQ/v1/Bitmask.hpp"
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/caches.hpp"
 #include "RaptorQ/v1/Graph.hpp"

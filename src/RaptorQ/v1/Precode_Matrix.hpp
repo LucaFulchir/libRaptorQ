@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "RaptorQ/v1/Bitmask.hpp"
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/multiplication.hpp"
 #include "RaptorQ/v1/Operation.hpp"
@@ -31,28 +32,6 @@
 
 namespace RaptorQ__v1 {
 namespace Impl {
-
-// track the bitmask of holes for received symbols.
-// also make it easy to know how many non-repair symbols we are missing.
-class RAPTORQ_API Bitmask
-{
-public:
-	const uint16_t _max_nonrepair;
-
-	Bitmask (const uint16_t symbols);
-
-	void add (const size_t id);
-	void drop (const size_t id);
-	bool exists (const size_t id) const;
-	uint16_t get_holes () const;
-	void free();
-private:
-	// NOTE: this is not just vector<bool> 'cause this gives us a bit more
-	// breating space and less reallocations, but really, why don't we just
-	// use vector<bool> with more allocated space?
-	std::vector<size_t> mask;
-	uint16_t holes;
-};
 
 using DenseMtx = Eigen::Matrix<Octet, Eigen::Dynamic, Eigen::Dynamic,
 															Eigen::RowMajor>;
