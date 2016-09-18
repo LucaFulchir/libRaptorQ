@@ -48,16 +48,13 @@ class RAPTORQ_LOCAL Raw_Decoder
 {
 	// decode () can be launched multiple times,
 	// But each time the list of source and repair symbols might
-	// change. we also track the number of times we failed at decoding
-	// so that we can drop some repair symbol.
-	// Dropping sone repair symbol and using an other instead might make
-	// things decodable, even without additional repair symbols.
+	// change.
 	using Vect = Eigen::Matrix<Impl::Octet, 1, Eigen::Dynamic, Eigen::RowMajor>;
 	using T_in = typename std::iterator_traits<In_It>::value_type;
 public:
 	Raw_Decoder (const uint16_t symbols, const uint16_t symbol_size)
-		:_symbols (symbols), combination (0), combination_drop_sym (0),
-			keep_working (true), type (test_computation()), mask (_symbols)
+		:_symbols (symbols), keep_working (true), type (test_computation()),
+																mask (_symbols)
 	{
 		IS_INPUT(In_It, "RaptorQ__v1::Impl::Decoder");
 		// symbol size is in octets, but we save it in "T" sizes.
@@ -90,12 +87,10 @@ private:
 	// decoding has failed!
 	std::mutex lock;
 	const uint16_t _symbols;
-	uint16_t combination, combination_drop_sym; // failure trackers
 	uint16_t concurrent;	// currently running decoders retry
-	bool keep_working;
+	bool keep_working, can_retry = false;
 	const Save_Computation type;
 	Bitmask mask;
-	std::vector<bool> selector;
 	DenseMtx source_symbols;
 	std::vector<std::pair<uint32_t, Vect>> received_repair;
 
@@ -158,12 +153,7 @@ bool Raw_Decoder<In_It>::ready() const
 template <typename In_It>
 bool Raw_Decoder<In_It>::can_decode() const
 {
-	const int32_t total_overhead =
-								static_cast<int32_t> (received_repair.size()) -
-								static_cast<int32_t> (mask.get_holes());
-	if (total_overhead < 0 || combination_drop_sym > total_overhead)
-		return false;
-	return true;
+	return can_retry;
 }
 
 template <typename In_It>
@@ -259,9 +249,8 @@ Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 	}
 	mask.add (esi);
 
-	selector = std::vector<bool> (received_repair.size(), true);
-	combination_drop_sym = 0;
-	combination = 0;	// new data. try again all combinations from the start.
+	if (mask.get_holes() <= received_repair.size())
+		can_retry = true;
 	return Error::NONE;
 }
 
@@ -270,8 +259,6 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 												Work_State *thread_keep_working)
 {
 	// this method can be launched concurrently multiple times.
-	// track the failures in "combination"
-
 
 	// rfc 6330: can decode when received >= K_padded
 	// actually: (K_padded - K) are padding and thus constant and NOT
@@ -287,62 +274,12 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 	const std::unique_ptr<Precode_Matrix<Save_Computation::OFF>> precode_off (
 												init_precode_off (_symbols));
 	std::unique_lock<std::mutex> shared (lock);
-	// if this is not the first time we try to decode the block,
-	// we might change which symbols we use.
-	// so now we will cycle between
-	uint32_t dropped_repair = 0;
-	std::vector<uint32_t> drop;
-	const uint32_t total_overhead = static_cast<uint32_t> (
-									received_repair.size() - mask.get_holes());
-	// already tried enough times. don't bother until
-	if (combination_drop_sym > total_overhead)
+	if (!can_retry)
 		return Decoder_Result::NEED_DATA;
-	// new daa arrives.
-	if (combination > 20) {
-		// we are already sure that overhead > 0
-		// is someone trying very carefully to feed us an undecodable
-		// set of symbols?
-		// randomize dropping.
-		std::random_device rd;
-		std::mt19937 rnd (rd());// no crypto safety needed -- mersenne is enough
+	can_retry = false;
+	const uint32_t overhead = static_cast<uint32_t> (
+									received_repair.size() - mask.get_holes());
 
-		std::uniform_int_distribution<size_t> dis_dropped  (1, total_overhead);
-		dropped_repair = static_cast<uint32_t> (dis_dropped (rnd));
-		std::uniform_int_distribution<size_t> dis_repair  (0,
-													received_repair.size() - 1);
-		drop.reserve (dropped_repair);
-		for (uint32_t i = 0; i < dropped_repair; ++i)
-			drop.push_back (received_repair[dis_repair (rnd)].first);
-		std::sort (drop.begin(), drop.end());
-	} else {
-		dropped_repair = combination_drop_sym;
-		drop.reserve (dropped_repair);
-		++combination;
-		auto rec_it = received_repair.begin();
-		for (auto sel_it = selector.begin(); sel_it != selector.end();
-															++sel_it,++rec_it) {
-			if (!*sel_it)
-				drop.push_back (rec_it->first);
-		}
-		// next selector for next retry.
-		if (combination_drop_sym == 0) {
-			++combination_drop_sym;
-			std::fill (selector.begin(), selector.end(), true);
-			selector[0] = false;
-		} else {
-			auto next = std::prev_permutation (selector.begin(),selector.end());
-			if (!next) {
-				if (++combination_drop_sym <= total_overhead) {
-					std::fill (selector.begin(), selector.end(), true);
-					std::fill (	selector.begin(),
-								selector.begin() + dropped_repair, false);
-				}
-			}
-		}
-	}
-
-	const uint16_t overhead = static_cast<uint16_t> (total_overhead -
-																dropped_repair);
 	if (type == Save_Computation::ON) {
 		precode_on->gen (static_cast<uint32_t> (overhead));
 	} else {
@@ -361,20 +298,13 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 		if (it->first >= std::pow (2, 16)) {
 			DO_NOT_SAVE = true;
 		} else {
-			bitmask_repair.reserve ((it->first - _symbols) - dropped_repair);
+			bitmask_repair.reserve ((it->first - _symbols));
 			uint32_t idx = _symbols;
-			auto drop_it = drop.begin();
 			for (auto rep = received_repair.begin();
 								rep != received_repair.end(); ++rep, ++idx) {
 				for (;idx < rep->first; ++idx)
 					bitmask_repair.push_back (false);
-				// remember to drop the symbols on retries
-				if (drop_it != drop.end() && *drop_it == idx) {
-					++drop_it;
-					bitmask_repair.push_back (false);
-				} else {
-					bitmask_repair.push_back (true);
-				}
+				bitmask_repair.push_back (true);
 			}
 		}
 	} else {
@@ -397,20 +327,10 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 	// mask must be copied to avoid threading problems, same with tracking
 	// the repair esi.
 	const Bitmask mask_safe = mask;
-	for (const auto drop_me : drop)
-		mask.drop (drop_me);
-	auto drop_it = drop.begin();
 	std::vector<uint32_t> repair_esi;
-	repair_esi.reserve (received_repair.size() - dropped_repair);
-	for (auto rep : received_repair) {
-		if (drop_it != drop.end() && *drop_it == rep.first) {
-			++drop_it;
-			continue;
-		}
+	repair_esi.reserve (received_repair.size());
+	for (auto rep : received_repair)
 		repair_esi.push_back (rep.first);
-	}
-
-	drop_it = drop.begin();
 
 	// fill holes with the first repair symbols available
 	auto symbol = received_repair.begin();
@@ -420,11 +340,6 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 			++hole;
 			continue;
 		}
-		if (drop_it != drop.end() && symbol->first == *drop_it) {
-			++drop_it;
-			++symbol;
-			continue;
-		}
 		const uint16_t row = S_H + hole;
 		D.row (row) = symbol->second;
 		++symbol;
@@ -432,20 +347,8 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 	}
 	// fill the padding symbols (always zero)
 	D.block (S_H + _symbols, 0, (L_rows - S_H) - _symbols, D.cols()).setZero();
-	//for (uint16_t row = S_H + _symbols; row < L_rows; ++row)
-	//	D.row (row).setZero();
 	// fill the remaining (redundant) repair symbols
-	// remember to drop the repair symbols as needed
-	drop_it = drop.begin();
-	if (drop_it != drop.end() && symbol != received_repair.end()) {
-		while (*drop_it < symbol->first)
-			++drop_it;
-	}
 	for (uint16_t row = L_rows; symbol != received_repair.end(); ++symbol) {
-		if (drop_it != drop.end() && *drop_it == symbol->first) {
-			++drop_it;
-			continue;
-		}
 		D.row (row) = symbol->second;
 		++row;
 	}
@@ -460,8 +363,7 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 		auto compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
 		auto decompressed = decompress (compressed.first, compressed.second);
-		DenseMtx precomputed = raw_to_Mtx (decompressed,
-													key._mt_size + overhead);
+		DenseMtx precomputed = raw_to_Mtx (decompressed, key._mt_size);
 		if (precomputed.rows() != 0) {
 			missing = precomputed * D;
 			DO_NOT_SAVE = true;
@@ -500,9 +402,9 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 	RQ_UNUSED(dec_lock);
 
 	if (precode_res == Precode_Result::FAILED) {
-		if (combination_drop_sym > total_overhead)
-			return Decoder_Result::NEED_DATA;
-		return Decoder_Result::CAN_RETRY;
+		if (can_retry)
+			return Decoder_Result::CAN_RETRY;
+		return Decoder_Result::NEED_DATA;
 	}
 	if (mask.get_holes() == 0)
 		return Decoder_Result::DECODED;
