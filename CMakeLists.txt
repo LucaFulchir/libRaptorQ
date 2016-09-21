@@ -39,6 +39,7 @@ option(DYNAMIC_LIB "Build dynamic library" ON)
 option(STATIC_LIB "Build static library" ON)
 option(CLANG_STDLIB "Use clang's libc++" OFF)
 option(USE_LZ4 "Use LZ4 compression for result caching" ON)
+option(CLI "BUild CLI tools" ON)
 
 # defaults: only enable LTO/PROFILING with known compielrs
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -124,6 +125,12 @@ if (USE_LZ4 MATCHES "ON")
 endif()
 #lz4 build if necessary
 include(${CMAKE_CURRENT_SOURCE_DIR}/external/build_deps.cmake)
+if (CLI MATCHES "ON")
+    message(STATUS "Building CLI tools")
+else()
+    message(STATUS "NOT Building CLI tools")
+endif()
+
 # our include tree
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
@@ -408,12 +415,23 @@ add_dependencies(test_cpp_raw RaptorQ)
 target_link_libraries(test_cpp_raw ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw)
 
-add_custom_target(everything DEPENDS make_static_deterministic tests examples docs)
+# CPP interface - RAW interface
+add_executable(CLI src/cli/RaptorQ.cpp external/optionparser-1.4/optionparser.h)
+target_compile_options(
+	CLI PRIVATE
+	${CXX_COMPILER_FLAGS}
+)
+add_dependencies(CLI RaptorQ)
+set_target_properties(CLI PROPERTIES OUTPUT_NAME RaptorQ
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+target_link_libraries(CLI ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+
+add_custom_target(everything DEPENDS make_static_deterministic tests examples docs CLI)
 
 
 install(FILES ${HEADERS} DESTINATION include/RaptorQ/)
 install(TARGETS RaptorQ RaptorQ_Static
-     LIBRARY DESTINATION lib COMPONENT libraries
-     ARCHIVE DESTINATION lib COMPONENT libraries)
-
-
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib COMPONENT libraries)
+install(TARGETS CLI
+    RUNTIME DESTINATION bin COMPONENT runtime)

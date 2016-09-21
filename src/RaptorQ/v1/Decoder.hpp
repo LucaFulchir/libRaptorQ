@@ -75,16 +75,19 @@ public:
 	Decoder_Result decode (Work_State *thread_keep_working);
 	DenseMtx* get_symbols();
 
-	bool can_decode() const;
 	void stop();
+	// can start a computation (with different data)
+	bool can_decode() const;
+	// has everything been decoded?
 	bool ready() const;
+	// do we have enough symbols (source + repair)
+	uint16_t needed_symbols() const;
 	// should we add work? we have a maximum amount of concurent decoders
 	bool add_concurrent (const uint16_t max_concurrent);
+	uint16_t threads() const;
 	void drop_concurrent();
 
 private:
-	// FIXME: multiple decoding should start only after the first
-	// decoding has failed!
 	std::mutex lock;
 	const uint16_t _symbols;
 	uint16_t concurrent;	// currently running decoders retry
@@ -157,6 +160,19 @@ bool Raw_Decoder<In_It>::can_decode() const
 }
 
 template <typename In_It>
+uint16_t Raw_Decoder<In_It>::needed_symbols() const
+{
+	if (can_retry)
+		return 0;
+	int32_t needed = mask.get_holes() - received_repair.size();
+	if (needed < 0)
+		needed = 0;
+	if (needed == 0 && !can_retry && concurrent == 0)
+		return 1;	// tried, but failed. need one more repair symbol
+	return static_cast<uint16_t> (needed);
+}
+
+template <typename In_It>
 bool Raw_Decoder<In_It>::add_concurrent (const uint16_t max_concurrent)
 {
 	std::unique_lock<std::mutex> guard (lock);
@@ -165,6 +181,12 @@ bool Raw_Decoder<In_It>::add_concurrent (const uint16_t max_concurrent)
 		return true;
 	}
 	return false;
+}
+
+template <typename In_It>
+uint16_t Raw_Decoder<In_It>::threads() const
+{
+	return concurrent;
 }
 
 template <typename In_It>

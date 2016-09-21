@@ -49,7 +49,9 @@ public:
 														(const uint32_t repair);
 
 	uint64_t add_data (Rnd_It from, const Rnd_It to);
+	void clear_data();
 	bool compute_sync();
+	uint64_t needed_bytes();
 
     std::future<Error> compute();
     uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
@@ -82,7 +84,8 @@ public:
 	void stop();
 
 	std::pair<Error, uint16_t> poll();
-	std::future<std::pair<Error, uint16_t>> wait (bool async);
+	std::pair<Error, uint16_t> wait_sync();
+	std::future<std::pair<Error, uint16_t>> wait();
 
 	// return number of symbols.
 	// simbol_size % sizeof(FWD) == 0 else assert!
@@ -196,11 +199,30 @@ uint64_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It from, const Rnd_It to)
 }
 
 template <typename Rnd_It, typename Fwd_It>
+void Encoder<Rnd_It, Fwd_It>::clear_data()
+{
+	if (encoder == nullptr)
+		return;
+	encoder->clear_data();
+}
+
+template <typename Rnd_It, typename Fwd_It>
 bool Encoder<Rnd_It, Fwd_It>::compute_sync()
 {
 	if (encoder == nullptr)
 		return false;
 	return encoder->compute_sync();
+}
+
+template <typename Rnd_It, typename Fwd_It>
+std::future<Error> Encoder<Rnd_It, Fwd_It>::compute()
+{
+	if (encoder == nullptr) {
+		std::promise<Error> p;
+		p.set_value (Error::INITIALIZATION);
+		return p.get_future();
+	}
+	return encoder->compute();
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -212,6 +234,13 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 	return encoder->encode (output, end, id);
 }
 
+template <typename Rnd_It, typename Fwd_It>
+uint64_t Encoder<Rnd_It, Fwd_It>::needed_bytes ()
+{
+	if (encoder == nullptr)
+		return 0;
+	return encoder->needed_bytes ();
+}
 
 ///////////////////
 //// Decoder
@@ -285,15 +314,23 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
 }
 
 template <typename In_It, typename Fwd_It>
-std::future<std::pair<Error, uint16_t>> Decoder<In_It, Fwd_It>::wait (
-															const bool async)
+std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::wait_sync()
+{
+	if (decoder == nullptr) {
+		return {Error::INITIALIZATION, 0};
+	}
+	return decoder->wait_sync();
+}
+
+template <typename In_It, typename Fwd_It>
+std::future<std::pair<Error, uint16_t>> Decoder<In_It, Fwd_It>::wait()
 {
 	if (decoder == nullptr) {
 		std::promise<std::pair<Error, uint16_t>> p;
 		p.set_value ({Error::INITIALIZATION, 0});
 		return p.get_future();
 	}
-	return decoder->wait (async);
+	return decoder->wait();
 }
 
 template <typename In_It, typename Fwd_It>
