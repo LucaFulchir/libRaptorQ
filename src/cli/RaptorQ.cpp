@@ -31,6 +31,7 @@
 #include "RaptorQ/RaptorQ_v1.hpp"
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <future>
 #include <iostream>
@@ -44,19 +45,17 @@
 /// Command line parsing stuff. see "optionparser" documentation
 //////
 struct Arg: public option::Arg {
-static option::ArgStatus Required (const option::Option& option, bool msg)
-{
-	if (option.arg != 0)
-		return option::ARG_OK;
 
+static option::ArgStatus Unknown(const option::Option& option, bool msg)
+{
 	if (msg)
-		std::cerr << "ERR: Option '" <<  option << "' requires an argument\n";
+		std::cerr << "Unknown option '" << option.name << "'\n";
 	return option::ARG_ILLEGAL;
 }
 
 static option::ArgStatus Numeric (const option::Option& option, bool msg)
 {
-	char* endptr = 0;
+	char* endptr = nullptr;
 	int64_t res = -1;
 	if (option.arg != 0)
 		res = strtol(option.arg, &endptr, 10);
@@ -64,9 +63,10 @@ static option::ArgStatus Numeric (const option::Option& option, bool msg)
 	if (endptr != option.arg && *endptr == 0 && res >= 0)
 		return option::ARG_OK;
 
-	if (msg)
-		std::cerr << "ERR: Option '" << option <<
+	if (msg) {
+		std::cerr << "ERR: Option '" << option.name <<
 											"' requires a numeric argument\n";
+	}
 	return option::ARG_ILLEGAL;
 }
 };
@@ -74,23 +74,23 @@ static option::ArgStatus Numeric (const option::Option& option, bool msg)
 enum  optionIndex { UNKNOWN, HELP, SYMBOLS, SYMBOL_SIZE, REPAIR, BYTES };
 const option::Descriptor usage[] =
 {
- {UNKNOWN, 0, "", "", Arg::None,
+ {UNKNOWN, 0, "", "", Arg::Unknown,
 						"USAGE: encode|decode|benchmark OPTIONS INPUT OUTPUT\n"
 											"  use '-' for stdin/stdout\n\n"
 														"Standalone Options:"},
  {HELP,    0, "h", "help", Arg::None, "  -h --help\tThis help."},
- {UNKNOWN, 0, "", "", Arg::None, "ENCODE/DECODE options:"},
+ {UNKNOWN, 0, "", "", Arg::Unknown, "ENCODE/DECODE options:"},
  {SYMBOLS, 0, "s", "symbols", Arg::Numeric, "  -s --symbols\t"
 												"number of symbols per block"},
  {SYMBOL_SIZE, 0, "w", "symbol-size", Arg::Numeric, "  -w --symbol-size\t"
 														" bytes per symbol"},
- {UNKNOWN, 0, "", "", Arg::None, "ENCODE only options:"},
+ {UNKNOWN, 0, "", "", Arg::Unknown, "ENCODE only options:"},
  {REPAIR, 0, "r", "repair", Arg::Numeric, "  -r --repair\t"
 										"number of repair symbols per block"},
  {UNKNOWN, 0, "", "", Arg::None, "DECODE only options:"},
  {BYTES, 0, "b", "bytes", Arg::Numeric, "  -b --bytes\t"
 									"data size for each {en,de}coder block"},
- {UNKNOWN, 0, "", "", Arg::None,
+ {UNKNOWN, 0, "", "", Arg::Unknown,
 							"Encoder output format/Decoder input format:\n"
 							"\t(uint32_t) block  number\n"
 							"\t(uint32_t) symbol number\n"
@@ -361,40 +361,99 @@ bool encode (int64_t symbol_size, uint16_t symbols, size_t repair,
 
 int main (int argc, char **argv)
 {
-	auto arg_num   = (argc == 1 ? 0 : argc - 1);
-	auto arguments = (argc == 1 ? nullptr : argv + 1);
+	// manually parse first argument as command.
+	// then use optionparser
+	if (argc == 1 || (strncmp("encode", argv[1], 7) &&
+											strncmp("decode", argv[1], 7) &&
+											strncmp("banchmark", argv[1], 10))){
+		std::cerr << "ERR: need a command as first argument: "
+													"encode/decode/benchmark\n";
+		option::printUsage (std::cout, usage);
+		return 1;
+	}
 
+	// skip both program name and first command
+	// apparently "optionparser" treats every option as "unknown" once one
+	// unknown option has been found. :/
+	auto arg_num   = (argc <= 2 ? 0 : argc - 2);
+	auto arguments = (argc <= 2 ? nullptr : argv + 2);
 
 	option::Stats  stats (usage, arg_num, arguments);
 	std::vector<option::Option> options (stats.options_max);
 	std::vector<option::Option> buffer (stats.buffer_max);
-	option::Parser parse (usage, argc, argv,
+	option::Parser parse (usage, arg_num, arguments,
 								const_cast<option::Option *> (options.data()),
 								const_cast<option::Option *> ( buffer.data()));
 
 
-	if (parse.error() || options[HELP]) {
-	  option::printUsage (std::cout, usage);
-	  if (parse.error())
-		  return 1;
-	  return 0;
+	if (parse.error() || options[HELP].count() != 0) {
+		option::printUsage (std::cout, usage);
+		if (parse.error())
+			return 1;
+		return 0;
 	}
+
+	size_t repair = 0;
+	size_t bytes = 0;
+	const std::string command = std::string (argv[1]);
 	if (parse.nonOptionsCount() == 1) {
-		const std::string command = parse.nonOption (0);
 		if (command.compare ("benchmark") != 0 || options[SYMBOLS].count() != 0
 											|| options[SYMBOL_SIZE].count() != 0
 											|| options[REPAIR].count() != 0
 											|| options[BYTES].count() != 0) {
+			std::cerr << "ERR: asdf\n";
 			option::printUsage (std::cout, usage);
 			return 1;
 		}
 		// TODO: launch benchmark
+		std::cerr << "Benchmarks not implemented yet\n";
+		return 0;
+	}
+	if (command.compare ("encode") == 0) {
+		if (options[BYTES].count() != 0) {
+			std::cerr << "ERR: encoder does not need \"--bytes\" parameter\n";
+			return 1;
+		}
+		if (options[REPAIR].count() != 1) {
+			std::cerr << "ERR: encoder requires one \"--repair\" parameter\n";
+			return 1;
+		}
+		repair =  static_cast<size_t> (strtol(options[REPAIR].arg, nullptr,10));
+		if (repair <= 0) {
+			std::cerr << "ERR: Symbol_size must be positive\n";
+			return 1;
+		}
+		if (parse.nonOptionsCount() != 2) {
+			std::cerr << "ERR: Need to specify exactly one input and output\n";
+			option::printUsage (std::cout, usage);
+			return 1;
+		}
+	} else if (command.compare ("decode") == 0) {
+		if (options[BYTES].count() != 1) {
+			std::cerr << "ERR: encoder requires one \"--bytes\" parameter\n";
+			return 1;
+		}
+		bytes =  static_cast<size_t> (strtol(options[BYTES].arg, nullptr, 10));
+		if (bytes <= 0) {
+			std::cerr << "ERR: bytes must be positive\n";
+			return 1;
+		}
+		if (options[REPAIR].count() != 1) {
+			std::cerr << "ERR: encoder does not need \"--repair\" parameter\n";
+			return 1;
+		}
+		if (parse.nonOptionsCount() != 2) {
+			std::cerr << "ERR: Need to specify exactly one input and output\n";
+			option::printUsage (std::cout, usage);
+			return 1;
+		}
+	} else {
+		std::cerr << "ERR: command \"" << command << "\" not understood\n";
+		return 1;
 	}
 
-	if (parse.nonOptionsCount() != 3 || options[SYMBOLS].count() != 1 ||
-											options[SYMBOL_SIZE].count() != 1 ||
-											options[BYTES].count() != 1) {
-		option::printUsage (std::cout, usage);
+	if (options[SYMBOLS].count() != 1 || options[SYMBOL_SIZE].count() != 1) {
+		std::cerr << "ERR: number of symbols and symbols size are required\n";
 		return 1;
 	}
 
@@ -402,10 +461,8 @@ int main (int argc, char **argv)
 																nullptr, 10));
 	const int64_t symbol_size =  static_cast<int64_t> (
 								strtol(options[SYMBOL_SIZE].arg, nullptr, 10));
-	const size_t repair =  static_cast<size_t> (strtol(options[REPAIR].arg,
-																nullptr, 10));
-	const size_t bytes =  static_cast<size_t> (strtol(options[BYTES].arg,
-																nullptr, 10));
+
+
 	if (symbols < 1 || symbols > 56403) {
 		std::cerr << "ERR: Symbols must be between 1 and 56403\n";
 		return 1;
@@ -414,26 +471,10 @@ int main (int argc, char **argv)
 		std::cerr << "ERR: Symbol_size must be positive\n";
 		return 1;
 	}
-	if (repair == 0) {
-		std::cerr << "ERR: Symbol_size must be positive\n";
-		return 1;
-	}
-	if (bytes == 0 || std::ceil(static_cast<double> (bytes) /
-								static_cast<double> (symbol_size)) != symbols) {
-		std::cerr << "ERR: " << bytes << " must fill all " <<
-						static_cast<size_t>(symbols) << " symbols of size " <<
-														symbol_size << ".\n" <<
-							"\tOnly the last symbol can be partially filled\n";
-		return 1;
-	}
 
-	const std::string command = parse.nonOption (0);
-	const std::string input_file = parse.nonOption (1);
-	const std::string output_file = parse.nonOption (2);
-	if (command.compare ("encode") != 0 && command.compare ("decode") != 0) {
-		std::cerr << "ERR: command \"" << command << "\" not understood\n";
-		return 1;
-	}
+	const std::string input_file = parse.nonOption (0);
+	const std::string output_file = parse.nonOption (1);
+
 
 	// try to open input/output files
 	std::istream *input;
@@ -453,7 +494,8 @@ int main (int argc, char **argv)
 	if (output_file.compare("-")) {
 		output = &std::cout;
 	} else {
-		out_file.open (output_file, std::ifstream::binary | std::ifstream::out);
+		out_file.open (output_file, std::ios_base::binary | std::ios_base::out
+														| std::ios_base::trunc);
 		if (!out_file.is_open()) {
 			std::cerr << "ERR: can't open output file\n";
 			return 1;
