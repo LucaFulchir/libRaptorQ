@@ -76,23 +76,25 @@ const option::Descriptor usage[] =
 {
  {UNKNOWN, 0, "", "", Arg::None,
 						"USAGE: encode|decode|benchmark OPTIONS INPUT OUTPUT\n"
-											"\t use '-' for stdin/stdout\n\n"
+											"  use '-' for stdin/stdout\n\n"
 														"Standalone Options:"},
- {HELP,    0, "h", "help", Arg::None, "  -h\t--help\tThis help."},
+ {HELP,    0, "h", "help", Arg::None, "  -h --help\tThis help."},
  {UNKNOWN, 0, "", "", Arg::None, "ENCODE/DECODE options:"},
- {SYMBOLS, 0, "s", "symbols", Arg::Numeric, "  -s\t--symbols\t"
+ {SYMBOLS, 0, "s", "symbols", Arg::Numeric, "  -s --symbols\t"
 												"number of symbols per block"},
- {SYMBOL_SIZE, 0, "w", "symbol-size", Arg::Numeric, "  -w\t--symbol-size\t"
-															"bytes per symbol"},
- {REPAIR, 0, "r", "repair", Arg::Numeric, "  -r\t--repair\t"
+ {SYMBOL_SIZE, 0, "w", "symbol-size", Arg::Numeric, "  -w --symbol-size\t"
+														" bytes per symbol"},
+ {UNKNOWN, 0, "", "", Arg::None, "ENCODE only options:"},
+ {REPAIR, 0, "r", "repair", Arg::Numeric, "  -r --repair\t"
 										"number of repair symbols per block"},
- {BYTES, 0, "b", "bytes", Arg::Numeric, "  -b\t--bytes\t"
+ {UNKNOWN, 0, "", "", Arg::None, "DECODE only options:"},
+ {BYTES, 0, "b", "bytes", Arg::Numeric, "  -b --bytes\t"
 									"data size for each {en,de}coder block"},
  {UNKNOWN, 0, "", "", Arg::None,
-							"\tEncoder output format/Decoder input format:\n"
-							"\t\t(uint32_t) block  number\n"
-							"\t\t(uint32_t) symbol number\n"
-							"\t\tsymbol\n"},
+							"Encoder output format/Decoder input format:\n"
+							"\t(uint32_t) block  number\n"
+							"\t(uint32_t) symbol number\n"
+							"\tsymbol\n"},
  {0,0,0,0,0,0}
 };
 
