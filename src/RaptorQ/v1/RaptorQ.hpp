@@ -53,7 +53,7 @@ public:
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end_repair
 														(const uint32_t repair);
 
-	uint64_t add_data (Rnd_It from, const Rnd_It to);
+	uint64_t add_data (Rnd_It &from, const Rnd_It to);
 	void clear_data();
 	bool compute_sync();
 	uint64_t needed_bytes();
@@ -106,7 +106,7 @@ public:
 	RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> begin ();
     RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> end ();
 
-	Error add_symbol (In_It from, const In_It to, const uint32_t esi);
+	Error add_symbol (In_It &from, const In_It to, const uint32_t esi);
 	using Decoder_Result = typename Raw_Decoder<In_It>::Decoder_Result;
 
 	bool can_decode() const;
@@ -252,7 +252,7 @@ RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It from, const Rnd_It to)
+uint64_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It &from, const Rnd_It to)
 {
 	uint64_t written = 0;
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
@@ -262,13 +262,13 @@ uint64_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It from, const Rnd_It to)
 	std::unique_lock<std::mutex> lock (data_mtx);
 	RQ_UNUSED (lock);
 	while (from != to) {
+		data.emplace_back (*from);
+		++from;
+		++written;
 		if ((data.size() * sizeof (T) >= _symbols * _symbol_size)) {
 			state = Data_State::FULL;
 			break;
 		}
-		data.emplace_back (*from);
-		++from;
-		++written;
 	}
 	return written;
 }
@@ -277,7 +277,9 @@ template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::clear_data()
 {
 	std::unique_lock<std::mutex> lock (data_mtx);
+	encoder.clear_data();
 	data.clear();
+	state = Data_State::NEED_DATA;
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -341,6 +343,7 @@ template <typename Rnd_It, typename Fwd_It>
 uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 															const uint32_t &id)
 {
+	// returns number of iterators written
 	switch (state) {
 	case Data_State::INIT:
 		if (!encoder.ready())
@@ -352,16 +355,15 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 		if (!encoder.ready()) {
 			if (precomputed.rows() == 0) {
 				return 0;
-			} else {
+			} else if (interleaver == nullptr) {
 				interleaver = std::unique_ptr<
 							RFC6330__v1::Impl::Interleaver<Rnd_It>> (
 									new RFC6330__v1::Impl::Interleaver<Rnd_It> (
 													data.begin(), data.end(),
 													_symbol_size, SIZE_MAX,
 																_symbol_size));
-				encoder.generate_symbols (precomputed, interleaver.get());
-				precomputed = DenseMtx();	// free mem
 			}
+			encoder.generate_symbols (precomputed, interleaver.get());
 		}
 		return encoder.Enc (id, output, end);
 	}
@@ -372,8 +374,7 @@ template <typename Rnd_It, typename Fwd_It>
 uint64_t Encoder<Rnd_It, Fwd_It>::needed_bytes()
 {
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
-	return (_symbols * _symbol_size) -
-									((data.size() * sizeof(T)) / _symbol_size);
+	return (_symbols * _symbol_size) - (data.size() * sizeof(T));
 }
 
 ///////////////////
@@ -448,7 +449,7 @@ RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
 
 
 template <typename In_It, typename Fwd_It>
-Error Decoder<In_It, Fwd_It>::add_symbol (In_It from, const In_It to,
+Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
 															const uint32_t esi)
 {
 	auto ret = dec.add_symbol (from, to, esi);

@@ -48,7 +48,7 @@ public:
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end_repair
 														(const uint32_t repair);
 
-	uint64_t add_data (Rnd_It from, const Rnd_It to);
+	uint64_t add_data (Rnd_It &from, const Rnd_It to);
 	void clear_data();
 	bool compute_sync();
 	uint64_t needed_bytes();
@@ -76,7 +76,7 @@ public:
 	RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> begin ();
     RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> end ();
 
-	Error add_symbol (In_It from, const In_It to, const uint32_t esi);
+	Error add_symbol (In_It &from, const In_It to, const uint32_t esi);
 	using Decoder_Result =typename Impl::Decoder<In_It, Fwd_It>::Decoder_Result;
 
 	bool can_decode() const;
@@ -191,7 +191,7 @@ RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It from, const Rnd_It to)
+uint64_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It &from, const Rnd_It to)
 {
 	if (encoder == nullptr)
 		return 0;
@@ -296,7 +296,7 @@ RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
 
 
 template <typename In_It, typename Fwd_It>
-Error Decoder<In_It, Fwd_It>::add_symbol (In_It from, const In_It to,
+Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
 															const uint32_t esi)
 {
 	if (decoder == nullptr)

@@ -161,7 +161,7 @@ private:
 	// TODO: tagged pointer
 	class Enc {
 	public:
-		Enc (const Impl::Interleaver<Rnd_It> *interleaver, const uint8_t sbn)
+		Enc (Impl::Interleaver<Rnd_It> *interleaver, const uint8_t sbn)
 		{
 			enc = std::make_shared<
 							RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It>> (
@@ -183,7 +183,7 @@ private:
 	const Rnd_It _data_from, _data_to;
 	const uint16_t _symbol_size;
 	const uint16_t _min_subsymbol;
-	const Impl::Interleaver<Rnd_It> interleave;
+	Impl::Interleaver<Rnd_It> interleave;
 	bool use_pool, exiting;
 	int16_t pool_last_reported;
 

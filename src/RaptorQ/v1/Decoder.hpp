@@ -406,9 +406,8 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 	if (type == Save_Computation::ON && !DO_NOT_SAVE &&
 										precode_res == Precode_Result::DONE) {
 		DenseMtx res;
-		// don't save really small matrices
-		// TODO: check again if other thread already saved this.
-		if (missing.rows() != 0 && L_rows > 100) {
+		// TODO: check again if other thread already saved this?
+		if (missing.rows() != 0) {
 			res.setIdentity (L_rows + overhead, L_rows + overhead);
 			for (auto &op : ops)
 				op->build_mtx (res);

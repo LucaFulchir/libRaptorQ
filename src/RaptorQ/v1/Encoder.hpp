@@ -54,7 +54,7 @@ public:
 		precode_on->gen(0);
 		keep_working = true;
 	}
-	Raw_Encoder (const RFC6330__v1::Impl::Interleaver<Rnd_It> *symbols,
+	Raw_Encoder (RFC6330__v1::Impl::Interleaver<Rnd_It> *symbols,
 															const uint8_t SBN)
 		: _SBN(SBN), type (test_computation()),
 		  precode_on  (init_precode_on  (symbols->source_symbols(SBN))),
@@ -81,6 +81,7 @@ public:
 							RFC6330__v1::Impl::Interleaver<Rnd_It> *symbols);
 	bool generate_symbols (RaptorQ__v1::Work_State *thread_keep_working);
 	void stop();
+	void clear_data();
 	bool ready() const;
 
 private:
@@ -89,7 +90,7 @@ private:
 	bool  keep_working;
 	const std::unique_ptr<Precode_Matrix<Save_Computation::ON>> precode_on;
 	const std::unique_ptr<Precode_Matrix<Save_Computation::OFF>> precode_off;
-	const RFC6330__v1::Impl::Interleaver<Rnd_It> *_symbols;
+	RFC6330__v1::Impl::Interleaver<Rnd_It> *_symbols;
 
 	DenseMtx encoded_symbols;
 
@@ -140,6 +141,13 @@ void Raw_Encoder<Rnd_It, Fwd_It>::stop()
 }
 
 template <typename Rnd_It, typename Fwd_It>
+void Raw_Encoder<Rnd_It, Fwd_It>::clear_data()
+{
+	encoded_symbols = DenseMtx();
+	_symbols = nullptr;
+}
+
+template <typename Rnd_It, typename Fwd_It>
 bool Raw_Encoder<Rnd_It, Fwd_It>::ready() const
 {
 	return encoded_symbols.cols() != 0;
@@ -169,7 +177,6 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 		// else not found, generate one.
 	}
 
-
 	uint16_t S_H;
 	uint16_t K_S_H;
 	S_H = precode_on->_params.S + precode_on->_params.H;
@@ -183,10 +190,11 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 
 	Precode_Result precode_res;
 	std::deque<std::unique_ptr<Operation>> ops;
-	std::tie (precode_res, encoded_symbols) = precode_on->intermediate (D,
+	DenseMtx encoded_no_symbols;
+	std::tie (precode_res, encoded_no_symbols) = precode_on->intermediate (D,
 														ops, keep_working,
 														thread_keep_working);
-	if (precode_res != Precode_Result::DONE || encoded_symbols.cols() == 0)
+	if (precode_res != Precode_Result::DONE || encoded_no_symbols.cols() == 0)
 		return DenseMtx();
 
 	// RaptorQ succeded.
@@ -199,7 +207,7 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 	res.setIdentity (size, size);
 	for (auto &op : ops)
 		op->build_mtx (res);
-	if (encoded_symbols.cols() != 0 && size > 100) {
+	if (type == Save_Computation::ON) {
 		auto raw_mtx = Mtx_to_raw (res);
 		auto compressed = compress (raw_mtx);
 		DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed.first,

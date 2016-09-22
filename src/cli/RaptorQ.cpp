@@ -297,6 +297,7 @@ bool encode (int64_t symbol_size, uint16_t symbols, size_t repair,
 	RaptorQ__v1::Encoder<iter_8, iter_8> encoder (symbols,
 										static_cast<size_t> (symbol_size));
 	auto future = encoder.compute();
+	RaptorQ__v1::Error enc_status = RaptorQ__v1::Error::INITIALIZATION;
 	uint32_t sym_num = 0;
 	uint32_t block_num = 0;
 	while (true) {
@@ -304,34 +305,41 @@ bool encode (int64_t symbol_size, uint16_t symbols, size_t repair,
 		buf.insert (buf.begin(), static_cast<size_t> (symbol_size), 0);
 		input->read (reinterpret_cast<char *> (buf.data()), symbol_size);
 		int64_t read = input->gcount();
-		if (read <= 0) {
-			std::cerr << "ERR: unexpected end";
-			return 1;
+		if (read > 0) {
+			auto buf_start = buf.begin();
+			auto added = encoder.add_data (buf_start, buf.end());
+			if (added != buf.size()) {
+				std::cerr << "ERR: error adding symbol to the encoder\n";
+				return 1;
+			}
+			output->write (reinterpret_cast<char *> (&block_num),
+															sizeof(block_num));
+			output->write (reinterpret_cast<char *> (&sym_num),sizeof(sym_num));
+			output->write (reinterpret_cast<char *> (buf.data()), symbol_size);
+			++sym_num;
 		}
-		auto added = encoder.add_data (buf.begin(), buf.end());
-		if (added != buf.size()) {
-			std::cerr << "ERR: error adding?\n";
-			return 1;
-		}
-		output->write (reinterpret_cast<char *> (&block_num),
-														sizeof(block_num));
-		output->write (reinterpret_cast<char *> (&sym_num),sizeof(sym_num));
-		output->write (reinterpret_cast<char *> (buf.data()), symbol_size);
-		++sym_num;
 		size_t bytes_left = encoder.needed_bytes();
-		if (input->eof() || read != static_cast<int64_t> (added)) {
+		if (input->eof() || read <= 0) {
 			// we got EOF. Add padding data & symbols to fill the
 			// encoder.
 			std::vector<uint8_t> padding (bytes_left, 0);
 			auto it = padding.begin();
 			auto pad_added = encoder.add_data (it, padding.end());
-			assert (it == padding.end() && pad_added == padding.size());
+			assert (pad_added == padding.size());
+			assert (it == padding.end());
 			bytes_left = encoder.needed_bytes();
 			assert (bytes_left == 0);
+			sym_num = symbols;
 		}
+
 		if (bytes_left == 0) {
-			future.wait();
-			if (future.get() != RaptorQ__v1::Error::NONE) {
+			// we use the same future multiple times, but it has a shared state
+			// only the first time. Do not wait() the other times.
+			if (future.valid()) {
+				future.wait();
+				enc_status = future.get();
+			}
+			if (enc_status != RaptorQ__v1::Error::NONE) {
 				std::cerr << "ERR: encoder should never fail!\n";
 				return 1;
 			}
@@ -339,19 +347,23 @@ bool encode (int64_t symbol_size, uint16_t symbols, size_t repair,
 			for (uint32_t rep_id = sym_num; rep_id < (symbols + repair);
 																++rep_id) {
 				auto rep_start = rep.begin();
-				auto rep_length = encoder.encode(rep_start, rep.end(),
-																	rep_id);
+				auto rep_length = encoder.encode (rep_start, rep.end(), rep_id);
+				// rep_length is actually the number of iterators written.
+				// but our iteerators are over uint8_t, so
+				// rep_length == bytes written
 				if (rep_length != static_cast<size_t> (symbol_size)) {
 					std::cerr << "ERR: wrong repair symbol size\n";
 					return 1;
 				}
 				output->write (reinterpret_cast<char *> (&block_num),
-														sizeof(block_num));
+															sizeof(block_num));
 				output->write (reinterpret_cast<char *> (&rep_id),
 															sizeof(rep_id));
 				output->write (reinterpret_cast<char *> (buf.data()),
 															symbol_size);
 			}
+			if (input->eof())
+				return 0;
 			encoder.clear_data();
 			++block_num;
 			sym_num = 0;
@@ -430,7 +442,7 @@ int main (int argc, char **argv)
 		}
 	} else if (command.compare ("decode") == 0) {
 		if (options[BYTES].count() != 1) {
-			std::cerr << "ERR: encoder requires one \"--bytes\" parameter\n";
+			std::cerr << "ERR: decoder requires one \"--bytes\" parameter\n";
 			return 1;
 		}
 		bytes =  static_cast<size_t> (strtol(options[BYTES].arg, nullptr, 10));
@@ -438,8 +450,8 @@ int main (int argc, char **argv)
 			std::cerr << "ERR: bytes must be positive\n";
 			return 1;
 		}
-		if (options[REPAIR].count() != 1) {
-			std::cerr << "ERR: encoder does not need \"--repair\" parameter\n";
+		if (options[REPAIR].count() != 0) {
+			std::cerr << "ERR: decoder does not need \"--repair\" parameter\n";
 			return 1;
 		}
 		if (parse.nonOptionsCount() != 2) {
@@ -481,17 +493,17 @@ int main (int argc, char **argv)
 	std::ostream *output;
 	std::ifstream in_file;
 	std::ofstream out_file;
-	if (input_file.compare("-")) {
+	if (input_file.compare("-") == 0) {
 		input = &std::cin;
 	} else {
-		in_file.open (input_file, std::ifstream::binary | std::ifstream::in);
+		in_file.open (input_file, std::ios_base::binary | std::ios_base::in);
 		if (!in_file.is_open()) {
 			std::cerr << "ERR: can't open input file\n";
 			return 1;
 		}
 		input = &in_file;
 	}
-	if (output_file.compare("-")) {
+	if (output_file.compare("-") == 0) {
 		output = &std::cout;
 	} else {
 		out_file.open (output_file, std::ios_base::binary | std::ios_base::out
