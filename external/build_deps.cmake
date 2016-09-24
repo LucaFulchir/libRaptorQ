@@ -24,6 +24,7 @@ if(RQ_BUILD_LZ4)
 	set(RQ_LZ4_BUILDNAME lz4_static)
     ExternalProject_Add(${RQ_LZ4_BUILDNAME}
 		GIT_REPOSITORY file://${PROJECT_SOURCE_DIR}/external/lz4
+        GIT_TAG d86dc916771c126afb797637dda9f6421c0cb998
 		CONFIGURE_COMMAND ""
 		BUILD_COMMAND make lib
 		BUILD_IN_SOURCE 1
