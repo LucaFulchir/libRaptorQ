@@ -312,8 +312,9 @@ bool decode (const uint64_t bytes, const uint16_t symbols,
 			bytes_left -= last_block_bytes;
 			std::tie (dec_it, success) = decoders.emplace (std::make_pair (
 						block_number,
-						new Dec (symbols, static_cast<size_t> (symbol_size),
-										Dec::Report::PARTIAL_FROM_BEGINNING)));
+						std::unique_ptr<Dec> (
+							new Dec (symbols, static_cast<size_t> (symbol_size),
+										Dec::Report::PARTIAL_FROM_BEGINNING))));
 			if (!success) {
 				std::cerr << "ERR: Can not add decoder\n";
 				thread_status = Out_Status::ERROR;

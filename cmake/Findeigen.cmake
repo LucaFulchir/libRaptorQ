@@ -25,6 +25,7 @@ FIND_PATH(EIGEN3_INCLUDE_DIR
   ${EIGEN3_ROOT}
   $ENV{EIGEN3_ROOT}
   /usr/
+  /usr/local/
   ${PROJECT_SOURCE_DIR}/external/eigen3
 )
 

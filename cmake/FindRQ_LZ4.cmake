@@ -25,7 +25,18 @@ FIND_PATH(RQ_LZ4_INCLUDE_DIR
 	${LZ4_ROOT}
 	$ENV{LZ4_ROOT}
 	/usr/
+    /usr/local/
 	${CMAKE_CURRENT_SOURCE_DIR}/external/lz4/lib
+)
+
+FIND_LIBRARY(RQ_LZ4_LIB
+    NAMES lz4
+    PATH_SUFFIXES lib/
+    PATHS
+    ${LZ4_ROOT}
+	$ENV{LZ4_ROOT}
+    /usr/
+    /usr/local/
 )
 
 IF(RQ_LZ4_INCLUDE_DIR)
@@ -36,7 +47,8 @@ ENDIF(RQ_LZ4_INCLUDE_DIR)
 
 IF(RQ_LZ4_FOUND)
 	MESSAGE(STATUS "Found lz4 in ${RQ_LZ4_INCLUDE_DIR}")
-	IF(RQ_LZ4_INCLUDE_DIR MATCHES "${CMAKE_CURRENT_SOURCE_DIR}/external/lz4/lib")
+    # we need both headers and library, or we use our own
+	IF(RQ_LZ4_INCLUDE_DIR MATCHES "${CMAKE_CURRENT_SOURCE_DIR}/external/lz4/lib" OR RQ_LZ4_LIB MATCHES "RQ_LZ4_LIB-NOTFOUND")
 		MESSAGE(WARNING "We will build our own lz4 library and statically link it.")
 		SET(RQ_BUILD_LZ4 TRUE)
 	ENDIF()
