@@ -113,6 +113,7 @@ enum class Out_Status : uint8_t {
 
 struct write_out_args
 {
+	uint64_t bytes;
 	std::map<size_t, std::unique_ptr<Dec>> *decoders;
 	std::mutex *mtx;
 	std::condition_variable *cond;
@@ -122,16 +123,20 @@ struct write_out_args
 
 
 
-bool encode (int64_t symbol_size, uint16_t symbols, size_t repair,
-									std::istream *input, std::ostream *output);
-bool decode (int64_t symbol_size, uint64_t bytes,
-									std::istream *input, std::ostream *output);
+bool encode (const int64_t symbol_size, const uint16_t symbols,
+				const size_t repair, std::istream *input, std::ostream *output);
+
+bool decode (const uint64_t bytes, const uint16_t symbols,
+													const int64_t symbol_size,
+													std::istream *input,
+													std::ostream *output);
 static void print_output (struct write_out_args args);
 
 // thread function to wait for the decoders to finish decoding and
 // print output. Only used when decoding
 static void print_output (struct write_out_args args)
 {
+	uint64_t bytes_left = args.bytes;
 	size_t current_block = 0;
 	uint16_t last_symbol = 0;
 	std::unique_lock<std::mutex> lock (*args.mtx, std::defer_lock);
@@ -140,12 +145,20 @@ static void print_output (struct write_out_args args)
 		lock.lock();
 		auto dec_it = args.decoders->find (current_block);
 		if (dec_it == args.decoders->end()) {
+			if (*args.status == Out_Status::GRACEFUL_STOP) {
+				lock.unlock();
+				break;
+			}
 			args.cond->wait (lock);
 			lock.unlock();
 			continue;
 		}
 		auto dec = dec_it->second.get();
 		if (!dec->can_decode()) {
+			if (*args.status == Out_Status::GRACEFUL_STOP) {
+				*args.status = Out_Status::ERROR;
+				return;
+			}
 			args.cond->wait (lock);
 			lock.unlock();
 			continue;
@@ -155,6 +168,8 @@ static void print_output (struct write_out_args args)
 		if (pair.first == RaptorQ__v1::Error::NEED_DATA) {
 			if (*args.status == Out_Status::GRACEFUL_STOP) {
 				lock.lock();
+				if (dec->poll().first == RaptorQ__v1::Error::NONE)
+					continue;
 				*args.status = Out_Status::ERROR;
 				return;
 			}
@@ -170,20 +185,30 @@ static void print_output (struct write_out_args args)
 		std::vector<uint8_t> buffer (sym_size);;
 		for (; last_symbol < pair.second; ++last_symbol) {
 			buffer.clear();
+			buffer.insert (buffer.begin(), sym_size, 0);
 			auto buf_start = buffer.begin();
 			auto to_write = dec->decode_symbol (buf_start, buffer.end(),
 																last_symbol);
-			if (to_write != 1) {
+			if (to_write != RaptorQ__v1::Error::NONE) {
 				std::cerr << "ERR: partial or empty symbol from decoder\n";
-				abort();
+				lock.lock();
+				*args.status = Out_Status::ERROR;
+				return;
 			}
+			size_t writes_left = std::min (bytes_left, sym_size);
 			args.output->write (reinterpret_cast<char *> (buffer.data()),
-												static_cast<int64_t>(sym_size));
+											static_cast<int64_t>(writes_left));
+			bytes_left -= writes_left;
+			if (bytes_left == 0) {
+				// early exit. we wrote everything.
+				last_symbol = dec->symbols();
+				break;
+			}
 		}
 		if (last_symbol == dec->symbols()) {
 			lock.lock();
 			dec_it = args.decoders->find (current_block);
-			dec_it->second = nullptr;
+			dec_it->second.reset (nullptr);
 			lock.unlock();
 			++current_block;
 			last_symbol = 0;
@@ -193,18 +218,23 @@ static void print_output (struct write_out_args args)
 	*args.status = Out_Status::EXITED;
 }
 
-bool decode (int64_t symbol_size, uint64_t bytes,
-									std::istream *input, std::ostream *output)
+bool decode (const uint64_t bytes, const uint16_t symbols,
+													const int64_t symbol_size,
+													std::istream *input,
+													std::ostream *output)
 {
 	// decode
 	std::vector<uint8_t> buf (static_cast<size_t> (symbol_size));
 	std::map<size_t, std::unique_ptr<Dec>> decoders;
+	uint64_t bytes_left = bytes;
+	uint64_t last_block_bytes = 0;
 	uint32_t block_number;
 	uint32_t symbol_number;
 	std::mutex mtx;
 	std::condition_variable cond;
 	Out_Status thread_status = Out_Status::WORKING;
 	struct write_out_args args;
+	args.bytes = bytes;
 	args.decoders = &decoders;
 	args.mtx = &mtx;
 	args.cond = &cond;
@@ -222,9 +252,31 @@ bool decode (int64_t symbol_size, uint64_t bytes,
 			thread_status = Out_Status::ERROR;
 			return 1;
 		} else if (read == 0 || input->eof()) {
+			if (bytes_left == 0 && last_block_bytes !=
+								static_cast<uint64_t> (symbols * symbol_size)) {
+				// the last block was not filled to the end.
+				// we need to pad it with additional symbols.
+				lock.lock();
+				auto dec = decoders.rbegin().base()->second.get();
+				if (dec != nullptr) {
+					buf.clear();
+					buf.insert (buf.begin(),
+										static_cast<size_t> (symbol_size), 0);
+					uint16_t last_symbol = static_cast<uint16_t> (
+										std::ceil (last_block_bytes /
+											static_cast<float> (symbol_size)));
+					for (uint16_t idx = 0; idx < dec->needed_symbols(); ++idx) {
+						auto buf_start = buf.begin();
+						dec->add_symbol (buf_start, buf.end(),
+															last_symbol + idx);
+					}
+				}
+				lock.unlock();
+			}
 			lock.lock();
 			if (thread_status == Out_Status::WORKING)
 				thread_status = Out_Status::GRACEFUL_STOP;
+			cond.notify_one();
 			lock.unlock();
 			// wait for all blocks to be decoded.
 			// if one can not be decoded exit with error
@@ -249,10 +301,19 @@ bool decode (int64_t symbol_size, uint64_t bytes,
 		if (dec_it == decoders.end()) {
 			// add new decoder
 			bool success;
+			if (bytes_left == 0) {
+				std::cerr << "ERR: additional blocks found.\n";
+				thread_status = Out_Status::ERROR;
+				write_out.join();
+				return 1;
+			}
+			last_block_bytes = std::min (bytes_left,
+								static_cast<uint64_t> (symbol_size * symbols));
+			bytes_left -= last_block_bytes;
 			std::tie (dec_it, success) = decoders.emplace (std::make_pair (
 						block_number,
-						new Dec (bytes, static_cast<size_t> (symbol_size),
-									Dec::Report::PARTIAL_FROM_BEGINNING)));
+						new Dec (symbols, static_cast<size_t> (symbol_size),
+										Dec::Report::PARTIAL_FROM_BEGINNING)));
 			if (!success) {
 				std::cerr << "ERR: Can not add decoder\n";
 				thread_status = Out_Status::ERROR;
@@ -276,7 +337,8 @@ bool decode (int64_t symbol_size, uint64_t bytes,
 			continue;		// already decoded (and freed) block.
 		auto symbol_start = buf.begin();
 		auto err = dec->add_symbol (symbol_start, buf.end(), symbol_number);
-		if (err != RaptorQ__v1::Error::NONE) {
+		if (err != RaptorQ__v1::Error::NONE &&
+										err != RaptorQ__v1::Error::NOT_NEEDED) {
 			std::cerr << "ERR: error adding symbol\n";
 			thread_status = Out_Status::ERROR;
 			write_out.join();
@@ -287,8 +349,8 @@ bool decode (int64_t symbol_size, uint64_t bytes,
 }
 
 // encoding function. manages both input and output
-bool encode (int64_t symbol_size, uint16_t symbols, size_t repair,
-									std::istream *input, std::ostream *output)
+bool encode (const int64_t symbol_size, const uint16_t symbols,
+				const size_t repair, std::istream *input, std::ostream *output)
 {
 	std::vector<uint8_t> buf (static_cast<size_t> (symbol_size));
 	// Since we do not change the number of symbols for each block,
@@ -520,7 +582,7 @@ int main (int argc, char **argv)
 			return 0;
 		return 1;
 	} else {
-		if (decode(symbol_size, bytes, input, output))
+		if (decode(bytes, symbols, symbol_size, input, output))
 			return 0;
 		return 1;
 	}

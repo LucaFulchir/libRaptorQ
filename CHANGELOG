@@ -1,9 +1,11 @@
 v0.2.0 (prealpha):
     * new, simpler RAW API (single-block)
+    * computations can be stopped
     * precomputation caching
     * cached result can be compressed (raw/LZ4)
     * RFC API: global multithreading instead of per-class
-    * computations can be stopped
+    * CLI tool for raw API
+    * OSX/BSD support
 v0.1.8 (unreleased):
     * someone forgot to update the changelog :p
         * was bugfixing only, no new feature

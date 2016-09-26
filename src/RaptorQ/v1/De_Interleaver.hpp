@@ -107,8 +107,11 @@ uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
 	}
 	if (start != end && offset_al != 0) {
 		// we have more stuff in "element", but not enough to fill
-		// the iterator.
-		*start = element;
+		// the iterator. Do not overwrite additional data of the iterator.
+		uint8_t *out = reinterpret_cast<uint8_t *> (&*start);
+		uint8_t *in = reinterpret_cast<uint8_t *> (&element);
+		for (size_t idx = 0; idx < offset_al; ++idx, ++out, ++in)
+			*out = *in;
 		++start;
 		written += offset_al;
 	}

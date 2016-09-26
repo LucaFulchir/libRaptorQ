@@ -37,8 +37,6 @@ uint64_t RAPTORQ_API get_local_cache_size();
 
 namespace Impl {
 
-static Compress compression = Compress::NONE;
-
 std::pair<Compress, std::vector<uint8_t>> RAPTORQ_API compress (
 											const std::vector<uint8_t> &data);
 std::vector<uint8_t> RAPTORQ_API decompress (const Compress algorithm,

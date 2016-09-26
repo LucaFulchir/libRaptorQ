@@ -25,8 +25,14 @@
 #include "RaptorQ/v1/Encoder.hpp"
 #include "RaptorQ/v1/Decoder.hpp"
 #include <algorithm>
+#include <atomic>
+#include <deque>
 #include <future>
+#include <memory>
 #include <mutex>
+#include <vector>
+#include <utility>
+
 
 
 namespace RaptorQ__v1 {
@@ -97,7 +103,7 @@ public:
 	};
 
 	~Decoder();
-    Decoder (const uint64_t bytes, const uint16_t symbol_size,
+    Decoder (const uint16_t symbols, const uint16_t symbol_size,
 															const Report type);
 
 	uint16_t symbols() const;
@@ -112,32 +118,30 @@ public:
 	bool can_decode() const;
 	Decoder_Result decode();
 	void stop();
+	uint16_t needed_symbols() const;
 
 	std::pair<Error, uint16_t> poll();
 	std::pair<Error, uint16_t> wait_sync();
 	std::future<std::pair<Error, uint16_t>> wait();
 
-	// returns number of iterators written
-	uint64_t decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi);
+
+	Error decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi);
 	// return number of bytes written
 	std::pair<uint64_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
 									const size_t from_byte, const size_t skip);
 private:
-	const uint64_t _bytes;
 	const uint16_t _symbols, _symbol_size;
-	int32_t last_reported;
+	std::atomic<uint32_t> last_reported;
 	const Report _type;
 	RaptorQ__v1::Work_State work;
 	Raw_Decoder<In_It> dec;
 	// 2* symbols. Actually tracks available and reported symbols.
 	// each symbol gets 2 bool: 1= available, 2=reported
-	std::vector<bool> symbols_tracker;
+	std::deque<std::atomic<bool>> symbols_tracker;
 	std::mutex _mtx;
 	std::condition_variable _cond;
 	std::vector<std::thread> waiting;
 
-	static uint16_t get_symbols (const uint64_t bytes,
-													const uint16_t symbol_size);
 	static void waiting_thread (Decoder<In_It, Fwd_It> *obj,
 									std::promise<std::pair<Error, uint16_t>> p);
 };
@@ -382,16 +386,6 @@ uint64_t Encoder<Rnd_It, Fwd_It>::needed_bytes()
 ///////////////////
 
 template <typename In_It, typename Fwd_It>
-uint16_t Decoder<In_It, Fwd_It>::get_symbols (const uint64_t bytes,
-													const uint16_t symbol_size)
-{
-	uint16_t symbols = static_cast<uint16_t> (bytes / symbol_size);
-	if (bytes % symbol_size != 0)
-		++symbols;
-	return symbols;
-}
-
-template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::~Decoder ()
 {
 	work = RaptorQ__v1::Work_State::ABORT_COMPUTATION;
@@ -407,16 +401,18 @@ Decoder<In_It, Fwd_It>::~Decoder ()
 }
 
 template <typename In_It, typename Fwd_It>
-Decoder<In_It, Fwd_It>::Decoder (const uint64_t bytes,
+Decoder<In_It, Fwd_It>::Decoder (const uint16_t symbols,
 								const uint16_t symbol_size, const Report type)
-	:_bytes (bytes), _symbols (get_symbols (bytes, symbol_size)),
-									_symbol_size (symbol_size), _type (type),
+	:_symbols (symbols), _symbol_size (symbol_size), _type (type),
 													dec (_symbols, symbol_size)
 {
 	IS_INPUT(In_It, "RaptorQ__v1::Decoder");
 	IS_FORWARD(Fwd_It, "RaptorQ__v1::Decoder");
-	symbols_tracker = std::vector<bool> (2 * _symbols, false);
-	last_reported = -1;
+
+	last_reported.store (0);
+	symbols_tracker = std::deque<std::atomic<bool>> (2 * _symbols);
+	for(uint32_t idx = 0; idx < 2 * _symbols; ++idx)
+		symbols_tracker[idx] = false;
 	work = RaptorQ__v1::Work_State::KEEP_WORKING;
 }
 
@@ -444,9 +440,14 @@ RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
 												Decoder<In_It, Fwd_It>::end()
 {
 	return RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> (nullptr,
-																	_symbols);
+																_symbols);
 }
 
+template <typename In_It, typename Fwd_It>
+uint16_t Decoder<In_It, Fwd_It>::needed_symbols() const
+{
+	return dec.needed_symbols();
+}
 
 template <typename In_It, typename Fwd_It>
 Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
@@ -454,7 +455,7 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
 {
 	auto ret = dec.add_symbol (from, to, esi);
 	if (ret == Error::NONE && esi < _symbols) {
-		symbols_tracker [2 * esi] = true;
+		symbols_tracker [2 * esi].store (true);
 		std::unique_lock<std::mutex> lock (_mtx);
 		RQ_UNUSED (lock);
 		_cond.notify_all();
@@ -467,60 +468,89 @@ template <typename In_It, typename Fwd_It>
 std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
 {
 	std::unique_lock<std::mutex> lock (_mtx, std::defer_lock);
-	uint32_t id;
-	uint32_t to_report;
+	uint32_t idx;
+	uint32_t last;
+	bool expected = false;
 	switch (_type) {
 	case Report::PARTIAL_FROM_BEGINNING:
-		lock.lock();
-		id = static_cast<uint32_t> (std::max (0, last_reported));
-		to_report = 0;
-		for (; id < symbols_tracker.size(); id += 2) {
-			if (symbols_tracker[id] == true) {
-				++id;
-				if (symbols_tracker[id] == false) {
-					symbols_tracker[id] = true;
-					++to_report;
-				}
+		// report the number of symbols that are known, starting from
+		// the beginning.
+		last = last_reported.load();
+		idx = last;
+		for (; idx < symbols_tracker.size(); idx += 2) {
+			if (symbols_tracker[idx].load() == true) {
+				++idx;
+				if (symbols_tracker[idx].load() == false)
+					symbols_tracker[idx].store (true);
+				--idx;
 			} else {
 				break;
 			}
 		}
-		if (to_report > 0 || dec.ready()) {
-			last_reported += to_report;
-			return {Error::NONE, last_reported};
+		idx /= 2;
+		if (idx > last) {
+			while (!last_reported.compare_exchange_weak (last, idx)) {
+				// expected is now "last_reported.load()"
+				if (last >= idx) {
+					// other thread already reported more than us.
+					// do not report things twice.
+					if (dec.threads() > 0)
+						return {Error::WORKING, 0};
+					if (dec.ready()) {
+						last_reported.store (_symbols);
+						return {Error::NONE, _symbols};
+					}
+					return {Error::NEED_DATA, 0};
+				}
+				// else we can report the new stuff
+			}
+			return {Error::NONE, idx};
 		}
-		if (!dec.can_decode())
-			return {Error::NEED_DATA, 0};
-		return {Error::WORKING, 0};
+		// nothing to report
+		if (dec.threads() > 0)
+			return {Error::WORKING, 0};
+		if (dec.ready()) {
+			last_reported.store (_symbols);
+			return {Error::NONE, _symbols};
+		}
+		return {Error::NEED_DATA, 0};
 	case Report::PARTIAL_ANY:
-		for (id = 0; id < symbols_tracker.size(); id += 2) {
-			if (symbols_tracker[id] == true) {
-				++id;
-				lock.lock();
-				if (symbols_tracker[id] == false) {
-					symbols_tracker[id] = true;
-					return {Error::NONE, id / 2};
+		// report the first available, not yet reported.
+		// or return {NONE, _symbols} if all have been reported
+		if (dec.ready())
+			return {Error::NONE, _symbols};
+		for (idx = 0; idx < static_cast<uint32_t> (symbols_tracker.size());
+																	idx += 2) {
+			if (symbols_tracker[idx].load() == true) {
+				++idx;
+				if (symbols_tracker[idx].load() == false) {
+					expected = false;
+					if (symbols_tracker[idx].
+									compare_exchange_strong (expected, true)) {
+						return {Error::NONE, idx / 2};
+					}	// else some other thread raced us, keep trying other
+						// symbols
 				}
 			}
 		}
+		if (dec.threads() > 0)
+			return {Error::WORKING, 0};
 		if (dec.ready())
-			return {Error::NONE, 0};
-		if (dec.can_decode())
-			return {Error::NEED_DATA, 0};
-		return {Error::WORKING, 0};
+			return {Error::NONE, _symbols};
+		return {Error::NEED_DATA, 0};
 	case Report::COMPLETE:
 		// "last_reported" is only used in this function, so now we can
 		// make it mean "last index in symbols_tracker", instead of
 		// "last reported symbol number"
-		id = static_cast<uint32_t> (std::max (0, last_reported));
-		for (; id < symbols_tracker.size(); id += 2) {
-			if (symbols_tracker[id] == false) {
-				if (dec.can_decode())
+		idx = last_reported.load();
+		for (; idx < symbols_tracker.size(); idx += 2) {
+			if (symbols_tracker[idx].load() == false) {
+				if (dec.threads() > 0)
 					return {Error::WORKING, 0};
 				return {Error::NEED_DATA, 0};
 			}
 		}
-		last_reported = static_cast<int32_t> (symbols_tracker.size());
+		last_reported.store (_symbols);
 		return {Error::NONE, 0};
 	}
 	return {Error::WORKING, 0};
@@ -594,9 +624,9 @@ typename Decoder<In_It, Fwd_It>::Decoder_Result Decoder<In_It, Fwd_It>::decode()
 		std::unique_lock<std::mutex> lock (_mtx);
 		RQ_UNUSED (lock);
 		if (_type != Report::COMPLETE) {
-			uint32_t id = static_cast<uint32_t> (std::max (0, last_reported));
+			uint32_t id = last_reported.load();
 			for (; id < symbols_tracker.size(); id += 2)
-				symbols_tracker[id] = true;
+				symbols_tracker[id].store (true);
 		}
 		_cond.notify_all();
 	}
@@ -618,15 +648,16 @@ std::pair<uint64_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
 													const size_t skip)
 {
 	using T = typename std::iterator_traits<Fwd_It>::value_type;
-	if (!dec.ready() || skip >= sizeof(T))	// !dec.ready()
+
+	if (skip >= sizeof(T) || from_byte >= _symbols * _symbol_size)
 		return {0, 0};
 
 	auto decoded = dec.get_symbols();
 
 	uint16_t esi = static_cast<uint16_t> (from_byte /
-									static_cast<uint64_t> (decoded->cols()));
+										static_cast<uint64_t> (_symbol_size));
 	uint16_t byte = static_cast<uint16_t> (from_byte %
-									static_cast<uint64_t> (decoded->cols()));
+										static_cast<uint64_t> (_symbol_size));
 
 	size_t offset_al = skip;
 	T element = static_cast<T> (0);
@@ -637,8 +668,7 @@ std::pair<uint64_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
 		}
 	}
 	uint64_t written = 0;
-	while (start != end && esi < decoded->rows() &&
-									_bytes > from_byte + written + offset_al) {
+	while (start != end && esi < _symbols && dec.has_symbol (esi)) {
 		element += static_cast<T> (static_cast<uint8_t> ((*decoded)(esi, byte)))
 															<< offset_al * 8;
 		++offset_al;
@@ -657,25 +687,29 @@ std::pair<uint64_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
 	}
 	if (start != end && offset_al != 0) {
 		// we have more stuff in "element", but not enough to fill
-		// the iterator.
-		*start = element;
+		// the iterator. Do not overwrite additional data of the iterator.
+		uint8_t *out = reinterpret_cast<uint8_t *> (&*start);
+		uint8_t *in = reinterpret_cast<uint8_t *> (&element);
+		for (size_t idx = 0; idx < offset_al; ++idx, ++out, ++in)
+			*out = *in;
 		written += offset_al;
 	}
 	return {written, offset_al};
 }
 
 template <typename In_It, typename Fwd_It>
-uint64_t Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
+Error Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
 															const uint16_t esi)
 {
-	assert ((_symbol_size %
-			sizeof(typename std::iterator_traits<Fwd_It>::value_type)) == 0);
-	if (!dec.ready())
-		return 0;
+	auto start_copy = start;
 	uint64_t esi_byte = esi * _symbol_size;
-	auto pair = decode_bytes (start, end, esi_byte, 0);
-	assert (pair.second == 0 );
-	return pair.first / _symbol_size;
+
+	auto pair = decode_bytes (start_copy, end, esi_byte, 0);
+	if (pair.first == _symbol_size) {
+		start = start_copy;
+		return Error::NONE;
+	}
+	return Error::NEED_DATA;
 }
 
 }   // namespace Impl

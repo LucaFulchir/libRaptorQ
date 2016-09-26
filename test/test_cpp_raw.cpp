@@ -103,8 +103,9 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	RaptorQ::Encoder<typename std::vector<in_enc_align>::iterator,
 							typename std::vector<out_enc_align>::iterator> enc (
 								enc_it, myvec.end(), in_aligned_symbol_size);
+	uint16_t _symbols = enc.symbols();
 	std::cout << "Size: " << mysize << " symbols: " <<
-								static_cast<int32_t>(enc.symbols()) <<
+								static_cast<uint32_t> (_symbols) <<
 								" symbol size: " <<
 								static_cast<int32_t>(enc.symbol_size()) << "\n";
 	if (!enc.compute_sync()) {
@@ -185,10 +186,13 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	using Decoder_type = RaptorQ::Decoder<
 								typename std::vector<in_dec_align>::iterator,
 								typename std::vector<out_dec_align>::iterator>;
-	Decoder_type dec (mysize, symbol_size, Decoder_type::Report::COMPLETE);
+	Decoder_type dec (_symbols, symbol_size, Decoder_type::Report::COMPLETE);
 
 
 	std::vector<out_dec_align> received;
+	// mysize and the out_alignment might be different. be sure to have
+	// enough elements in "received".
+	// NOTE: this meanst that the last element might have additional data.
 	size_t out_size = static_cast<size_t> (
 				std::ceil(static_cast<float>(mysize) / sizeof(out_dec_align)));
 	received.reserve (out_size);
@@ -220,7 +224,13 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	// it has enough data.
 	auto decoded = dec.decode_bytes (re_it, received.end(), 0, 0);
 
-	if (decoded.first != mysize) {
+	// NOTE: decoded.first might be > mysize.
+	// This can happen since "misize" might not fit the whole
+	// symbols * symbol_size space.
+	// Also, the decoder has to fill the iterators: if "mysize" is not aligned
+	// with the "received" alignment, the last element in "received"
+	// will have additional data.
+	if (decoded.first < mysize) {
 		if (decoded.first == 0) {
 			std::cout << "Couldn't decode, RaptorQ Algorithm failure. "
 															"Can't Retry.\n";

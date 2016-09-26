@@ -67,7 +67,7 @@ public:
 
     using Report = typename Impl::Decoder<In_It, Fwd_It>::Report;
 
-    Decoder (const uint64_t bytes, const uint16_t symbol_size,
+    Decoder (const uint16_t symbols, const uint16_t symbol_size,
 															const Report type);
 
 	uint16_t symbols() const;
@@ -82,15 +82,14 @@ public:
 	bool can_decode() const;
 	Decoder_Result decode();
 	void stop();
+	uint16_t needed_symbols() const;
 
 	std::pair<Error, uint16_t> poll();
 	std::pair<Error, uint16_t> wait_sync();
 	std::future<std::pair<Error, uint16_t>> wait();
 
-	// return number of symbols.
-	// simbol_size % sizeof(FWD) == 0 else assert!
-	// returns number of iterators written
-	uint64_t decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi);
+	Error decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi);
+	// returns numer of bytes written, offset of data in last iterator
 	std::pair<uint64_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
 									const size_t from_byte, const size_t skip);
 private:
@@ -248,14 +247,14 @@ uint64_t Encoder<Rnd_It, Fwd_It>::needed_bytes ()
 
 
 template <typename In_It, typename Fwd_It>
-Decoder<In_It, Fwd_It>::Decoder (const uint64_t bytes,
+Decoder<In_It, Fwd_It>::Decoder (const uint16_t symbols,
 								const uint16_t symbol_size, const Report type)
 {
 	IS_INPUT(In_It, "RaptorQ__v1::Decoder");
 	IS_FORWARD(Fwd_It, "RaptorQ__v1::Decoder");
 
 	decoder = std::unique_ptr<Impl::Decoder<In_It, Fwd_It>> (
-				new Impl::Decoder<In_It, Fwd_It> (bytes, symbol_size, type));
+				new Impl::Decoder<In_It, Fwd_It> (symbols, symbol_size, type));
 }
 
 template <typename In_It, typename Fwd_It>
@@ -294,6 +293,14 @@ RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
 	return decoder->end();
 }
 
+
+template <typename In_It, typename Fwd_It>
+uint16_t Decoder<In_It, Fwd_It>::needed_symbols() const
+{
+	if (decoder == nullptr)
+		return 0;
+	return decoder->needed_symbols();
+}
 
 template <typename In_It, typename Fwd_It>
 Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
@@ -368,11 +375,11 @@ std::pair<uint64_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
 }
 
 template <typename In_It, typename Fwd_It>
-uint64_t Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
+Error Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
 															const uint16_t esi)
 {
 	if (decoder == nullptr)
-		return 0;
+		return Error::INITIALIZATION;
 	return decoder->decode_symbol (start, end, esi);
 }
 

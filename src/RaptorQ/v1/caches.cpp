@@ -27,6 +27,10 @@
 
 namespace RaptorQ__v1 {
 
+namespace Impl {
+static Compress compression = Compress::NONE;
+} // namespace Impl
+
 Compress supported_compressions()
 {
 #ifdef RQ_USE_LZ4

@@ -61,6 +61,7 @@ public:
 		// so be aware that "symbol_size" != "_symbol_size" for now
 		source_symbols = DenseMtx (_symbols, symbol_size);
 		concurrent = 0;
+		can_retry = false;
 	}
 	~Raw_Decoder();
 
@@ -74,6 +75,7 @@ public:
 	Error add_symbol (In_It &start, const In_It end, const uint32_t esi);
 	Decoder_Result decode (Work_State *thread_keep_working);
 	DenseMtx* get_symbols();
+	bool has_symbol (const uint16_t symbol) const;
 
 	void stop();
 	// can start a computation (with different data)
@@ -91,12 +93,11 @@ private:
 	std::mutex lock;
 	const uint16_t _symbols;
 	uint16_t concurrent;	// currently running decoders retry
-	bool keep_working, can_retry = false;
+	bool keep_working, can_retry;
 	const Save_Computation type;
 	Bitmask mask;
 	DenseMtx source_symbols;
 	std::vector<std::pair<uint32_t, Vect>> received_repair;
-
 
 	// to help making things const
 	static Save_Computation test_computation()
@@ -164,7 +165,8 @@ uint16_t Raw_Decoder<In_It>::needed_symbols() const
 {
 	if (can_retry)
 		return 0;
-	int32_t needed = mask.get_holes() - received_repair.size();
+	int32_t needed = static_cast<int32_t> (mask.get_holes()) -
+						static_cast<int32_t> (received_repair.size());
 	if (needed < 0)
 		needed = 0;
 	if (needed == 0 && !can_retry && concurrent == 0)
@@ -196,6 +198,18 @@ void Raw_Decoder<In_It>::drop_concurrent()
 	// "if" should not be necessary. But I forgot to add --make-bug-free flag.
 	if (concurrent > 0)
 		--concurrent;
+}
+
+template <typename In_It>
+DenseMtx* Raw_Decoder<In_It>::get_symbols()
+{
+	return &source_symbols;
+}
+
+template <typename In_It>
+bool Raw_Decoder<In_It>::has_symbol (const uint16_t symbol) const
+{
+	return mask.get_holes() == 0 || mask.exists (symbol);
 }
 
 template <typename In_It>
@@ -449,12 +463,6 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 	received_repair = std::vector<std::pair<uint32_t, Vect>>();
 	mask.free();
 	return Decoder_Result::DECODED;
-}
-
-template <typename In_It>
-DenseMtx* Raw_Decoder<In_It>::get_symbols()
-{
-	return &source_symbols;
 }
 
 }	// namespace Impl
