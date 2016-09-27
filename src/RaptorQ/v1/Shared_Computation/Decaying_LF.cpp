@@ -31,8 +31,8 @@ std::vector<uint8_t> Mtx_to_raw (const DenseMtx &mtx)
 {
 	std::vector<uint8_t> ret;
 	ret.reserve (static_cast<size_t> (mtx.rows() * mtx.cols()));
-	for (uint32_t row = 0; row < mtx.rows(); ++row) {
-		for (uint32_t col = 0; col < mtx.cols(); ++col)
+	for (uint32_t row = 0; row < static_cast<uint32_t> (mtx.rows()); ++row) {
+		for (uint32_t col = 0; col < static_cast<uint32_t> (mtx.cols()); ++col)
 			ret.emplace_back (static_cast<uint8_t> (mtx (row, col)));
 	}
 	return ret;

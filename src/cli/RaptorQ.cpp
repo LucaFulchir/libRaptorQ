@@ -19,6 +19,7 @@
  */
 
 #pragma clang diagnostic push
+#pragma GCC diagnostic push
 #pragma clang diagnostic ignored "-Wdocumentation"
 #pragma clang diagnostic ignored "-Wdocumentation-unknown-command"
 #pragma clang diagnostic ignored "-Wold-style-cast"
@@ -26,9 +27,12 @@
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #pragma clang diagnostic ignored "-Wconditional-uninitialized"
 #pragma clang diagnostic ignored "-Wweak-vtables"
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #include "../external/optionparser-1.4/optionparser.h"
 #pragma clang diagnostic pop
+#pragma GCC diagnostic pop
 #include "RaptorQ/RaptorQ_v1.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -195,7 +199,8 @@ static void print_output (struct write_out_args args)
 				*args.status = Out_Status::ERROR;
 				return;
 			}
-			size_t writes_left = std::min (bytes_left, sym_size);
+			size_t writes_left = std::min (bytes_left,
+											static_cast<uint64_t> (sym_size));
 			args.output->write (reinterpret_cast<char *> (buffer.data()),
 											static_cast<int64_t>(writes_left));
 			bytes_left -= writes_left;
@@ -387,7 +392,13 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 			// encoder.
 			std::vector<uint8_t> padding (bytes_left, 0);
 			auto it = padding.begin();
+			#pragma clang diagnostic push
+			#pragma GCC diagnostic push
+			#pragma clang diagnostic ignored "-Wunused-variable"
+			#pragma GCC diagnostic ignored "-Wunused-variable"
 			auto pad_added = encoder.add_data (it, padding.end());
+			#pragma clang diagnostic pop
+			#pragma GCC diagnostic pop
 			assert (pad_added == padding.size());
 			assert (it == padding.end());
 			bytes_left = encoder.needed_bytes();

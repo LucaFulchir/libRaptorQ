@@ -91,7 +91,7 @@ public:
 	Error decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi);
 	// returns numer of bytes written, offset of data in last iterator
 	std::pair<uint64_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
-									const size_t from_byte, const size_t skip);
+									const uint64_t from_byte, const size_t skip);
 private:
     std::unique_ptr<Impl::Decoder<In_It, Fwd_It>> decoder;
 };

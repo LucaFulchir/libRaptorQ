@@ -87,7 +87,6 @@ private:
 	// pair (thread, &keep_working)
 	using th_state = std::pair<std::thread, std::weak_ptr<Work_State_Overlay>>;
     std::deque<th_state> pool;
-    //std::deque<th_state> wait_for_exit;
 	std::deque<std::unique_ptr<Pool_Work>> queue;
 
     static void working_thread (Thread_Pool *obj,

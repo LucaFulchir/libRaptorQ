@@ -128,7 +128,7 @@ public:
 	Error decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi);
 	// return number of bytes written
 	std::pair<uint64_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
-									const size_t from_byte, const size_t skip);
+									const uint64_t from_byte, const size_t skip);
 private:
 	const uint16_t _symbols, _symbol_size;
 	std::atomic<uint32_t> last_reported;
@@ -269,7 +269,8 @@ uint64_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It &from, const Rnd_It to)
 		data.emplace_back (*from);
 		++from;
 		++written;
-		if ((data.size() * sizeof (T) >= _symbols * _symbol_size)) {
+		if (data.size() * sizeof (T) >=
+							static_cast<uint64_t> (_symbols * _symbol_size)) {
 			state = Data_State::FULL;
 			break;
 		}
@@ -649,8 +650,10 @@ std::pair<uint64_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
 {
 	using T = typename std::iterator_traits<Fwd_It>::value_type;
 
-	if (skip >= sizeof(T) || from_byte >= _symbols * _symbol_size)
+	if (skip >= sizeof(T) || from_byte >=
+							static_cast<uint64_t> (_symbols * _symbol_size)) {
 		return {0, 0};
+	}
 
 	auto decoded = dec.get_symbols();
 
