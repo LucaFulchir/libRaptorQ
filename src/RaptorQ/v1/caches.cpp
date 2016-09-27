@@ -98,8 +98,8 @@ std::pair<Compress, std::vector<uint8_t>> compress (
         LZ4<LZ4_t::ENCODER> lz4;
 		return {algo, lz4.encode (data)};
     }
-	return {Compress::NONE, std::vector<uint8_t>()};
 #endif
+	return {Compress::NONE, std::vector<uint8_t>()};
 }
 
 std::vector<uint8_t> decompress (const Compress algorithm,
@@ -112,8 +112,8 @@ std::vector<uint8_t> decompress (const Compress algorithm,
         LZ4<LZ4_t::DECODER> lz4;
         return lz4.decode (data);
     }
-    return std::vector<uint8_t>();
 #endif
+    return std::vector<uint8_t>();
 }
 
 } // namespace Impl

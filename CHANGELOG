@@ -6,7 +6,7 @@ v0.2.0 (prealpha):
     * RFC API: global multithreading instead of per-class
     * CLI tool for raw API
     * OSX/BSD support
-v0.1.8 (unreleased):
+v0.1.8:
     * someone forgot to update the changelog :p
         * was bugfixing only, no new feature
     * fixed initializing encoder/decoder with more than 256 blocks
