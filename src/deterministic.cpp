@@ -29,8 +29,8 @@
 // we ned to delete the timestamps and uids/gids in the archive.
 //
 
-uint64_t erase (const size_t offset, std::fstream &lib);
-uint64_t erase (const size_t offset, std::fstream &lib)
+uint64_t erase (const uint64_t offset, std::fstream &lib);
+uint64_t erase (const uint64_t offset, std::fstream &lib)
 {
 	// ar header format:
 	// offset, length, description

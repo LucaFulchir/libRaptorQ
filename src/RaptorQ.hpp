@@ -537,9 +537,9 @@ void Encoder<Rnd_It, Fwd_It>::precompute_block_all (
 	if (obj->interleave == nullptr)
 		return;
 	std::vector<std::thread> t;
-	ssize_t spawned = threads - 1;
+	int32_t spawned = threads - 1;
 	if (spawned <= -1)
-		spawned = std::thread::hardware_concurrency();
+		spawned = static_cast<int32_t> (std::thread::hardware_concurrency());
 
 	if (spawned > 0)
 		t.reserve (static_cast<size_t> (spawned));
@@ -742,7 +742,10 @@ uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end)
 			// moreover, RaptorQ handles at most 881GB per rfc, so
 			// casting uint64 to int64 is safe
 			// we can not do "--start" since it's a forward iterator
+            #pragma clang diagnostic push
+            #pragma clang diagnostic ignored "-Wshorten-64-to-32"
 			start += static_cast<int64_t> (tmp_written - 1);
+            #pragma clang diagnostic pop
 		}
 	}
 	return written;

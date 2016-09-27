@@ -1,5 +1,9 @@
-v0.1.8(unreleased):
+v0.1.9:
+    * remember to bump up version in the cmake -.-'
+    * squashed warnings for gcc & clang in 32 bit mode.
+v0.1.8:
     * someone forgot to update the changelog :p
+        * was bugfixing only, no new feature
     * fixed initializing encoder/decoder with more than 256 blocks
     * fixed untriggerable bug on writing decoding data.
 v0.1.4:

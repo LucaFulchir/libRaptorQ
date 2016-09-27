@@ -156,7 +156,8 @@ void Precode_Matrix::decode_phase0 (const Bitmask &mask,
 	// but we still need to do the same modifications to A also for repair
 	// symbols. And those have been compacted.
 
-	for (uint16_t rep_row = static_cast<uint16_t> (A.rows() - _repair_overhead);
+	for (uint16_t rep_row = static_cast<uint16_t> (A.rows() -
+                                    static_cast<int32_t> (_repair_overhead));
 												rep_row < A.rows(); ++rep_row) {
 		auto depends = _params.get_idxs (static_cast<uint16_t> (
 															*r_esi + padding));

@@ -236,12 +236,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	// whole decoded data.
 	// note: the length of the decoded data is in bytes and might not fit
 	// a whole uint32_t.
-	uint64_t decoded_size = ceil (RaptorQ_bytes (dec) / sizeof(uint32_t));
-	uint32_t *received = (uint32_t *) malloc (decoded_size * sizeof(uint32_t));
-
-	for (uint32_t *shit = received; shit != received + decoded_size; ++shit)
-		//*shit = 0xFF + (0xFF >> 8) + (0xFF >> 16) + (0xFF >> 24);
-		;//*shit = 0xFFFFFFFF;
+	size_t decoded_size = (size_t) RaptorQ_bytes (dec) / sizeof(uint32_t);
+	if ((RaptorQ_bytes (dec) % sizeof(uint32_t)) != 0)
+		++decoded_size;
+	uint32_t *received = (uint32_t *) malloc (
+                                    (size_t) decoded_size * sizeof(uint32_t));
 
 	uint32_t *rec = received;
 	// you can actually call "RaptorQ_decode" as many times as you want

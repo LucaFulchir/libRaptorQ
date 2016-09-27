@@ -109,7 +109,7 @@ bool Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 			for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
 						p != reinterpret_cast<uint8_t *> (&al) + sizeof(T_in)
 										&& col != source_symbols.cols(); ++p) {
-				source_symbols (esi, col++) = *p;
+				source_symbols (static_cast<int32_t> (esi), col++) = *p;
 			}
 		}
 		// input iterator might reach end before we get enough data
