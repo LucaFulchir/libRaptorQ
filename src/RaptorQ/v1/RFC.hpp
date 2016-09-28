@@ -134,10 +134,10 @@ public:
 	std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
 
 	size_t precompute_max_memory ();
-	uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
+	size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
 															const uint8_t sbn);
 	// id: 8-bit sbn + 24 bit esi
-	uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
+	size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
 	void free (const uint8_t sbn);
 	uint8_t blocks() const;
 	uint32_t block_size (const uint8_t sbn) const;
@@ -271,12 +271,12 @@ public:
 
 	// result in BYTES
 	uint64_t decode_bytes (Fwd_It &start, const Fwd_It end, const uint8_t skip);
-	uint64_t decode_block_bytes (Fwd_It &start, const Fwd_It end,
+	size_t decode_block_bytes (Fwd_It &start, const Fwd_It end,
 															const uint8_t skip,
 															const uint8_t sbn);
 	// result in ITERATORS
 	// last *might* be half written depending on data alignments
-	std::pair<size_t, uint8_t> decode_aligned (Fwd_It &start, const Fwd_It end,
+	std::pair<uint64_t, uint8_t> decode_aligned (Fwd_It &start, const Fwd_It end,
 															const uint8_t skip);
 	std::pair<size_t, uint8_t> decode_block_aligned (Fwd_It &start,
 															const Fwd_It end,
@@ -606,7 +606,7 @@ std::pair<Error, uint8_t> Encoder<Rnd_It, Fwd_It>::get_report (
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
+size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 															const uint32_t &id)
 {
 	const uint32_t mask_8 = static_cast<uint32_t> (std::pow (2, 8)) - 1;
@@ -616,7 +616,7 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
+size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 															const uint32_t esi,
 															const uint8_t sbn)
 {
@@ -1013,7 +1013,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
 		Impl::De_Interleaver<Fwd_It> de_interleaving (dec_ptr->get_symbols(),
 													_sub_blocks, _alignment);
 
-		uint64_t max_bytes = block_size (sbn);
+		size_t max_bytes = block_size (sbn);
 		if (sbn == (blocks() - 1)) {
 			// size of the data (_size) is different from the sum of the size of
 			// all blocks. get the real size, so we do not write more.
@@ -1021,7 +1021,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
 			uint64_t all_blocks = 0;
 			for (uint8_t id = 0; id < blocks(); ++id)
 				all_blocks += block_size (sbn);
-			const uint64_t diff = all_blocks - _size;
+			const size_t diff = static_cast<size_t> (all_blocks - _size);
 			max_bytes -= diff;
 		}
 		auto tmp_start = start;
@@ -1045,15 +1045,18 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
 			// RaptorQ handles at most 881GB per rfc, so
 			// casting uint64 to int64 is safe
 			// we can not do "--start" since it's a forward iterator
-			start += std::max (static_cast<int64_t> (0),
-										static_cast<int64_t> (it_written - 1));
+			#pragma clang diagnostic push
+			#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+			#pragma clang diagnostic ignored "-Wsign-conversion"
+			start += std::max (static_cast<uint64_t>(0), it_written - 1);
+			#pragma clang diagnostic pop
 		}
 	}
 	return written;
 }
 
 template <typename In_It, typename Fwd_It>
-uint64_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
+size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
 															const Fwd_It end,
 															const uint8_t skip,
 															const uint8_t sbn)
@@ -1090,7 +1093,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
 
 	Impl::De_Interleaver<Fwd_It> de_interleaving (dec_ptr->get_symbols(),
 													_sub_blocks, _alignment);
-	uint64_t max_bytes = block_size (sbn);
+	size_t max_bytes = block_size (sbn);
 	if (sbn == (blocks() - 1)) {
 		// size of the data (_size) is different from the sum of the size of
 		// all blocks. get the real size, so we do not write more.
@@ -1105,7 +1108,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode_aligned (
+std::pair<uint64_t, uint8_t> Decoder<In_It, Fwd_It>::decode_aligned (
 														Fwd_It &start,
 														const Fwd_It end,
 														const uint8_t skip)
@@ -1126,9 +1129,9 @@ std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode_block_aligned (
 														const uint8_t skip,
 														const uint8_t sbn)
 {
-	const uint64_t bytes = decode_block_bytes (start, end, skip, sbn);
-	const uint64_t skip_and_bytes = skip + bytes;
-	const uint64_t iterators = skip_and_bytes /
+	const size_t bytes = decode_block_bytes (start, end, skip, sbn);
+	const size_t skip_and_bytes = skip + bytes;
+	const size_t iterators = skip_and_bytes /
 					sizeof(typename std::iterator_traits<Fwd_It>::value_type);
 	const uint8_t new_skip = skip_and_bytes %
 					sizeof(typename std::iterator_traits<Fwd_It>::value_type);

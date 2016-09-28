@@ -243,7 +243,7 @@ Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 			for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
 						p != reinterpret_cast<uint8_t *> (&al) + sizeof(T_in)
 										&& col != source_symbols.cols(); ++p) {
-				source_symbols (esi, col++) = *p;
+				source_symbols (static_cast<int32_t>(esi), col++) = *p;
 			}
 		}
 		// input iterator might reach end before we get enough data
@@ -422,7 +422,8 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 		DenseMtx res;
 		// TODO: check again if other thread already saved this?
 		if (missing.rows() != 0) {
-			res.setIdentity (L_rows + overhead, L_rows + overhead);
+			res.setIdentity (static_cast<int32_t>(L_rows + overhead),
+									static_cast<int32_t>(L_rows + overhead));
 			for (auto &op : ops)
 				op->build_mtx (res);
 			// TODO: lots of wasted ram? how to compress things directly?

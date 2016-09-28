@@ -229,23 +229,23 @@ bool RaptorQ_set_compression (const RaptorQ_Compress compression)
 							static_cast<RaptorQ__v1::Compress> (compression)));
 }
 
-uint64_t RaptorQ_shared_cache_size (const uint64_t shared_cache)
+size_t RaptorQ_shared_cache_size (const size_t shared_cache)
 {
 	return RaptorQ__v1::shared_cache_size (shared_cache);
 }
 
-RaptorQ_Error RaptorQ_local_cache_size (const uint64_t local_cache)
+RaptorQ_Error RaptorQ_local_cache_size (const size_t local_cache)
 {
 	return static_cast<RaptorQ_Error> (RaptorQ__v1::local_cache_size (
 																local_cache));
 }
 
-uint64_t RaptorQ_get_shared_cache_size ()
+size_t RaptorQ_get_shared_cache_size ()
 {
 	return RFC6330__v1::get_shared_cache_size();
 }
 
-uint64_t RaptorQ_get_local_cache_size ()
+size_t RaptorQ_get_local_cache_size ()
 {
 	return RFC6330__v1::get_local_cache_size();
 }
@@ -684,7 +684,7 @@ size_t RaptorQ_precompute_max_memory (RaptorQ_ptr *enc)
 #endif
 }
 
-uint64_t RaptorQ_encode_id (RaptorQ_ptr *enc, void **data, const uint64_t size,
+size_t RaptorQ_encode_id (RaptorQ_ptr *enc, void **data, const size_t size,
 															const uint32_t id)
 {
 	uint8_t sbn = id >> 24;
@@ -692,7 +692,7 @@ uint64_t RaptorQ_encode_id (RaptorQ_ptr *enc, void **data, const uint64_t size,
 	return RaptorQ_encode (enc, data, size, esi, sbn);
 }
 
-uint64_t RaptorQ_encode (RaptorQ_ptr *enc, void **data, const uint64_t size,
+size_t RaptorQ_encode (RaptorQ_ptr *enc, void **data, const size_t size,
 															const uint32_t esi,
 															const uint8_t sbn)
 {
@@ -786,7 +786,7 @@ uint64_t RaptorQ_bytes (struct RaptorQ_ptr *dec)
 }
 
 uint64_t RaptorQ_decode_bytes (RaptorQ_ptr *dec, void **data,
-										const size_t size, const uint8_t skip)
+										const uint64_t size, const uint8_t skip)
 {
 	uint64_t written = 0;
 	if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE ||
@@ -832,12 +832,12 @@ uint64_t RaptorQ_decode_bytes (RaptorQ_ptr *dec, void **data,
 	return written;
 }
 
-uint64_t RaptorQ_decode_block_bytes (RaptorQ_ptr *dec, void **data,
+size_t RaptorQ_decode_block_bytes (RaptorQ_ptr *dec, void **data,
 															const size_t size,
 															const uint8_t skip,
 															const uint8_t sbn)
 {
-	uint64_t written = 0;
+	size_t written = 0;
 	if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE ||
 									dec->ptr == nullptr || data == nullptr) {
 		return written;
@@ -886,7 +886,7 @@ uint64_t RaptorQ_decode_block_bytes (RaptorQ_ptr *dec, void **data,
 }
 
 RaptorQ_Dec_Result RaptorQ_decode_aligned (RaptorQ_ptr *dec, void **data,
-										const size_t size, const uint8_t skip)
+										const uint64_t size, const uint8_t skip)
 {
 	RaptorQ_Dec_Result c_ret = {0, 0};
 	if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE ||

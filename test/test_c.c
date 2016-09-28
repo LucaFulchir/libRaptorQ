@@ -260,8 +260,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	// whole decoded data.
 	// note: the length of the decoded data is in bytes and might not fit
 	// a whole uint32_t.
-	uint64_t decoded_size =(uint64_t) (RaptorQ_bytes (dec)
-														/ sizeof(uint32_t));
+	size_t decoded_size =(size_t) (RaptorQ_bytes (dec) / sizeof(uint32_t));
 	// this is not necessary in this example, but remember that integer
 	// division acts as a floor()
 	decoded_size += RaptorQ_bytes (dec) % sizeof(uint32_t);

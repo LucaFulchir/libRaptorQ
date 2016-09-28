@@ -109,7 +109,7 @@ public:
             return rfc_encoder->precompute_max_memory ();
         return 0;
     }
-	uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
+	size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
 															const uint8_t sbn)
     {
         if (rfc_encoder != nullptr)
@@ -117,7 +117,7 @@ public:
         return 0;
     }
 	// id: 8-bit sbn + 24 bit esi
-	uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id)
+	size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id)
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->encode (output, end, id);
@@ -228,7 +228,7 @@ public:
             return 0;
         return rfc_decoder->decode_bytes (start, end, skip);
     }
-	uint64_t decode_block_bytes (Fwd_It &start, const Fwd_It end,
+	size_t decode_block_bytes (Fwd_It &start, const Fwd_It end,
 															const uint8_t skip,
 															const uint8_t sbn)
     {
@@ -238,7 +238,7 @@ public:
     }
 	// result in ITERATORS
 	// last *might* be half written depending on data alignments
-	std::pair<size_t, uint8_t> decode_aligned (Fwd_It &start, const Fwd_It end,
+	std::pair<uint64_t, uint8_t> decode_aligned (Fwd_It &start,const Fwd_It end,
 															const uint8_t skip)
     {
         if (rfc_decoder == nullptr)

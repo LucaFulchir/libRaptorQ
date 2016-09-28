@@ -30,10 +30,10 @@ Compress RAPTORQ_API supported_compressions();
 Compress RAPTORQ_API get_compression();
 bool     RAPTORQ_API set_compression (const Compress compression);
 
-uint64_t RAPTORQ_API shared_cache_size (const uint64_t shared_cache);
-bool RAPTORQ_API local_cache_size (const uint64_t local_cache);
-uint64_t RAPTORQ_API get_shared_cache_size();
-uint64_t RAPTORQ_API get_local_cache_size();
+size_t RAPTORQ_API shared_cache_size (const size_t shared_cache);
+bool RAPTORQ_API local_cache_size (const size_t local_cache);
+size_t RAPTORQ_API get_shared_cache_size();
+size_t RAPTORQ_API get_local_cache_size();
 
 namespace Impl {
 
@@ -52,9 +52,9 @@ namespace RFC6330__v1 {
 Compress RAPTORQ_API supported_compressions();
 Compress RAPTORQ_API get_compression();
 bool     RAPTORQ_API set_compression (const Compress compression);
-uint64_t RAPTORQ_API shared_cache_size (const uint64_t shared_cache);
-bool RAPTORQ_API local_cache_size (const uint64_t local_cache);
-uint64_t RAPTORQ_API get_shared_cache_size();
-uint64_t RAPTORQ_API get_local_cache_size();
+size_t RAPTORQ_API shared_cache_size (const size_t shared_cache);
+bool RAPTORQ_API local_cache_size (const size_t local_cache);
+size_t RAPTORQ_API get_shared_cache_size();
+size_t RAPTORQ_API get_local_cache_size();
 
 } // namespace RFC6330__v1

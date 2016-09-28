@@ -206,7 +206,10 @@ public:
 					_symbol_id * _sub_blocks.size (1) +	// get right subsymbol
 					pos_part2 % _sub_blocks.size (1);	// get right alignment
 		}
-		auto data = _data_from + static_cast<int64_t> (i);
+		#pragma clang diagnostic push
+		#pragma clang diagnostic ignored "-Wsign-conversion"
+		auto data = _data_from + i;
+		#pragma clang diagnostic pop
 		if (data >= _data_to) {
 			// Padding. remember to cast it to the same tipe as the iterator
 			// value

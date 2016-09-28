@@ -48,13 +48,13 @@ public:
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end_repair
 														(const uint32_t repair);
 
-	uint64_t add_data (Rnd_It &from, const Rnd_It to);
+	size_t add_data (Rnd_It &from, const Rnd_It to);
 	void clear_data();
 	bool compute_sync();
-	uint64_t needed_bytes();
+	size_t needed_bytes();
 
     std::future<Error> compute();
-    uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
+    size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
 
 private:
     std::unique_ptr<Impl::Encoder<Rnd_It, Fwd_It>> encoder;
@@ -90,8 +90,8 @@ public:
 
 	Error decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi);
 	// returns numer of bytes written, offset of data in last iterator
-	std::pair<uint64_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
-									const uint64_t from_byte, const size_t skip);
+	std::pair<size_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
+									const size_t from_byte, const size_t skip);
 private:
     std::unique_ptr<Impl::Decoder<In_It, Fwd_It>> decoder;
 };
@@ -190,7 +190,7 @@ RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It &from, const Rnd_It to)
+size_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It &from, const Rnd_It to)
 {
 	if (encoder == nullptr)
 		return 0;
@@ -225,7 +225,7 @@ std::future<Error> Encoder<Rnd_It, Fwd_It>::compute()
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
+size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 															const uint32_t &id)
 {
 	if (encoder == nullptr)
@@ -234,7 +234,7 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Encoder<Rnd_It, Fwd_It>::needed_bytes ()
+size_t Encoder<Rnd_It, Fwd_It>::needed_bytes ()
 {
 	if (encoder == nullptr)
 		return 0;
@@ -364,9 +364,9 @@ void Decoder<In_It, Fwd_It>::stop()
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<uint64_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
+std::pair<size_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
 													const Fwd_It end,
-													const uint64_t from_byte,
+													const size_t from_byte,
 													const size_t skip)
 {
 	if (decoder == nullptr)

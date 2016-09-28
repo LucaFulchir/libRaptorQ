@@ -56,11 +56,11 @@ extern "C"
 	bool RAPTORQ_API RaptorQ_set_compression (
 											const RaptorQ_Compress compression);
 
-	uint64_t RAPTORQ_API RaptorQ_shared_cache_size(const uint64_t shared_cache);
+	size_t RAPTORQ_API RaptorQ_shared_cache_size (const size_t shared_cache);
 	RaptorQ_Error RAPTORQ_API RaptorQ_local_cache_size (
-													const uint64_t local_cache);
-	uint64_t RAPTORQ_API RaptorQ_get_shared_cache_size ();
-	uint64_t RAPTORQ_API RaptorQ_get_local_cache_size ();
+													const size_t local_cache);
+	size_t RAPTORQ_API RaptorQ_get_shared_cache_size ();
+	size_t RAPTORQ_API RaptorQ_get_local_cache_size ();
 
 	/////////////////////
 	// Common functions
@@ -111,12 +111,12 @@ extern "C"
 															const uint8_t sbn);
 	size_t RAPTORQ_API RaptorQ_precompute_max_memory (struct RaptorQ_ptr *enc);
 
-	uint64_t RAPTORQ_API RaptorQ_encode_id (struct RaptorQ_ptr *enc,
+	size_t RAPTORQ_API RaptorQ_encode_id (struct RaptorQ_ptr *enc,
 															void **data,
-															const uint64_t size,
+															const size_t size,
 															const uint32_t id);
-	uint64_t RAPTORQ_API RaptorQ_encode (struct RaptorQ_ptr *enc, void **data,
-															const uint64_t size,
+	size_t RAPTORQ_API RaptorQ_encode (struct RaptorQ_ptr *enc, void **data,
+															const size_t size,
 															const uint32_t esi,
 															const uint8_t sbn);
 	uint32_t RAPTORQ_API RaptorQ_id (const uint32_t esi, const uint8_t sbn);
@@ -136,7 +136,7 @@ extern "C"
 	struct RaptorQ_Dec_Result RAPTORQ_API RaptorQ_decode_aligned (
 														struct RaptorQ_ptr *dec,
 														void **data,
-														const size_t size,
+														const uint64_t size,
 														const uint8_t skip);
 	struct RaptorQ_Dec_Result RAPTORQ_API RaptorQ_decode_block_aligned (
 														struct RaptorQ_ptr *dec,
@@ -146,9 +146,9 @@ extern "C"
 														const uint8_t sbn);
 	uint64_t RAPTORQ_API RaptorQ_decode_bytes (struct RaptorQ_ptr *dec,
 														void **data,
-														const size_t size,
+														const uint64_t size,
 														const uint8_t skip);
-	uint64_t RAPTORQ_API RaptorQ_decode_block_bytes (struct RaptorQ_ptr *dec,
+	size_t RAPTORQ_API RaptorQ_decode_block_bytes (struct RaptorQ_ptr *dec,
 														void **data,
 														const size_t size,
 														const uint8_t skip,

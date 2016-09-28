@@ -117,7 +117,7 @@ enum class Out_Status : uint8_t {
 
 struct write_out_args
 {
-	uint64_t bytes;
+	size_t bytes;
 	std::map<size_t, std::unique_ptr<Dec>> *decoders;
 	std::mutex *mtx;
 	std::condition_variable *cond;
@@ -130,7 +130,7 @@ struct write_out_args
 bool encode (const int64_t symbol_size, const uint16_t symbols,
 				const size_t repair, std::istream *input, std::ostream *output);
 
-bool decode (const uint64_t bytes, const uint16_t symbols,
+bool decode (const size_t bytes, const uint16_t symbols,
 													const int64_t symbol_size,
 													std::istream *input,
 													std::ostream *output);
@@ -140,7 +140,7 @@ static void print_output (struct write_out_args args);
 // print output. Only used when decoding
 static void print_output (struct write_out_args args)
 {
-	uint64_t bytes_left = args.bytes;
+	size_t bytes_left = args.bytes;
 	size_t current_block = 0;
 	uint16_t last_symbol = 0;
 	std::unique_lock<std::mutex> lock (*args.mtx, std::defer_lock);
@@ -200,9 +200,12 @@ static void print_output (struct write_out_args args)
 				return;
 			}
 			size_t writes_left = std::min (bytes_left,
-											static_cast<uint64_t> (sym_size));
+											static_cast<size_t> (sym_size));
+			#pragma clang diagnostic push
+			#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 			args.output->write (reinterpret_cast<char *> (buffer.data()),
-											static_cast<int64_t>(writes_left));
+											static_cast<int64_t> (writes_left));
+			#pragma clang diagnostic pop
 			bytes_left -= writes_left;
 			if (bytes_left == 0) {
 				// early exit. we wrote everything.
@@ -223,7 +226,7 @@ static void print_output (struct write_out_args args)
 	*args.status = Out_Status::EXITED;
 }
 
-bool decode (const uint64_t bytes, const uint16_t symbols,
+bool decode (const size_t bytes, const uint16_t symbols,
 													const int64_t symbol_size,
 													std::istream *input,
 													std::ostream *output)
@@ -231,8 +234,8 @@ bool decode (const uint64_t bytes, const uint16_t symbols,
 	// decode
 	std::vector<uint8_t> buf (static_cast<size_t> (symbol_size));
 	std::map<size_t, std::unique_ptr<Dec>> decoders;
-	uint64_t bytes_left = bytes;
-	uint64_t last_block_bytes = 0;
+	size_t bytes_left = bytes;
+	size_t last_block_bytes = 0;
 	uint32_t block_number;
 	uint32_t symbol_number;
 	std::mutex mtx;
@@ -313,7 +316,7 @@ bool decode (const uint64_t bytes, const uint16_t symbols,
 				return 1;
 			}
 			last_block_bytes = std::min (bytes_left,
-								static_cast<uint64_t> (symbol_size * symbols));
+								static_cast<size_t> (symbol_size * symbols));
 			bytes_left -= last_block_bytes;
 			std::tie (dec_it, success) = decoders.emplace (std::make_pair (
 						block_number,
@@ -331,7 +334,10 @@ bool decode (const uint64_t bytes, const uint16_t symbols,
 		lock.unlock();
 		buf.clear();
 		buf.insert (buf.begin(), static_cast<size_t> (symbol_size), 0);
+		#pragma clang diagnostic push
+		#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 		input->read (reinterpret_cast<char *> (buf.data()), symbol_size);
+		#pragma clang diagnostic pop
 		read = input->gcount();
 		if (read <= 0) {
 			std::cerr << "ERR: unexpected end";
@@ -371,7 +377,10 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 	while (true) {
 		buf.clear();
 		buf.insert (buf.begin(), static_cast<size_t> (symbol_size), 0);
+		#pragma clang diagnostic push
+		#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 		input->read (reinterpret_cast<char *> (buf.data()), symbol_size);
+		#pragma clang diagnostic pop
 		int64_t read = input->gcount();
 		if (read > 0) {
 			auto buf_start = buf.begin();
@@ -383,7 +392,10 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 			output->write (reinterpret_cast<char *> (&block_num),
 															sizeof(block_num));
 			output->write (reinterpret_cast<char *> (&sym_num),sizeof(sym_num));
+			#pragma clang diagnostic push
+			#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 			output->write (reinterpret_cast<char *> (buf.data()), symbol_size);
+			#pragma clang diagnostic pop
 			++sym_num;
 		}
 		size_t bytes_left = encoder.needed_bytes();
@@ -433,8 +445,11 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 															sizeof(block_num));
 				output->write (reinterpret_cast<char *> (&rep_id),
 															sizeof(rep_id));
+				#pragma clang diagnostic push
+				#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 				output->write (reinterpret_cast<char *> (buf.data()),
-															symbol_size);
+																symbol_size);
+				#pragma clang diagnostic pop
 			}
 			if (input->eof())
 				return 0;

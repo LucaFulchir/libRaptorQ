@@ -73,7 +73,7 @@ public:
 	}
 	~Raw_Encoder();
 
-	uint64_t Enc (const uint32_t ESI, Fwd_It &output, const Fwd_It end) const;
+	size_t Enc (const uint32_t ESI, Fwd_It &output, const Fwd_It end) const;
 
 
 	DenseMtx get_precomputed (RaptorQ__v1::Work_State *thread_keep_working);
@@ -331,7 +331,7 @@ bool Raw_Encoder<Rnd_It, Fwd_It>::generate_symbols (
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Raw_Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
+size_t Raw_Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
 														const Fwd_It end) const
 {
 	// returns iterators written
@@ -340,7 +340,7 @@ uint64_t Raw_Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
 
 	// The alignment of "Fwd_It" might *NOT* be the alignment of "Rnd_It"
 
-	uint64_t written = 0;
+	size_t written = 0;
 	if (_symbols == nullptr || !ready())
 		return written;
 	auto non_repair = _symbols->source_symbols (_SBN);
@@ -397,7 +397,7 @@ uint64_t Raw_Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
 		using T = typename std::iterator_traits<Fwd_It>::value_type;
 		T al = static_cast<T> (0);
 		uint8_t *p = reinterpret_cast<uint8_t *>  (&al);
-		for (uint32_t i = 0; i < static_cast<uint32_t> (tmp.cols()); ++i) {
+		for (int32_t i = 0; i < tmp.cols(); ++i) {
 			*p = static_cast<uint8_t> (tmp (0, i));
 			++p;
 			if (p == reinterpret_cast<uint8_t *>  (&al) + sizeof(T)) {

@@ -59,13 +59,13 @@ public:
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end_repair
 														(const uint32_t repair);
 
-	uint64_t add_data (Rnd_It &from, const Rnd_It to);
+	size_t add_data (Rnd_It &from, const Rnd_It to);
 	void clear_data();
 	bool compute_sync();
-	uint64_t needed_bytes();
+	size_t needed_bytes();
 
     std::future<Error> compute();
-    uint64_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
+    size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
 
 private:
 	enum class Data_State : uint8_t {
@@ -127,8 +127,8 @@ public:
 
 	Error decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi);
 	// return number of bytes written
-	std::pair<uint64_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
-									const uint64_t from_byte, const size_t skip);
+	std::pair<size_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
+									const size_t from_byte, const size_t skip);
 private:
 	const uint16_t _symbols, _symbol_size;
 	std::atomic<uint32_t> last_reported;
@@ -256,9 +256,9 @@ RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It &from, const Rnd_It to)
+size_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It &from, const Rnd_It to)
 {
-	uint64_t written = 0;
+	size_t written = 0;
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
 
 	if (state != Data_State::NEED_DATA)
@@ -345,7 +345,7 @@ std::future<Error> Encoder<Rnd_It, Fwd_It>::compute()
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
+size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 															const uint32_t &id)
 {
 	// returns number of iterators written
@@ -376,7 +376,7 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint64_t Encoder<Rnd_It, Fwd_It>::needed_bytes()
+size_t Encoder<Rnd_It, Fwd_It>::needed_bytes()
 {
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
 	return (_symbols * _symbol_size) - (data.size() * sizeof(T));
@@ -643,24 +643,24 @@ void Decoder<In_It, Fwd_It>::stop()
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<uint64_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
+std::pair<size_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
 													const Fwd_It end,
-													const uint64_t from_byte,
+													const size_t from_byte,
 													const size_t skip)
 {
 	using T = typename std::iterator_traits<Fwd_It>::value_type;
 
 	if (skip >= sizeof(T) || from_byte >=
-							static_cast<uint64_t> (_symbols * _symbol_size)) {
+							static_cast<size_t> (_symbols * _symbol_size)) {
 		return {0, 0};
 	}
 
 	auto decoded = dec.get_symbols();
 
 	uint16_t esi = static_cast<uint16_t> (from_byte /
-										static_cast<uint64_t> (_symbol_size));
+											static_cast<size_t> (_symbol_size));
 	uint16_t byte = static_cast<uint16_t> (from_byte %
-										static_cast<uint64_t> (_symbol_size));
+											static_cast<size_t> (_symbol_size));
 
 	size_t offset_al = skip;
 	T element = static_cast<T> (0);
@@ -670,7 +670,7 @@ std::pair<uint64_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
 			element += static_cast<T> (*(p++)) << keep * 8;
 		}
 	}
-	uint64_t written = 0;
+	size_t written = 0;
 	while (start != end && esi < _symbols && dec.has_symbol (esi)) {
 		element += static_cast<T> (static_cast<uint8_t> ((*decoded)(esi, byte)))
 															<< offset_al * 8;
@@ -705,7 +705,7 @@ Error Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
 															const uint16_t esi)
 {
 	auto start_copy = start;
-	uint64_t esi_byte = esi * _symbol_size;
+	size_t esi_byte = esi * _symbol_size;
 
 	auto pair = decode_bytes (start_copy, end, esi_byte, 0);
 	if (pair.first == _symbol_size) {
