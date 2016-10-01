@@ -563,19 +563,18 @@ void Decoder<In_It, Fwd_It>::waiting_thread (Decoder<In_It, Fwd_It> *obj,
 {
 	// return on not enough data or finished computation.
 	while (obj->work == RaptorQ__v1::Work_State::KEEP_WORKING) {
+		obj->dec.decode (&obj->work);
 		std::unique_lock<std::mutex> lock (obj->_mtx);
+		// poll() does not actually need to be locked, but we use the
+		// lock-wait mechanism to signal the arrival of new symbols,
+		// so that we retry only when necessary
 		auto res = obj->poll();
 		if (res.first == Error::NONE || res.first == Error::NEED_DATA) {
 			p.set_value (res);
 			break;
 		}
 		obj->_cond.wait (lock);
-		res = obj->poll();
 		lock.unlock();
-		if (res.first == Error::NONE || res.first == Error::NEED_DATA) {
-			p.set_value (res);
-			break;
-		}
 	}
 	if (obj->work != RaptorQ__v1::Work_State::KEEP_WORKING)
 		p.set_value ({Error::EXITING, 0});

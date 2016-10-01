@@ -79,19 +79,19 @@ enum  optionIndex { UNKNOWN, HELP, SYMBOLS, SYMBOL_SIZE, REPAIR, BYTES };
 const option::Descriptor usage[] =
 {
  {UNKNOWN, 0, "", "", Arg::Unknown,
-						"USAGE: encode|decode|benchmark OPTIONS INPUT OUTPUT\n"
+					"USAGE: encode|decode|benchmark PARAMETERS INPUT OUTPUT\n"
 											"  use '-' for stdin/stdout\n\n"
-														"Standalone Options:"},
+													"Standalone parameters:"},
  {HELP,    0, "h", "help", Arg::None, "  -h --help\tThis help."},
- {UNKNOWN, 0, "", "", Arg::Unknown, "ENCODE/DECODE options:"},
+ {UNKNOWN, 0, "", "", Arg::Unknown, "ENCODE/DECODE parameters:"},
  {SYMBOLS, 0, "s", "symbols", Arg::Numeric, "  -s --symbols\t"
 												"number of symbols per block"},
  {SYMBOL_SIZE, 0, "w", "symbol-size", Arg::Numeric, "  -w --symbol-size\t"
 														" bytes per symbol"},
- {UNKNOWN, 0, "", "", Arg::Unknown, "ENCODE only options:"},
+ {UNKNOWN, 0, "", "", Arg::Unknown, "ENCODE only parameters:"},
  {REPAIR, 0, "r", "repair", Arg::Numeric, "  -r --repair\t"
 										"number of repair symbols per block"},
- {UNKNOWN, 0, "", "", Arg::None, "DECODE only options:"},
+ {UNKNOWN, 0, "", "", Arg::None, "DECODE only parameters:"},
  {BYTES, 0, "b", "bytes", Arg::Numeric, "  -b --bytes\t"
 									"data size for each {en,de}coder block"},
  {UNKNOWN, 0, "", "", Arg::Unknown,
@@ -231,7 +231,7 @@ bool decode (const size_t bytes, const uint16_t symbols,
 													std::istream *input,
 													std::ostream *output)
 {
-	// decode
+	// false on error
 	std::vector<uint8_t> buf (static_cast<size_t> (symbol_size));
 	std::map<size_t, std::unique_ptr<Dec>> decoders;
 	size_t bytes_left = bytes;
@@ -258,14 +258,24 @@ bool decode (const size_t bytes, const uint16_t symbols,
 		if (read > 0 && read != sizeof(block_number)) {
 			std::cerr << "ERR: not enough data to fill block number\n";
 			thread_status = Out_Status::ERROR;
-			return 1;
+			return false;
 		} else if (read == 0 || input->eof()) {
 			if (bytes_left == 0 && last_block_bytes !=
 								static_cast<uint64_t> (symbols * symbol_size)) {
 				// the last block was not filled to the end.
 				// we need to pad it with additional symbols.
 				lock.lock();
-				auto dec = decoders.rbegin().base()->second.get();
+				auto dec_it = decoders.rbegin();
+				if (dec_it == decoders.rend()) {
+					// no decoder found? we needed to pad it. err.
+					thread_status = Out_Status::ERROR;
+					cond.notify_one();
+					lock.unlock();
+					write_out.join();
+					std::cerr << "ERR: could not pad the last block\n";
+					return false;
+				}
+				auto dec = dec_it.base()->second.get();
 				if (dec != nullptr) {
 					buf.clear();
 					buf.insert (buf.begin(),
@@ -280,7 +290,7 @@ bool decode (const size_t bytes, const uint16_t symbols,
 					}
 				}
 				lock.unlock();
-			}
+			} // else let the other thread stop, and report error
 			lock.lock();
 			if (thread_status == Out_Status::WORKING)
 				thread_status = Out_Status::GRACEFUL_STOP;
@@ -290,9 +300,9 @@ bool decode (const size_t bytes, const uint16_t symbols,
 			// if one can not be decoded exit with error
 			write_out.join();
 			if (thread_status == Out_Status::EXITED)
-				return 0;
+				return true;
 			std::cerr << "ERR: not all blocks could be decoded\n";
-			return 1;
+			return false;
 		}
 		input->read (reinterpret_cast<char *> (&symbol_number),
 													sizeof(symbol_number));
@@ -300,10 +310,24 @@ bool decode (const size_t bytes, const uint16_t symbols,
 		if (read != sizeof(symbol_number)) {
 			std::cerr << "ERR: not enough data to fill symbol number\n";
 			thread_status = Out_Status::ERROR;
+			cond.notify_one();
 			write_out.join();
-			return 1;
+			return false;
 		}
-
+		buf.clear();
+		buf.insert (buf.begin(), static_cast<size_t> (symbol_size), 0);
+		#pragma clang diagnostic push
+		#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+		input->read (reinterpret_cast<char *> (buf.data()), symbol_size);
+		#pragma clang diagnostic pop
+		read = input->gcount();
+		if (read <= 0) {
+			std::cerr << "ERR: unexpected end";
+			thread_status = Out_Status::ERROR;
+			cond.notify_one();
+			write_out.join();
+			return false;
+		}
 		lock.lock();
 		auto dec_it = decoders.find (block_number);
 		if (dec_it == decoders.end()) {
@@ -312,8 +336,10 @@ bool decode (const size_t bytes, const uint16_t symbols,
 			if (bytes_left == 0) {
 				std::cerr << "ERR: additional blocks found.\n";
 				thread_status = Out_Status::ERROR;
+				lock.unlock();
+				cond.notify_one();
 				write_out.join();
-				return 1;
+				return false;
 			}
 			last_block_bytes = std::min (bytes_left,
 								static_cast<size_t> (symbol_size * symbols));
@@ -326,35 +352,27 @@ bool decode (const size_t bytes, const uint16_t symbols,
 			if (!success) {
 				std::cerr << "ERR: Can not add decoder\n";
 				thread_status = Out_Status::ERROR;
+				lock.unlock();
+				cond.notify_one();
 				write_out.join();
-				return 1;
+				return false;
 			}
 		}
 		auto dec = dec_it->second.get();
-		lock.unlock();
-		buf.clear();
-		buf.insert (buf.begin(), static_cast<size_t> (symbol_size), 0);
-		#pragma clang diagnostic push
-		#pragma clang diagnostic ignored "-Wshorten-64-to-32"
-		input->read (reinterpret_cast<char *> (buf.data()), symbol_size);
-		#pragma clang diagnostic pop
-		read = input->gcount();
-		if (read <= 0) {
-			std::cerr << "ERR: unexpected end";
-			thread_status = Out_Status::ERROR;
-			write_out.join();
-			return 1;
-		}
-		if (dec == nullptr) // received additional symbol for an
+		if (dec == nullptr) { // received additional symbol for an
+			lock.unlock();
 			continue;		// already decoded (and freed) block.
+		}
 		auto symbol_start = buf.begin();
 		auto err = dec->add_symbol (symbol_start, buf.end(), symbol_number);
+		lock.unlock();
 		if (err != RaptorQ__v1::Error::NONE &&
 										err != RaptorQ__v1::Error::NOT_NEEDED) {
 			std::cerr << "ERR: error adding symbol\n";
 			thread_status = Out_Status::ERROR;
+			cond.notify_one();
 			write_out.join();
-			return 1;
+			return false;
 		}
 		cond.notify_one();
 	}
@@ -364,6 +382,7 @@ bool decode (const size_t bytes, const uint16_t symbols,
 bool encode (const int64_t symbol_size, const uint16_t symbols,
 				const size_t repair, std::istream *input, std::ostream *output)
 {
+	// false on error
 	std::vector<uint8_t> buf (static_cast<size_t> (symbol_size));
 	// Since we do not change the number of symbols for each block,
 	// we can reuse the encoder, so that less works will be done.
@@ -387,7 +406,7 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 			auto added = encoder.add_data (buf_start, buf.end());
 			if (added != buf.size()) {
 				std::cerr << "ERR: error adding symbol to the encoder\n";
-				return 1;
+				return false;
 			}
 			output->write (reinterpret_cast<char *> (&block_num),
 															sizeof(block_num));
@@ -427,7 +446,7 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 			}
 			if (enc_status != RaptorQ__v1::Error::NONE) {
 				std::cerr << "ERR: encoder should never fail!\n";
-				return 1;
+				return false;
 			}
 			std::vector<uint8_t> rep (static_cast<size_t> (symbol_size), 0);
 			for (uint32_t rep_id = sym_num; rep_id < (symbols + repair);
@@ -439,7 +458,7 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 				// rep_length == bytes written
 				if (rep_length != static_cast<size_t> (symbol_size)) {
 					std::cerr << "ERR: wrong repair symbol size\n";
-					return 1;
+					return false;
 				}
 				output->write (reinterpret_cast<char *> (&block_num),
 															sizeof(block_num));
@@ -447,12 +466,12 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 															sizeof(rep_id));
 				#pragma clang diagnostic push
 				#pragma clang diagnostic ignored "-Wshorten-64-to-32"
-				output->write (reinterpret_cast<char *> (buf.data()),
+				output->write (reinterpret_cast<char *> (rep.data()),
 																symbol_size);
 				#pragma clang diagnostic pop
 			}
 			if (input->eof())
-				return 0;
+				return true;
 			encoder.clear_data();
 			++block_num;
 			sym_num = 0;
@@ -498,11 +517,11 @@ int main (int argc, char **argv)
 	size_t bytes = 0;
 	const std::string command = std::string (argv[1]);
 	if (parse.nonOptionsCount() == 1) {
-		if (command.compare ("benchmark") != 0 || options[SYMBOLS].count() != 0
+		if (command.compare ("benchmark") == 0 || options[SYMBOLS].count() != 0
 											|| options[SYMBOL_SIZE].count() != 0
 											|| options[REPAIR].count() != 0
 											|| options[BYTES].count() != 0) {
-			std::cerr << "ERR: asdf\n";
+			std::cerr << "ERR: beckmark does not use arguments\n";
 			option::printUsage (std::cout, usage);
 			return 1;
 		}
