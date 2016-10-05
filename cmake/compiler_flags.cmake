@@ -21,6 +21,10 @@
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 
+#string of multiple flags to list
+string(REPLACE " " ";" RQ_C_FLAGS "${CMAKE_C_FLAGS}")
+string(REPLACE " " ";" RQ_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
 ##############################################
 #### check for UBSAN sanitizing support ######
 ##############################################
@@ -41,8 +45,8 @@ endif()
 ###################
 
 #gnu options
-set(RQ_GNU_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv )
-set(RQ_GNU_CXX_OPTIONS ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv )
+set(RQ_GNU_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -ffast-math -Wno-unknown-pragmas -Wall -Wextra -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv -fvisibility=hidden )
+set(RQ_GNU_CXX_OPTIONS ${RQ_DETERMINISTIC} -std=c++11 -ffast-math -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -Wextra -pedantic -Wno-padded -Wno-unknown-pragmas -fstack-protector-all -fstrict-aliasing -fwrapv -fvisibility=hidden -fvisibility-inlines-hidden )
 
 # GCC internal compiler errors with:
 # -fsanitize=undefined
@@ -54,29 +58,29 @@ set(RQ_GNU_C_DEBUG_SANITIZE   -fsanitize=shift -fsanitize=integer-divide-by-zero
 set(RQ_GNU_CXX_DEBUG_SANITIZE -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return -fisolate-erroneous-paths-dereference -fisolate-erroneous-paths-attribute )
 set(RQ_GNU_C_MINSIZEREL   -Os )
 set(RQ_GNU_CXX_MINSIZEREL -Os )
-set(RQ_GNU_C_RELEASE   -O4 -DNDEBUG -fwrapv )
-set(RQ_GNU_CXX_RELEASE -O4 -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fwrapv )
-set(RQ_GNU_C_RELWITHDEBINFO   ${RQ_GNU_C_RELEASE} -g )
-set(RQ_GNU_CXX_RELWITHDEBINFO ${RQ_GNU_CXX_RELEASE} -g )
+set(RQ_GNU_C_RELEASE   -Ofast -DNDEBUG -fwrapv -ftree-loop-distribution -funroll-loops )
+set(RQ_GNU_CXX_RELEASE -Ofast -DNDEBUG -fwrapv -ftree-loop-distribution -funroll-loops )
+set(RQ_GNU_C_RELWITHDEBINFO   -g -Ofast -fwrapv -ftree-loop-distribution -funroll-loops )
+set(RQ_GNU_CXX_RELWITHDEBINFO -g -Ofast -fwrapv -ftree-loop-distribution -funroll-loops )
 
 # clang options
-set(RQ_CLANG_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security -Wno-disabled-macro-expansion)
-set(RQ_CLANG_CXX_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security )
-set(RQ_CLANG_C_DEBUG_SANITIZE   -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return )
-set(RQ_CLANG_CXX_DEBUG_SANITIZE -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return )
+set(RQ_CLANG_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -ffast-math -fno-math-errno -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security -Wno-disabled-macro-expansion -fvisibility=hidden -fvisibility-inlines-hidden)
+set(RQ_CLANG_CXX_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -ffast-math -fno-math-errno -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -Wno-unknown-pragmas -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security -fvisibility=hidden -fvisibility-inlines-hidden)
 
 set(RQ_CLANG_C_DEBUG   -O0 -g )
 set(RQ_CLANG_CXX_DEBUG -O0 -g )
+set(RQ_CLANG_C_DEBUG_SANITIZE   -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return )
+set(RQ_CLANG_CXX_DEBUG_SANITIZE -fsanitize=shift -fsanitize=integer-divide-by-zero -fsanitize=vla-bound -fsanitize=return )
 set(RQ_CLANG_C_MINSIZEREL   -Os )
 set(RQ_CLANG_CXX_MINSIZEREL -Os )
 set(RQ_CLANG_C_RELEASE   -Ofast -DNDEBUG -fwrapv )
-set(RQ_CLANG_CXX_RELEASE -Ofast -fvisibility=hidden -fvisibility-inlines-hidden -DNDEBUG -fwrapv )
-set(RQ_CLANG_C_RELWITHDEBINFO   ${RQ_CLANG_C_RELEASE} -g )
-set(RQ_CLANG_CXX_RELWITHDEBINFO ${RQ_CLANG_CXX_RELEASE} -g )
+set(RQ_CLANG_CXX_RELEASE -Ofast -DNDEBUG -fwrapv )
+set(RQ_CLANG_C_RELWITHDEBINFO   -g -Ofast -fwrapv )
+set(RQ_CLANG_CXX_RELWITHDEBINFO -g -Ofast -fwrapv )
 
 # msvc flags. todo?
-set(MSVC_C_OPTIONS )
-set(MSVC_CXX_OPTIONS )
+set(RQ_MSVC_C_OPTIONS /wd4068)
+set(RQ_MSVC_CXX_OPTIONS /wd4068)
 
 
 ###################
@@ -84,7 +88,7 @@ set(MSVC_CXX_OPTIONS )
 ###################
 # note: generator expansions do not work on "set(..)"
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_CLANG_CXX_OPTIONS})
+    set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_CXX_FLAGS} ${RQ_CLANG_CXX_OPTIONS})
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
         set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_CLANG_CXX_DEBUG})
         if (RQ_ENABLE_UBSAN)
@@ -98,7 +102,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_CLANG_CXX_RELWITHDEBINFO})
     endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_GNU_CXX_OPTIONS})
+    set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_CXX_FLAGS} ${RQ_GNU_CXX_OPTIONS})
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
         set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_GNU_CXX_DEBUG})
         if (RQ_ENABLE_UBSAN)
@@ -112,12 +116,12 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_LIST_CXX_COMPILER_FLAGS} ${RQ_GNU_CXX_RELWITHDEBINFO})
     endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_MSVC_CXX_OPTIONS})
+    set(RQ_LIST_CXX_COMPILER_FLAGS ${RQ_CXX_FLAGS} ${RQ_MSVC_CXX_OPTIONS})
 endif()
 
 
 if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-    set(RQ_LIST_C_COMPILER_FLAGS ${RQ_CLANG_C_OPTIONS})
+    set(RQ_LIST_C_COMPILER_FLAGS ${RQ_C_FLAGS} ${RQ_CLANG_C_OPTIONS})
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
         set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_CLANG_C_DEBUG})
         if (RQ_ENABLE_UBSAN)
@@ -131,7 +135,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
         set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_CLANG_C_RELWITHDEBINFO})
     endif()
 elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
-    set(RQ_LIST_C_COMPILER_FLAGS ${RQ_GNU_C_OPTIONS})
+    set(RQ_LIST_C_COMPILER_FLAGS ${RQ_C_FLAGS} ${RQ_GNU_C_OPTIONS})
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
         set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_GNU_C_DEBUG})
         if (RQ_ENABLE_UBSAN)
@@ -145,7 +149,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
         set(RQ_LIST_C_COMPILER_FLAGS ${RQ_LIST_C_COMPILER_FLAGS} ${RQ_GNU_C_RELWITHDEBINFO})
     endif()
 elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
-    set(RQ_LIST_C_COMPILER_FLAGS ${RQ_MSVC_C_OPTIONS})
+    set(RQ_LIST_C_COMPILER_FLAGS ${RQ_C_FLAGS} ${RQ_MSVC_C_OPTIONS})
 endif()
 
 
@@ -181,5 +185,4 @@ foreach(flag ${RQ_LIST_CXX_COMPILER_FLAGS})
         message(WARNING "flag \"${flag}\" can't be used in your CXX compiler")
     endif()
 endforeach()
-
 

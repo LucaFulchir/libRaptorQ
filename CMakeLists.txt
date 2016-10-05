@@ -23,7 +23,7 @@ enable_language(CXX)
 enable_language(C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
-set(RQ_VERSION 0.1.9)
+set(RQ_VERSION 0.1.10)
 set(RQ_ABI 0)
 
 message(STATUS "libRaptorQ version ${RQ_VERSION}")
@@ -39,14 +39,42 @@ include(GNUInstallDirs)
 option(DYNAMIC_LIB "Build dynamic library" ON)
 option(STATIC_LIB "Build static library" ON)
 option(CLANG_STDLIB "Use clang's libc++" OFF)
+set(RQ_LINKER CACHE STRING "linker to use (empty=auto/gold/ld/bsd)")
+set_property(CACHE RQ_LINKER PROPERTY STRINGS GOLD LD BSD)
+mark_as_advanced(FORCE RQ_LINKER)
+
+# supported linkers: gold, linux standard, bsd
+if(NOT RQ_LINKER)
+    if(CMAKE_SYSTEM_NAME MATCHES "Darwin" OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR CMAKE_SYSTEM_NAME MATCHES "Windows")
+        set(RQ_LINKER BSD)
+    else()
+        find_program(RQ_GOLD ld.gold)
+        if (NOT RQ_GOLD MATCHES "RQ_GOLD-NOTFOUND")
+            set(RQ_LINKER GOLD)
+        else()
+            set(RQ_LINKER LD)
+        endif()
+    endif()
+endif()
+if(RQ_LINKER MATCHES GOLD)
+    message(STATUS "Using the GOLD linker")
+elseif(RQ_LINKER MATCHES LD)
+    message(STATUS "Using the LD linker")
+elseif(RQ_LINKER MATCHES BSD)
+    message(STATUS "Using the BSD linker")
+else()
+    message(WARNING "Linker not found? Default no option.")
+    set(RQ_LINKER BSD)
+endif()
 
 # defaults: only enable LTO/PROFILING with known compielrs
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-   option(LTO "Link Time Optimization" ON)
-   option(PROFILING "Profiling: speedup library" ON)
+if ((CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU") AND
+        (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin") AND (NOT ${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD"))
+    option(LTO "Link Time Optimization" ON)
+    option(PROFILING "Profiling: speedup library" ON)
 else()
-   option(LTO "Link Time Optimization" OFF)
-   option(PROFILING "Profiling: speedup library" OFF)
+    option(LTO "Link Time Optimization" OFF)
+    option(PROFILING "Profiling: speedup library" OFF)
 endif()
 
 message(STATUS "Build selected: ${CMAKE_BUILD_TYPE}")
@@ -57,29 +85,40 @@ if(NOT (STATIC_LIB MATCHES "ON"))
     endif()
 endif()
 
-# with LTO each compiler needs its own AR/NM/RANLIB?
+# with LTO each compiler needs its own AR/NM/RANLIB
 if(LTO MATCHES "ON")
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             find_program(RQ_AR "llvm-ar")
             find_program(RQ_NM "llvm-nm")
             find_program(RQ_RANLIB "llvm-ranlib")
+            find_program(RQ_LLVM_PROF llvm-profdata)
+            mark_as_advanced(FORCE RQ_LLVM_PROF)
+            if (RQ_LLVM_PROF MATCHES "RQ_LLVM_PROF-NOTFOUND")
+                message(FATAL_ERROR "Profiling support with clang requires \"llvm-profdata\". Disable profiling with cmake option \"-DPROFILING=OFF\"")
+            endif()
         elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
             find_program(RQ_AR "gcc-ar")
             find_program(RQ_NM "gcc-nm")
             find_program(RQ_RANLIB "gcc-ranlib")
         endif()
+        # check if we found the linker
+        if (RQ_AR STREQUAL "RQ_AR-NOTFOUND" OR RQ_NM STREQUAL "RQ_NM-NOTFOUND" OR RQ_RANLIB STREQUAL "RQ_RANLIB-NOTFOUND")
+            message(FATAL_ERROR "Can't find the linker programs. Please disable LTO with cmake option \"-DLTO=OFF\"")
+        endif()
         set(CMAKE_AR ${RQ_AR})
         set(CMAKE_NM ${RQ_NM})
         set(CMAKE_RANLIB ${RQ_RANLIB})
         mark_as_advanced(FORCE RQ_AR RQ_NM RQ_RANLIB)
-	    message(STATUS "Link Time Optimization activated")
+        message(STATUS "Link Time Optimization activated")
     else()
         message(FATAL_ERROR "Sorry, don't know how to do LTO with your compiler")
     endif()
 else()
-	message(STATUS "Link Time Optimization deactivated")
+    message(STATUS "Link Time Optimization deactivated")
 endif()
+
+
 
 # Profiling is pretty compiler-specific....
 if(PROFILING MATCHES "ON")
@@ -131,6 +170,7 @@ set(DETERMINISTIC -frandom-seed=${RQ_SEED})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows")
     add_definitions(-DRQ_WINDOWS)
+    message(WARNING, "RaptorQ builds are not deterministic in Windows yet")
 else()
     add_definitions(-DRQ_UNIX)
 endif()
@@ -161,12 +201,18 @@ SET(HEADERS	src/Interleaver.hpp
 
 
 # GCC sanitizer needs libubsan
-include(cmake/compiler_flags)
+include(cmake/compiler_flags.cmake)
 
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_definitions(-DUSING_CLANG)
-    set(LD_OPT "-flto -fuse-ld=gold")
+    if (LTO MATCHES "ON")
+        if (RQ_LINKER MATCHES GOLD)
+            set(LD_OPT "-flto -fuse-ld=gold" )
+        else()
+            set(LD_OPT "-flto" )
+        endif()
+    endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     set(LD_OPT "")
 endif()
@@ -204,6 +250,7 @@ CMakeFiles/test_c_profiled.dir/test/test_c.c.gcda)
         ${CXX_COMPILER_FLAGS}
         ${PROFILE_GET}
     )
+    set_target_properties(RaptorQ_Static_Profiling PROPERTIES LINKER_FLAGS ${PROFILE_GET})
 
     # build the C example test for profiling
     add_executable(test_c_profiled test/test_c.c)
@@ -268,27 +315,39 @@ if(STATIC_LIB MATCHES "ON")
         add_dependencies(RaptorQ_Static profile)
         target_compile_options(RaptorQ_Static PRIVATE ${PROFILE_SET})
     endif()
-    set_target_properties (
-        RaptorQ_Static
-        PROPERTIES
-        LINK_FLAGS "-Wl,-z,now,-z,relro -pie ${LD_OPT}"
-    )
+    if (NOT RQ_LINKER MATCHES BSD)
+        set_target_properties (
+            RaptorQ_Static
+            PROPERTIES
+            LINK_FLAGS "-Wl,-z,now,-z,relro -pie ${LD_OPT}"
+        )
+    endif()
     set_property(TARGET RaptorQ_Static PROPERTY ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 
-	# make the library deterministic (only on *nix)
-    add_executable(make_deterministic src/deterministic.cpp)
-    target_compile_options(
-        make_deterministic PRIVATE
-        ${CXX_COMPILER_FLAGS}
-    )
-    target_link_libraries(make_deterministic ${STDLIB} ${RQ_UBSAN})
-    add_custom_command(
-        OUTPUT deterministic.run
-        COMMAND make_deterministic ${CMAKE_BINARY_DIR}/lib/libRaptorQ.${RQ_ABI}.a
-        DEPENDS RaptorQ_Static
-        COMMENT "Removing creation date from library..."
-        VERBATIM
-    )
+
+    if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+        # not really deterministic?
+        # don't know how to do that in Windows.
+        add_custom_target(
+            make_static_deterministic ALL
+            DEPENDS RaptorQ_Static
+        )
+    else()
+        # make the library deterministic (only on *nix)
+        add_executable(make_deterministic src/deterministic.cpp)
+        target_compile_options(
+            make_deterministic PRIVATE
+            ${CXX_COMPILER_FLAGS}
+        )
+        target_link_libraries(make_deterministic ${STDLIB} ${RQ_UBSAN})
+        add_custom_command(
+            OUTPUT deterministic.run
+            COMMAND make_deterministic ${CMAKE_CURRENT_BINARY_DIR}/lib/libRaptorQ.${RQ_ABI}.a
+            DEPENDS RaptorQ_Static
+            COMMENT "Removing creation date from library..."
+            VERBATIM
+        )
+    endif()
 
     add_custom_target(
         Make_static_deterministic ALL
@@ -314,10 +373,17 @@ if(DYNAMIC_LIB MATCHES "ON")
         add_dependencies(RaptorQ profile)
         target_compile_options(RaptorQ PRIVATE ${PROFILE_SET})
     endif()
+    if (RQ_LINKER MATCHES BSD)
+        # keep the last sace at the end here, otherwise cmake gets called
+        # with the wrong number of parameters in the next set_target_properties
+        set(RQ_LINK_LIB "${LD_OPT} ")
+    else()
+        set(RQ_LINK_LIB "-Wl,-z,now,-z,relro ${LD_OPT}")
+    endif()
     set_target_properties (
         RaptorQ
         PROPERTIES
-        LINK_FLAGS "-Wl,-z,now,-z,relro ${LD_OPT}"
+        LINK_FLAGS ${RQ_LINK_LIB}
         SOVERSION ${RQ_ABI}
         VERSION ${RQ_VERSION}
     )

@@ -1,3 +1,5 @@
+v0.1.10(unreleased):
+    * backported MAC/FreeBSD support (and incomplete windows)
 v0.1.9:
     * remember to bump up version in the cmake -.-'
     * squashed warnings for gcc & clang in 32 bit mode.
