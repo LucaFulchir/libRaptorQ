@@ -269,13 +269,13 @@ bool decode (const size_t bytes, const uint16_t symbols,
 				if (dec_it == decoders.rend()) {
 					// no decoder found? we needed to pad it. err.
 					thread_status = Out_Status::ERROR;
-					cond.notify_one();
 					lock.unlock();
+					cond.notify_one();
 					write_out.join();
 					std::cerr << "ERR: could not pad the last block\n";
 					return false;
 				}
-				auto dec = dec_it.base()->second.get();
+				auto dec = dec_it->second.get();
 				if (dec != nullptr) {
 					buf.clear();
 					buf.insert (buf.begin(),
@@ -294,8 +294,8 @@ bool decode (const size_t bytes, const uint16_t symbols,
 			lock.lock();
 			if (thread_status == Out_Status::WORKING)
 				thread_status = Out_Status::GRACEFUL_STOP;
-			cond.notify_one();
 			lock.unlock();
+			cond.notify_one();
 			// wait for all blocks to be decoded.
 			// if one can not be decoded exit with error
 			write_out.join();

@@ -62,8 +62,10 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 
 	// initialize vector with random data
 	// fill remaining data (more than "mysize" bytes) with zeros
-	std::uniform_int_distribution<uint8_t> distr(0, 0xFF);
-	myvec.reserve (static_cast<size_t> (
+    // distr should be "uint8_t". But visual studio.
+    std::uniform_int_distribution<int16_t> distr (0,
+                                          std::numeric_limits<uint8_t>::max());
+    myvec.reserve (static_cast<size_t> (
 				std::ceil(static_cast<float> (mysize) / sizeof(in_enc_align))));
 	in_enc_align tmp = 0;
 	uint8_t shift = 0;

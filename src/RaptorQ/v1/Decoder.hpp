@@ -20,14 +20,14 @@
 
 #pragma once
 
-#include "RaptorQ/v1/Bitmask.hpp"
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/caches.hpp"
-#include "RaptorQ/v1/Graph.hpp"
 #include "RaptorQ/v1/Parameters.hpp"
 #include "RaptorQ/v1/Precode_Matrix.hpp"
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
 #include "RaptorQ/v1/Thread_Pool.hpp"
+#include "RaptorQ/v1/util/Bitmask.hpp"
+#include "RaptorQ/v1/util/Graph.hpp"
 #include <memory>
 #include <mutex>
 #include <random>
@@ -78,6 +78,7 @@ public:
 	bool has_symbol (const uint16_t symbol) const;
 
 	void stop();
+	bool is_stopped() const;
 	// can start a computation (with different data)
 	bool can_decode() const;
 	// has everything been decoded?
@@ -149,6 +150,12 @@ void Raw_Decoder<In_It>::stop()
 }
 
 template <typename In_It>
+bool Raw_Decoder<In_It>::is_stopped() const
+{
+	return !keep_working;
+}
+
+template <typename In_It>
 bool Raw_Decoder<In_It>::ready() const
 {
 	return mask.get_holes() == 0;
@@ -177,7 +184,9 @@ uint16_t Raw_Decoder<In_It>::needed_symbols() const
 template <typename In_It>
 bool Raw_Decoder<In_It>::add_concurrent (const uint16_t max_concurrent)
 {
+    // TODO: aomic should be better?
 	std::unique_lock<std::mutex> guard (lock);
+    RQ_UNUSED(guard);
 	if (max_concurrent > concurrent) {
 		++concurrent;
 		return true;
@@ -330,7 +339,7 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 		L_rows = precode_on->_params.L;
 		S_H = precode_on->_params.S + precode_on->_params.H;
 		// repair.rbegin() is the highest repair symbol
-		const auto it = received_repair.rbegin();
+		const auto it = received_repair.crbegin();
 		if (it->first >= std::pow (2, 16)) {
 			DO_NOT_SAVE = true;
 		} else {
@@ -413,8 +422,11 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 											mask_safe, repair_esi, ops,
 											keep_working, thread_keep_working);
 	}
-	if (precode_res == Precode_Result::STOPPED)
+    if (precode_res == Precode_Result::STOPPED) {
+        if (mask.get_holes() == 0)
+            return Decoder_Result::DECODED;
 		return Decoder_Result::STOPPED;
+    }
 
 	D = DenseMtx();	// free some memory;
 	if (type == Save_Computation::ON && !DO_NOT_SAVE &&
@@ -463,6 +475,7 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 	// free some memory, we don't need recover symbols anymore
 	received_repair = std::vector<std::pair<uint32_t, Vect>>();
 	mask.free();
+    stop(); // tell other threads to stop working.
 	return Decoder_Result::DECODED;
 }
 

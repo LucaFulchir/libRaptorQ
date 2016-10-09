@@ -19,15 +19,8 @@
  */
 
 #include "RaptorQ/v1/Rand.hpp"
+#include "RaptorQ/v1/util/div.hpp"
 #include <cmath>
-
-namespace {
-double RAPTORQ_LOCAL div_floor (const double a, const double b);
-double div_floor (double a, double b)
-{
-	return std::floor (a / b);
-}
-}
 
 namespace RaptorQ__v1 {
 namespace Impl {
@@ -36,11 +29,11 @@ uint32_t Rand::get (const uint32_t y, const uint8_t i, const uint32_t m)
 {
 	uint32_t mod = static_cast<uint32_t> (std::pow (2, 8));
 	uint32_t x0 = (y + i) % mod;
-	uint32_t x1 = static_cast<uint32_t> ((div_floor (y, mod) + i)) % mod;
-	uint32_t x2 = static_cast<uint32_t> ((div_floor (y, std::pow (2, 16))
-																	+ i)) % mod;
-	uint32_t x3 = static_cast<uint32_t> ((div_floor (y, std::pow (2, 24))
-																	+ i)) % mod;
+    uint32_t x1 = (div_floor<uint32_t> (y, mod) + i) % mod;
+    uint32_t x2 = (div_floor<uint32_t> (y,
+                            static_cast<uint32_t>(std::pow (2, 16))) + i) % mod;
+    uint32_t x3 = (div_floor<uint32_t> (y,
+                            static_cast<uint32_t>(std::pow (2, 24))) + i) % mod;
 
 	return (V0[x0] ^ V1[x1] ^ V2[x2] ^ V3[x3]) % m;
 }

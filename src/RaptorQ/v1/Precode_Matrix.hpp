@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "RaptorQ/v1/Bitmask.hpp"
+#include "RaptorQ/v1/util/Bitmask.hpp"
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/multiplication.hpp"
 #include "RaptorQ/v1/Operation.hpp"
@@ -91,20 +91,20 @@ private:
 	void decode_phase0 (const Bitmask &mask,
 									const std::vector<uint32_t> &repair_esi);
 	std::tuple<bool, uint16_t, uint16_t> decode_phase1 (DenseMtx &X,DenseMtx &D,
-											std::vector<uint16_t> &c,
-											Op_Vec &ops, bool &keep_working,
-											const Work_State *thread_keep_working);
+										std::vector<uint16_t> &c,
+										Op_Vec &ops, bool &keep_working,
+										const Work_State *thread_keep_working);
 	bool decode_phase2 (DenseMtx &D, const uint16_t i,const uint16_t u,
-											Op_Vec &ops, bool &keep_working,
-											const Work_State *thread_keep_working);
+										Op_Vec &ops, bool &keep_working,
+										const Work_State *thread_keep_working);
 	void decode_phase3 (const DenseMtx &X, DenseMtx &D, const uint16_t i,
-											Op_Vec &ops);
+										Op_Vec &ops);
 	void decode_phase4 (DenseMtx &D, const uint16_t i, const uint16_t u,
-											Op_Vec &ops, bool &keep_working,
-											const Work_State *thread_keep_working);
+										Op_Vec &ops, bool &keep_working,
+										const Work_State *thread_keep_working);
 	void decode_phase5 (DenseMtx &D, const uint16_t i, Op_Vec &ops,
-											bool &keep_working,
-											const Work_State *thread_keep_working);
+										bool &keep_working,
+										const Work_State *thread_keep_working);
 
 	inline bool stop (bool keep_working, const Work_State *thread_keep_working)
 	{

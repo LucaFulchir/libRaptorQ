@@ -272,6 +272,7 @@ int main (void)
 	rand.close ();
 	rnd.seed (seed);
 
+    RFC6330__v1::set_thread_pool (1, 1, RaptorQ__v1::Work_State::KEEP_WORKING);
 
 	// encode and decoder
 	for (size_t i = 0; i < 1000; ++i) {

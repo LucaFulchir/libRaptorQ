@@ -47,7 +47,7 @@ mark_as_advanced(FORCE RQ_LINKER)
 
 # supported linkers: gold, linux standard, bsd
 if(NOT RQ_LINKER)
-    if(CMAKE_SYSTEM_NAME MATCHES "Darwin" OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+    if(CMAKE_SYSTEM_NAME MATCHES "Darwin" OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR CMAKE_SYSTEM_NAME MATCHES "Windows")
         set(RQ_LINKER BSD)
     else()
         find_program(RQ_GOLD ld.gold)
@@ -188,6 +188,7 @@ set(DETERMINISTIC -frandom-seed=${RQ_SEED})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows")
     add_definitions(-DRQ_WINDOWS)
+    message(WARNING, "RaptorQ builds are not deterministic in Windows yet")
 else()
     add_definitions(-DRQ_UNIX)
     # used by ftok to get a key. Track both the file and the version
@@ -195,10 +196,9 @@ else()
 endif()
 
 
-SET(SOURCES src/RaptorQ/v1/API_Wrapper_C.cpp
-            src/RaptorQ/v1/Bitmask.cpp
+SET(SOURCES
+            src/RaptorQ/v1/API_Wrapper_C.cpp
             src/RaptorQ/v1/caches.cpp
-            src/RaptorQ/v1/Graph.cpp
             src/RaptorQ/v1/Operation.cpp
             src/RaptorQ/v1/Parameters.cpp
             src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp
@@ -212,14 +212,12 @@ SET(HEADERS
             src/RaptorQ/v1/API_Wrapper.h
             src/RaptorQ/v1/API_Wrapper.hpp
             src/RaptorQ/v1/API_Wrapper_Raw.hpp
-            src/RaptorQ/v1/Bitmask.hpp
             src/RaptorQ/v1/caches.hpp
             src/RaptorQ/v1/common.hpp
             src/RaptorQ/v1/De_Interleaver.hpp
             src/RaptorQ/v1/Decoder.hpp
             src/RaptorQ/v1/degree.hpp
     		src/RaptorQ/v1/Encoder.hpp
-            src/RaptorQ/v1/Graph.hpp
             src/RaptorQ/v1/Interleaver.hpp
             src/RaptorQ/v1/multiplication.hpp
             src/RaptorQ/v1/Operation.hpp
@@ -234,6 +232,9 @@ SET(HEADERS
             src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
             src/RaptorQ/v1/table2.hpp
     		src/RaptorQ/v1/Thread_Pool.hpp
+            src/RaptorQ/v1/util/Bitmask.hpp
+            src/RaptorQ/v1/util/div.hpp
+            src/RaptorQ/v1/util/Graph.hpp
             src/RaptorQ/RFC6330_v1.hpp
 			src/RaptorQ/RFC6330_v1.h
 			src/RaptorQ/RaptorQ_v1.hpp)
@@ -372,21 +373,29 @@ if(STATIC_LIB MATCHES "ON")
         )
     endif()
     set_property(TARGET RaptorQ_Static PROPERTY ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
-
-	# make the library deterministic (only on *nix)
-    add_executable(make_deterministic src/deterministic.cpp)
-    target_compile_options(
-        make_deterministic PRIVATE
-        ${CXX_COMPILER_FLAGS}
-    )
-	target_link_libraries(make_deterministic ${STDLIB} ${RQ_UBSAN})
-    add_custom_command(
-        OUTPUT deterministic.run
-        COMMAND make_deterministic ${CMAKE_CURRENT_BINARY_DIR}/lib/libRaptorQ.${RQ_ABI}.a
-        DEPENDS RaptorQ_Static
-        COMMENT "Removing creation date from library..."
-        VERBATIM
-    )
+    if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+        # not really deterministic?
+        # don't know how to do that in Windows.
+        add_custom_target(
+            make_static_deterministic ALL
+            DEPENDS RaptorQ_Static
+        )
+    else()
+        # make the library deterministic (only on *nix)
+        add_executable(make_deterministic src/deterministic.cpp)
+        target_compile_options(
+            make_deterministic PRIVATE
+            ${CXX_COMPILER_FLAGS}
+        )
+        target_link_libraries(make_deterministic ${STDLIB} ${RQ_UBSAN})
+        add_custom_command(
+            OUTPUT deterministic.run
+            COMMAND make_deterministic ${CMAKE_CURRENT_BINARY_DIR}/lib/libRaptorQ.${RQ_ABI}.a
+            DEPENDS RaptorQ_Static
+            COMMENT "Removing creation date from library..."
+            VERBATIM
+        )
+    endif()
 
 	add_custom_target(
 	    make_static_deterministic ALL
@@ -401,6 +410,7 @@ if(DYNAMIC_LIB MATCHES "ON")
 
     add_library(RaptorQ SHARED ${SOURCES} ${HEADERS})
 	add_dependencies(RaptorQ LZ4)
+    target_link_libraries(RaptorQ ${RQ_LZ4_DEP})
     target_compile_options(
         RaptorQ PRIVATE
         ${CXX_COMPILER_FLAGS}

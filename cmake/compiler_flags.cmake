@@ -79,8 +79,8 @@ set(RQ_CLANG_C_RELWITHDEBINFO   -g -Ofast -fwrapv )
 set(RQ_CLANG_CXX_RELWITHDEBINFO -g -Ofast -fwrapv )
 
 # msvc flags. todo?
-set(MSVC_C_OPTIONS )
-set(MSVC_CXX_OPTIONS )
+set(RQ_MSVC_C_OPTIONS /wd4068)
+set(RQ_MSVC_CXX_OPTIONS /wd4068)
 
 
 ###################

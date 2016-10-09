@@ -107,8 +107,8 @@ public:
 			return;
 		}
 
-		pool_lock = std::make_shared<std::pair<std::mutex,
-												std::condition_variable>> ();
+        _pool_notify = std::make_shared<std::condition_variable>();
+        _pool_mtx = std::make_shared<std::mutex>();
 		pool_last_reported = -1;
 		use_pool = true;
 		exiting = false;
@@ -152,10 +152,11 @@ private:
 	class Block_Work : public Impl::Pool_Work {
 	public:
 		std::weak_ptr<RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It>> work;
-		std::weak_ptr<std::pair<std::mutex, std::condition_variable>> notify;
+		std::weak_ptr<std::condition_variable> notify;
+        std::weak_ptr<std::mutex> lock;
 
 		Work_Exit_Status do_work (RaptorQ__v1::Work_State *state) override;
-		~Block_Work() override {}
+		~Block_Work() override;
 	};
 
 	// TODO: tagged pointer
@@ -173,7 +174,8 @@ private:
 	};
 
 	std::pair<Error, uint8_t> get_report (const Compute flags);
-	std::shared_ptr<std::pair<std::mutex, std::condition_variable>> pool_lock;
+    std::shared_ptr<std::condition_variable> _pool_notify;
+    std::shared_ptr<std::mutex> _pool_mtx;
 	std::deque<std::thread> pool_wait;
 
 	std::map<uint8_t, Enc> encoders;
@@ -240,9 +242,9 @@ public:
 								_size / static_cast<double> (_symbol_size)));
 
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
-		pool_lock = std::make_shared<std::pair<std::mutex,
-												std::condition_variable>> ();
 		pool_last_reported = -1;
+        _pool_notify = std::make_shared<std::condition_variable>();
+        _pool_mtx = std::make_shared<std::mutex>();
 		use_pool = true;
 		exiting = false;
 	}
@@ -262,6 +264,8 @@ public:
 		_sub_blocks = Impl::Partition (_symbol_size / _alignment, sub_blocks);
 
 		part = Impl::Partition (total_symbols, static_cast<uint8_t> (_blocks));
+        _pool_notify = std::make_shared<std::condition_variable>();
+        _pool_mtx = std::make_shared<std::mutex>();
 		pool_last_reported = -1;
 		use_pool = true;
 		exiting = false;
@@ -298,10 +302,11 @@ private:
 	class RAPTORQ_LOCAL Block_Work : public Impl::Pool_Work {
 	public:
 		std::weak_ptr<RaptorQ__v1::Impl::Raw_Decoder<In_It>> work;
-		std::weak_ptr<std::pair<std::mutex, std::condition_variable>> notify;
+		std::weak_ptr<std::condition_variable> notify;
+        std::weak_ptr<std::mutex> lock;
 
 		Work_Exit_Status do_work (RaptorQ__v1::Work_State *state) override;
-		~Block_Work() override {}
+		~Block_Work() override;
 	};
 	// TODO: tagged pointer
 	class RAPTORQ_LOCAL Dec {
@@ -319,7 +324,8 @@ private:
 	static void wait_threads (Decoder<In_It, Fwd_It> *obj, const Compute flags,
 									std::promise<std::pair<Error, uint8_t>> p);
 	std::pair<Error, uint8_t> get_report (const Compute flags);
-	std::shared_ptr<std::pair<std::mutex, std::condition_variable>> pool_lock;
+	std::shared_ptr<std::condition_variable> _pool_notify;
+    std::shared_ptr<std::mutex> _pool_mtx;
 	std::deque<std::thread> pool_wait;
 
 	uint64_t _size;
@@ -347,16 +353,16 @@ template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::~Encoder()
 {
 	exiting = true;	// stop notifying thread
-	pool_lock->second.notify_all();
+	_pool_notify->notify_all();
 	for (auto &it : encoders) {	// stop existing computations
 		auto ptr = it.second.enc;
 		if (ptr != nullptr)
 			ptr->stop();
 	}
 	do {
-		std::unique_lock<std::mutex> lock (_mtx);
+		std::unique_lock<std::mutex> lock (*_pool_mtx);
 		if (pool_wait.size() != 0)
-			pool_lock->second.wait (lock);
+			_pool_notify->wait (lock);
 	} while (pool_wait.size() != 0);
 }
 
@@ -421,20 +427,38 @@ size_t Encoder<Rnd_It, Fwd_It>::precompute_max_memory ()
 	// Rough memory estimate: Matrix A, matrix X (=> *2) and matrix D.
 	return matrix_cols * matrix_cols * 2 + _symbol_size * matrix_cols;
 }
+template <typename Rnd_It, typename Fwd_It>
+Encoder<Rnd_It, Fwd_It>::Block_Work::~Block_Work()
+{
+	// cleanup. have we benn called before the computation finished?
+	auto locked_enc = work.lock();
+    auto locked_notify = notify.lock();
+    auto locked_mtx = lock.lock();
+	if (locked_enc != nullptr && locked_notify != nullptr &&
+                                                        locked_mtx != nullptr) {
+		locked_enc->stop();
+        std::unique_lock<std::mutex> p_lock (*locked_mtx);
+        RQ_UNUSED(p_lock);
+		locked_notify->notify_all();
+	}
+}
 
 template <typename Rnd_It, typename Fwd_It>
 Work_Exit_Status Encoder<Rnd_It, Fwd_It>::Block_Work::do_work (
 												RaptorQ__v1::Work_State *state)
 {
-	auto locked_enc = work.lock();
-	auto locked_notify = notify.lock();
-	if (locked_enc != nullptr && locked_notify != nullptr) {
+    auto locked_enc = work.lock();
+    auto locked_notify = notify.lock();
+    auto locked_mtx = lock.lock();
+	if (locked_enc != nullptr && locked_notify != nullptr &&
+                                                        locked_mtx != nullptr) {
 		// encoding always works. It's one of the few constants of the universe.
 		if (!locked_enc->generate_symbols (state))
-			return Work_Exit_Status::STOPPED;	// only explanation.
-		std::lock_guard<std::mutex> mtx (locked_notify->first);
-		RQ_UNUSED(mtx);
-		locked_notify->second.notify_one();
+			return Work_Exit_Status::STOPPED;	// or maybe not so constant
+		work.reset();
+        std::unique_lock<std::mutex> p_lock (*locked_mtx);
+        RQ_UNUSED(p_lock);
+		locked_notify->notify_all();
 	}
 	return Work_Exit_Status::DONE;
 }
@@ -502,7 +526,8 @@ std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
 			std::unique_ptr<Block_Work> work = std::unique_ptr<Block_Work>(
 															new Block_Work());
 			work->work = enc->second.enc;
-			work->notify = pool_lock;
+			work->notify = _pool_notify;
+            work->lock = _pool_mtx;
 			Thread_Pool::get().add_work (std::move(work));
 		}
 	}
@@ -527,13 +552,8 @@ void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
 									std::promise<std::pair<Error, uint8_t>> p)
 {
 	do {
-		if (obj->exiting) {	// make sure we can exit
-			p.set_value ({Error::NONE, 0});
-			break;
-		}
-		// pool is global (static), so wait only for our stuff.
-		std::unique_lock<std::mutex> lock (obj->pool_lock->first);
-		if (obj->exiting) { // make sure we can exit
+		std::unique_lock<std::mutex> lock (*obj->_pool_mtx);
+		if (obj->exiting) {
 			p.set_value ({Error::NONE, 0});
 			break;
 		}
@@ -543,22 +563,12 @@ void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
 			break;
 		}
 
-		obj->pool_lock->second.wait (lock); // conditional wait
-		if (obj->exiting) {	// make sure we can exit
-			p.set_value ({Error::NONE, 0});
-			break;
-		}
-		status = obj->get_report (flags);
-		lock.unlock();	// unlock
-		if (status.first != Error::WORKING) {
-			p.set_value (status);
-			break;
-		}
+		obj->_pool_notify->wait (lock);
+		lock.unlock();
 	} while (true);
 
 	// delete ourselves from the waiting thread vector.
-	std::unique_lock<std::mutex> lock (obj->_mtx);
-	RQ_UNUSED (lock);
+	std::unique_lock<std::mutex> lock (*obj->_pool_mtx);
 	for (auto it = obj->pool_wait.begin(); it != obj->pool_wait.end(); ++it) {
 		if (it->get_id() == std::this_thread::get_id()) {
 			it->detach();
@@ -566,29 +576,37 @@ void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
 			break;
 		}
 	}
-	obj->pool_lock->second.notify_all();
+    lock.unlock();
+	obj->_pool_notify->notify_all();
 }
 
 template <typename Rnd_It, typename Fwd_It>
 std::pair<Error, uint8_t> Encoder<Rnd_It, Fwd_It>::get_report (
 														const Compute flags)
 {
+    if (encoders.size() == 0)
+        return {Error::WORKING, 0};
 	if (Compute::NONE != (flags & Compute::COMPLETE) ||
 				Compute::NONE != (flags & Compute::PARTIAL_FROM_BEGINNING)) {
 		auto it = encoders.begin();
 		for (; it != encoders.end(); ++it) {
 			auto ptr = it->second.enc;
-			if (ptr != nullptr && !ptr->ready())
-				break;
+			if (ptr != nullptr) {
+				if (!ptr->ready()) {
+					if (ptr->is_stopped())
+						return{Error::EXITING, 0};
+					break;
+				}
+			}
 		}
 		if (it == encoders.end()) {
 			pool_last_reported = static_cast<int16_t> (encoders.size() - 1);
-			return {Error::NONE, pool_last_reported};
+			return {Error::NONE, static_cast<uint8_t>(pool_last_reported)};
 		}
 		if (Compute::NONE != (flags & Compute::PARTIAL_FROM_BEGINNING) &&
 									(pool_last_reported < (it->first - 1))) {
 			pool_last_reported = it->first - 1;
-			return {Error::NONE, pool_last_reported};
+			return {Error::NONE, static_cast<uint8_t>(pool_last_reported)};
 		}
 		return {Error::WORKING, 0};
 	}
@@ -596,8 +614,11 @@ std::pair<Error, uint8_t> Encoder<Rnd_It, Fwd_It>::get_report (
 		for (auto &it : encoders) {
 			if (!it.second.reported) {
 				auto ptr = it.second.enc;
-				if (ptr != nullptr && ptr->ready()) {
-					return {Error::NONE, it.first};
+				if (ptr != nullptr) {
+					if (ptr->ready())
+						return {Error::NONE, it.first};
+					if (ptr->is_stopped())
+						return{Error::EXITING, 0};
 				}
 			}
 		}
@@ -716,16 +737,18 @@ template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::~Decoder()
 {
 	exiting = true;	// stop notifying thread
-	pool_lock->second.notify_all();
+    _mtx.lock();
 	for (auto &it : decoders) {	// stop existing computations
 		auto ptr = it.second.dec;
 		if (ptr != nullptr)
 			ptr->stop();
 	}
+    _mtx.unlock();
+    _pool_notify->notify_all();
 	do {
-		std::unique_lock<std::mutex> lock (_mtx);
+		std::unique_lock<std::mutex> lock (*_pool_mtx);
 		if (pool_wait.size() != 0)
-			pool_lock->second.wait (lock);
+			_pool_notify->wait (lock);
 	} while (pool_wait.size() != 0);
 }
 
@@ -735,9 +758,10 @@ void Decoder<In_It, Fwd_It>::free (const uint8_t sbn)
 {
 	_mtx.lock();
 	auto it = decoders.find(sbn);
-	if (it != decoders.end())
+    if (it != decoders.end())
 		decoders.erase(it);
 	_mtx.unlock();
+    _pool_notify->notify_all();
 }
 
 template <typename In_It, typename Fwd_It>
@@ -773,44 +797,73 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 	if (err != Error::NONE)
 		return err;
 	// automatically add work to pool if we use it and have enough data
-	lock.lock();
+    std::unique_lock<std::mutex> pool_lock (*_pool_mtx);
+    RQ_UNUSED(pool_lock);
 	if (use_pool && dec->can_decode()) {
 		bool add_work = dec->add_concurrent (max_block_decoder_concurrency);
 		if (add_work) {
 			std::unique_ptr<Block_Work> work = std::unique_ptr<Block_Work>(
 															new Block_Work());
 			work->work = dec;
-			work->notify = pool_lock;
+			work->notify = _pool_notify;
+            work->lock = _pool_mtx;
 			Impl::Thread_Pool::get().add_work (std::move(work));
 		}
 	}
 	return Error::NONE;
 }
 
+template <typename In_It, typename Fwd_It>
+Decoder<In_It, Fwd_It>::Block_Work::~Block_Work()
+{
+	// have we been called before the computation finished?
+	auto locked_dec = work.lock();
+    auto locked_notify = notify.lock();
+    auto locked_mtx = lock.lock();
+	if (locked_dec != nullptr && locked_notify != nullptr &&
+                                                        locked_mtx != nullptr) {
+		locked_dec->stop();
+        std::unique_lock<std::mutex> p_lock (*locked_mtx);
+        RQ_UNUSED(p_lock);
+		locked_notify->notify_all();
+	}
+}
 
 template <typename In_It, typename Fwd_It>
 Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
 												RaptorQ__v1::Work_State *state)
 {
 	auto locked_dec = work.lock();
-	auto locked_notify = notify.lock();
-	if (locked_dec != nullptr && locked_notify != nullptr) {
+    auto locked_notify = notify.lock();
+    auto locked_mtx = lock.lock();
+	if (locked_dec != nullptr && locked_notify != nullptr &&
+                                                        locked_mtx != nullptr) {
 		auto ret = locked_dec->decode (state);
-		// initialize, do not lock yet
-		std::unique_lock<std::mutex> locked_guard (locked_notify->first,
-															std::defer_lock);
+        std::unique_lock<std::mutex> p_lock (*locked_mtx, std::defer_lock);
 		switch (ret) {
 		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::DECODED:
-			locked_guard.lock();
-			locked_notify->second.notify_one();
-			locked_dec->drop_concurrent();
+            locked_dec->drop_concurrent();
+			work.reset();
+            p_lock.lock();
+            locked_notify->notify_all();
+            p_lock.unlock();
 			return Work_Exit_Status::DONE;
 		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::NEED_DATA:
-			locked_dec->drop_concurrent();
-			return Work_Exit_Status::DONE;
+            p_lock.lock();
+            if (locked_dec->can_decode()) {
+                // check again to avoid race between threads
+                return Work_Exit_Status::REQUEUE;
+            } else {
+                locked_dec->drop_concurrent();
+                p_lock.unlock();
+                work.reset();
+                return Work_Exit_Status::DONE;
+            }
 		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::STOPPED:
+            // requeued. Do not drop_concurrent
 			return Work_Exit_Status::STOPPED;
 		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::CAN_RETRY:
+            // requeued. Do not drop_concurrent
 			return Work_Exit_Status::REQUEUE;
 		}
 	}
@@ -875,9 +928,9 @@ std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
 	if (Compute::NONE != (flags & Compute::NO_BACKGROUND)) {
 		wait_threads (this, flags, std::move(p));
 	} else {
-		std::unique_lock<std::mutex> pool_wait_lock (_mtx);
+		std::unique_lock<std::mutex> pool_wait_lock (*_pool_mtx);
 		RQ_UNUSED(pool_wait_lock);
-		pool_wait.emplace_back(wait_threads, this, flags, std::move(p));
+		pool_wait.emplace_back (wait_threads, this, flags, std::move(p));
 	}
 	return future;
 }
@@ -888,12 +941,7 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 									std::promise<std::pair<Error, uint8_t>> p)
 {
 	do {
-		if (obj->exiting) {	// make sure we can exit
-			p.set_value ({Error::EXITING, 0});
-			break;
-		}
-		// pool is global (static), so wait only for our stuff.
-		std::unique_lock<std::mutex> lock (obj->pool_lock->first);
+   		std::unique_lock<std::mutex> lock (*obj->_pool_mtx);
 		if (obj->exiting) { // make sure we can exit
 			p.set_value ({Error::EXITING, 0});
 			break;
@@ -904,22 +952,12 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 			break;
 		}
 
-		obj->pool_lock->second.wait (lock); // conditional wait
-		if (obj->exiting) {	// make sure we can exit
-			p.set_value ({Error::EXITING, 0});
-			break;
-		}
-		status = obj->get_report (flags);
+		obj->_pool_notify->wait (lock);
 		lock.unlock();
-		if (Error::WORKING != status.first) {
-			p.set_value (status);
-			break;
-		}
 	} while (true);
 
 	// delete ourselves from the waiting thread vector.
-	std::unique_lock<std::mutex> lock (obj->_mtx);
-	RQ_UNUSED (lock);
+	std::unique_lock<std::mutex> lock (*obj->_pool_mtx);
 	for (auto it = obj->pool_wait.begin(); it != obj->pool_wait.end(); ++it) {
 		if (it->get_id() == std::this_thread::get_id()) {
 			it->detach();
@@ -927,13 +965,16 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 			break;
 		}
 	}
-	obj->pool_lock->second.notify_all();
+    lock.unlock();
+	obj->_pool_notify->notify_all();
 }
 
 template <typename In_It, typename Fwd_It>
 std::pair<Error, uint8_t> Decoder<In_It, Fwd_It>::get_report (
-														const Compute flags)
+                                                            const Compute flags)
 {
+    if (decoders.size() == 0)
+        return {Error::WORKING, 0};
 	if (Compute::COMPLETE == (flags & Compute::COMPLETE) ||
 			Compute::PARTIAL_FROM_BEGINNING ==
 									(flags & Compute::PARTIAL_FROM_BEGINNING)) {
@@ -947,27 +988,36 @@ std::pair<Error, uint8_t> Decoder<In_It, Fwd_It>::get_report (
 		// get last reportable block
 		for (; it != decoders.end(); ++it) {
 			auto ptr = it->second.dec;
-			if (ptr != nullptr && !ptr->ready())
-				break;
+			if (ptr != nullptr) {
+				if (!ptr->ready()) {
+					if (ptr->is_stopped())
+						return {Error::EXITING, 0};
+					break;
+				}
+			}
 			++reportable;
 		}
 		if (reportable > 0) {
 			pool_last_reported += reportable;
 			if (Compute::PARTIAL_FROM_BEGINNING ==
 									(flags & Compute::PARTIAL_FROM_BEGINNING)) {
-				return {Error::NONE, pool_last_reported};
+				return {Error::NONE, static_cast<uint8_t>(pool_last_reported)};
 			} else {
 				// complete
-				if (pool_last_reported == _blocks)
-					return {Error::NONE, pool_last_reported};
+				if (pool_last_reported == (_blocks - 1))
+					return {Error::NONE,
+                                    static_cast<uint8_t>(pool_last_reported)};
 			}
 		}
 	} else if (Compute::PARTIAL_ANY == (flags & Compute::PARTIAL_ANY)) {
 		for (auto &it : decoders) {
 			if (!it.second.reported) {
 				auto ptr = it.second.dec;
-				if (ptr != nullptr && ptr->ready()) {
-					return {Error::NONE, it.first};
+				if (ptr != nullptr) {
+					if (ptr->ready())
+						return {Error::NONE, it.first};
+					if (ptr->is_stopped())
+						return {Error::EXITING, 0};
 				}
 			}
 		}
@@ -1102,7 +1152,7 @@ size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
 		for (uint8_t id = 0; id < blocks(); ++id)
 			all_blocks += block_size (sbn);
 		const uint64_t diff = all_blocks - _size;
-		max_bytes -= diff;
+		max_bytes -= static_cast<size_t>(diff);
 	}
 	return de_interleaving (start, end, max_bytes, skip);
 }

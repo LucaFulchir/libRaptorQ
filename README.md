@@ -4,7 +4,7 @@
 [![build status](https://www.fenrirproject.org/Luker/libRaptorQ/badges/master/build.svg)](https://www.fenrirproject.org/Luker/libRaptorQ/commits/master)  
 [Homepage](https://www.fenrirproject.org/Luker/libRaptorQ/wikis/home)
 
-stable  release: **v0.1.7**  
+stable  release: **v0.1.9**  
 current release: **v0.2-prealpha**  
 **CURRENTLY BREAKING APIs, stick with the stable release**
 

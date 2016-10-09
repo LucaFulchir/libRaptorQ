@@ -6,6 +6,8 @@ v0.2.0 (prealpha):
     * RFC API: global multithreading instead of per-class
     * CLI tool for raw API
     * OSX/BSD support
+v0.1.10 (unreleased):
+    * backported MAC/FreeBSD support (and incomplete windows)
 v0.1.9:
     * remember to bump up version in the cmake -.-'
     * squashed warnings for gcc & clang in 32 bit mode.

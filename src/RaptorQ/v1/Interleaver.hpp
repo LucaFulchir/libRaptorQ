@@ -23,27 +23,13 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/multiplication.hpp"
 #include "RaptorQ/v1/table2.hpp"
+#include "RaptorQ/v1/util/div.hpp"
 #include <cmath>
 #include <limits>
 #include <memory>
 #include <tuple>
 #include <utility>
 #include <vector>
-
-// force promotion to double in division
-namespace {
-double RAPTORQ_LOCAL div_floor (const double a, const double b);
-double RAPTORQ_LOCAL div_ceil (const double a, const double b);
-
-double div_floor (const double a, const double b)
-{
-	return std::floor (a / b);
-}
-double div_ceil (const double a, const double b)
-{
-	return std::ceil (a / b);
-}
-}
 
 namespace RFC6330__v1 {
 namespace Impl {
@@ -55,7 +41,8 @@ namespace Impl {
 class RAPTORQ_LOCAL Partition
 {
 public:
-	Partition() { part1 = {0, 0}; part2 = {0, 0}; }
+	Partition()
+		{ _part1 = {0, 0}; _part2 = {0, 0}; }
 	// partition something into "num1" partitions of "size1" and "num2"
 	// of "size2"
 	// still better than the TL, TS, NL, NL in RFC6330...
@@ -63,42 +50,44 @@ public:
 	{
 		uint16_t size_1, size_2, blocks_1, blocks_2;
 
-		size_1 = static_cast<uint16_t> (div_ceil (obj_size, partitions));
-		size_2 = static_cast<uint16_t> (div_floor (obj_size, partitions));
+		size_1 = static_cast<uint16_t> (div_ceil<uint64_t> (obj_size,
+																partitions));
+		size_2 = static_cast<uint16_t> (div_floor<uint64_t> (obj_size,
+																partitions));
 		blocks_1 = static_cast<uint16_t> (obj_size - size_2 * partitions);
 		blocks_2 = partitions - blocks_1;
 
 		if (blocks_1 == 0)
 			size_1 = 0;
-		part1 = {blocks_1, size_1};
-		part2 = {blocks_2, size_2};
+		_part1 = {blocks_1, size_1};
+		_part2 = {blocks_2, size_2};
 	}
 
 	uint16_t size (const uint8_t part_number) const
 	{
 		assert(part_number < 2 && "partition: only two partitions exists");
 		if (part_number == 0)
-			return std::get<1>(part1);
-		return std::get<1>(part2);
+			return std::get<1>(_part1);
+		return std::get<1>(_part2);
 	}
 	uint16_t num (const uint8_t part_number) const
 	{
 		assert(part_number < 2 && "partition: only two partitions exists");
 		if (part_number == 0)
-			return std::get<0>(part1);
-		return std::get<0>(part2);
+			return std::get<0>(_part1);
+		return std::get<0>(_part2);
 	}
 	uint16_t tot (const uint8_t part_number) const
 	{
 		assert(part_number < 2 && "partition: only two partitions exists");
 		// num * size
 		if (part_number == 0)
-			return std::get<0>(part1) * std::get<1>(part1);
-		return std::get<0>(part2) * std::get<1>(part2);
+			return std::get<0>(_part1) * std::get<1>(_part1);
+		return std::get<0>(_part2) * std::get<1>(_part2);
 	}
 private:
 	// PAIR: amount, size
-	std::pair<uint16_t, uint16_t> part1, part2;
+	std::pair<uint16_t, uint16_t> _part1, _part2;
 };
 
 template <typename T>
@@ -349,7 +338,7 @@ private:
 	const Rnd_It _data_from, _data_to;
 	const uint16_t _symbol_size;
 	// TODO: "const" all of the next vars
-	uint16_t _sub_blocks, _source_symbols, iterator_idx = 0;
+	uint16_t _sub_blocks, _source_symbols, _iterator_idx = 0;
 	uint8_t _alignment, _source_blocks;
 
 	// Please everyone take a moment to tank the RFC6330 guys for
@@ -389,9 +378,9 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 	// derive number of source blocks and sub blocks. seed RFC 6330, pg 8
 	std::vector<uint16_t> sizes;
 	size_t iter_size =sizeof(typename std::iterator_traits<Rnd_It>::value_type);
-	const double input_size = static_cast<double>(_data_to - _data_from) *
-																	iter_size;
-	const double Kt = div_ceil(input_size, symbol_size);
+	const uint64_t input_size =
+                    static_cast<uint64_t> (_data_to - _data_from) * iter_size;
+	const uint64_t Kt = div_ceil<uint64_t> (input_size, symbol_size);
 	const size_t N_max = static_cast<size_t> (div_floor (_symbol_size,
 														min_subsymbol_size));
 
@@ -410,7 +399,7 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 	// find our KL(n), for each n
 	for (tmp = 1; tmp <= N_max; ++tmp) {
 		auto upper_bound = max_block_decodable / (_alignment *
-									div_ceil (_symbol_size, _alignment * tmp));
+							div_ceil<size_t> (_symbol_size, _alignment * tmp));
 		size_t idx;
 		for (idx = 0; idx < RaptorQ__v1::Impl::K_padded.size(); ++idx) {
 			if (RaptorQ__v1::Impl::K_padded[idx] > upper_bound)
@@ -420,13 +409,13 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 		sizes.push_back (RaptorQ__v1::Impl::K_padded[idx == 0 ? 0 : --idx]);
 	}
 	const uint64_t test_blocks = static_cast<uint64_t> (
-											div_ceil (Kt, sizes[N_max - 1]));
+									div_ceil<uint64_t> (Kt, sizes[N_max - 1]));
 	if (test_blocks > std::numeric_limits<uint8_t>::max()) {
 		_alignment = 0;
 		return;
 	}
 	_source_blocks = static_cast<uint8_t> (test_blocks);
-	tmp = static_cast<size_t> (div_ceil (Kt, _source_blocks));
+	tmp = static_cast<size_t> (div_ceil<uint64_t> (Kt, _source_blocks));
 	for (size_t i = 0; i < sizes.size(); ++i) {
 		// rfc: ceil (Kt / Z) <= KL(n)
 		if (tmp <= sizes[i]) {
@@ -434,12 +423,13 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
 			break;
 		}
 	}
-	assert(div_ceil (div_ceil (input_size, _symbol_size),
+	assert(div_ceil<uint64_t> (div_ceil<uint64_t> (input_size, _symbol_size),
 								_source_blocks) <= RaptorQ__v1::Impl::K_max &&
 						"RaptorQ: RFC: ceil(ceil(F/T)/Z must be <= K'_max");
 	if (_source_blocks == 0 || _sub_blocks == 0 ||
 					symbol_size < _alignment || symbol_size % _alignment != 0 ||
-								div_ceil (div_ceil (input_size, _symbol_size),
+						div_ceil<uint64_t> (
+								div_ceil<uint64_t> (input_size, _symbol_size),
 								_source_blocks) > RaptorQ__v1::Impl::K_max) {
 		_alignment = 0;
 		return;
@@ -546,14 +536,14 @@ Source_Block<Rnd_It>& Interleaver<Rnd_It>::end() const
 template <typename Rnd_It>
 Interleaver<Rnd_It>& Interleaver<Rnd_It>::operator++()
 {
-	++iterator_idx;
+	++_iterator_idx;
 	return *this;
 }
 
 template <typename Rnd_It>
 Source_Block<Rnd_It> Interleaver<Rnd_It>::operator*() const
 {
-	return this[iterator_idx];
+	return this[_iterator_idx];
 }
 
 }	// namespace Impl

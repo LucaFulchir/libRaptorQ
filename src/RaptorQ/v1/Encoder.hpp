@@ -81,6 +81,7 @@ public:
 							RFC6330__v1::Impl::Interleaver<Rnd_It> *symbols);
 	bool generate_symbols (RaptorQ__v1::Work_State *thread_keep_working);
 	void stop();
+	bool is_stopped() const;
 	void clear_data();
 	bool ready() const;
 
@@ -138,6 +139,12 @@ template <typename Rnd_It, typename Fwd_It>
 void Raw_Encoder<Rnd_It, Fwd_It>::stop()
 {
 	keep_working = false;
+}
+
+template <typename Rnd_It, typename Fwd_It>
+bool Raw_Encoder<Rnd_It, Fwd_It>::is_stopped() const
+{
+	return !keep_working;
 }
 
 template <typename Rnd_It, typename Fwd_It>

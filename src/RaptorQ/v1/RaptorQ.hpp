@@ -457,8 +457,6 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
 	auto ret = dec.add_symbol (from, to, esi);
 	if (ret == Error::NONE && esi < _symbols) {
 		symbols_tracker [2 * esi].store (true);
-		std::unique_lock<std::mutex> lock (_mtx);
-		RQ_UNUSED (lock);
 		_cond.notify_all();
 	}
 	return ret;
@@ -588,6 +586,7 @@ void Decoder<In_It, Fwd_It>::waiting_thread (Decoder<In_It, Fwd_It> *obj,
 			break;
 		}
 	}
+	lock.unlock();
 	obj->_cond.notify_all(); // notify exit to destructor
 }
 
@@ -628,6 +627,7 @@ typename Decoder<In_It, Fwd_It>::Decoder_Result Decoder<In_It, Fwd_It>::decode()
 			for (; id < symbols_tracker.size(); id += 2)
 				symbols_tracker[id].store (true);
 		}
+		lock.unlock();
 		_cond.notify_all();
 	}
 	return res;
@@ -637,7 +637,6 @@ template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::stop()
 {
 	work = RaptorQ__v1::Work_State::ABORT_COMPUTATION;
-	std::unique_lock<std::mutex> lock (_mtx);
 	_cond.notify_all();
 }
 
