@@ -353,17 +353,19 @@ template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::~Encoder()
 {
 	exiting = true;	// stop notifying thread
-	_pool_notify->notify_all();
+	std::unique_lock<std::mutex> enc_lock (_mtx);
 	for (auto &it : encoders) {	// stop existing computations
 		auto ptr = it.second.enc;
 		if (ptr != nullptr)
 			ptr->stop();
 	}
-	do {
+    enc_lock.unlock();
+    _pool_notify->notify_all();
+    while (pool_wait.size() != 0) {
 		std::unique_lock<std::mutex> lock (*_pool_mtx);
-		if (pool_wait.size() != 0)
+        if (pool_wait.size() != 0)
 			_pool_notify->wait (lock);
-	} while (pool_wait.size() != 0);
+	}
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -539,7 +541,7 @@ std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
 	if (Compute::NONE != (flags & Compute::NO_BACKGROUND)) {
 		wait_threads (this, flags, std::move(p));
 	} else {
-		std::unique_lock<std::mutex> pool_wait_lock (_mtx);
+		std::unique_lock<std::mutex> pool_wait_lock (*_pool_mtx);
 		RQ_UNUSED(pool_wait_lock);
 		pool_wait.emplace_back(wait_threads, this, flags, std::move(p));
 	}
@@ -551,21 +553,22 @@ void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
 									const Compute flags,
 									std::promise<std::pair<Error, uint8_t>> p)
 {
-	do {
+    auto _notify = obj->_pool_notify;
+    while (true) {
 		std::unique_lock<std::mutex> lock (*obj->_pool_mtx);
 		if (obj->exiting) {
-			p.set_value ({Error::NONE, 0});
+			p.set_value ({Error::EXITING, 0});
 			break;
 		}
 		auto status = obj->get_report (flags);
-		if (status.first != Error::WORKING) {
+		if (Error::WORKING != status.first) {
 			p.set_value (status);
 			break;
 		}
 
-		obj->_pool_notify->wait (lock);
+		_notify->wait (lock);
 		lock.unlock();
-	} while (true);
+	}
 
 	// delete ourselves from the waiting thread vector.
 	std::unique_lock<std::mutex> lock (*obj->_pool_mtx);
@@ -577,7 +580,7 @@ void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
 		}
 	}
     lock.unlock();
-	obj->_pool_notify->notify_all();
+	_notify->notify_all();
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -745,13 +748,12 @@ Decoder<In_It, Fwd_It>::~Decoder()
 	}
     _mtx.unlock();
     _pool_notify->notify_all();
-	do {
+    while (pool_wait.size() != 0) {
 		std::unique_lock<std::mutex> lock (*_pool_mtx);
-		if (pool_wait.size() != 0)
+        if (pool_wait.size() != 0)
 			_pool_notify->wait (lock);
-	} while (pool_wait.size() != 0);
+	}
 }
-
 
 template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::free (const uint8_t sbn)
@@ -940,7 +942,8 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 									const Compute flags,
 									std::promise<std::pair<Error, uint8_t>> p)
 {
-	do {
+    auto _notify = obj->_pool_notify;
+    while (true) {
    		std::unique_lock<std::mutex> lock (*obj->_pool_mtx);
 		if (obj->exiting) { // make sure we can exit
 			p.set_value ({Error::EXITING, 0});
@@ -952,9 +955,9 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 			break;
 		}
 
-		obj->_pool_notify->wait (lock);
+		_notify->wait (lock);
 		lock.unlock();
-	} while (true);
+	}
 
 	// delete ourselves from the waiting thread vector.
 	std::unique_lock<std::mutex> lock (*obj->_pool_mtx);
@@ -966,7 +969,7 @@ void Decoder<In_It, Fwd_It>::wait_threads (Decoder<In_It, Fwd_It> *obj,
 		}
 	}
     lock.unlock();
-	obj->_pool_notify->notify_all();
+	_notify->notify_all();
 }
 
 template <typename In_It, typename Fwd_It>
@@ -1004,7 +1007,7 @@ std::pair<Error, uint8_t> Decoder<In_It, Fwd_It>::get_report (
 				return {Error::NONE, static_cast<uint8_t>(pool_last_reported)};
 			} else {
 				// complete
-				if (pool_last_reported == (_blocks - 1))
+				if (pool_last_reported == _blocks)
 					return {Error::NONE,
                                     static_cast<uint8_t>(pool_last_reported)};
 			}
