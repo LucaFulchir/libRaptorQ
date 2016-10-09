@@ -23,6 +23,18 @@
 namespace RFC6330__v1 {
 namespace Impl {
 
+Thread_Pool& Thread_Pool::get()
+{
+    //#pragma GCC diagnostic push
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wexit-time-destructors"
+    #pragma clang diagnostic ignored "-Wglobal-constructors"
+    static Thread_Pool _pool;
+    #pragma clang diagnostic pop
+    //#pragma GCC diagnostic pop
+    return _pool;
+}
+
 Thread_Pool::Thread_Pool()
 {
 	resize_pool (std::thread::hardware_concurrency(),
@@ -31,92 +43,98 @@ Thread_Pool::Thread_Pool()
 
 size_t Thread_Pool::size()
 {
-	return pool.size();
+	return _pool.size();
 }
 
 Thread_Pool::~Thread_Pool()
 {
-	queue.clear();
-	std::unique_lock<std::mutex> pool_lock (pool_mtx);
-	std::unique_lock<std::mutex> data_lock (data_mtx);
-	for (auto &th : pool) {
-		auto locked = th.second.lock();
-		if (locked != nullptr) {
-			th.first.detach();
-			*locked = static_cast<Work_State_Overlay> (
-									RaptorQ__v1::Work_State::ABORT_COMPUTATION);
-		}
-	}
-	cond.notify_all();	// unlock threads stuck on condition_wait
-	data_lock.unlock();
-	pool_lock.unlock();
+	std::unique_lock<std::mutex> _data_lock (_data_mtx);
+	_queue.clear();
+	_data_lock.unlock();
 
-	pool.clear();
+	resize_pool (0, RaptorQ__v1::Work_State::ABORT_COMPUTATION);
+
+	_cond.notify_all();
+	std::unique_lock<std::mutex> pool_lock (_pool_mtx);
+	while (_pool.size() != 0 || _exiting.size() != 0)
+		_cond.wait (pool_lock);
 }
 
 void Thread_Pool::resize_pool (const size_t size,
 										const RaptorQ__v1::Work_State exit_t)
 {
-    if (size == pool.size())
+    if (size == _pool.size())
         return;
-    std::lock_guard<std::mutex> guard_pool (pool_mtx);
-    RQ_UNUSED(guard_pool);
+    std::unique_lock<std::mutex> _lock_pool (_pool_mtx);
 
-    while (pool.size() > size) {
-		std::lock_guard<std::mutex> guard_data (data_mtx);
-		RQ_UNUSED(guard_data);
-		auto it = pool.begin();
-		for (; it != pool.end(); ++it) {
+    while (_pool.size() > size) {
+		std::lock_guard<std::mutex> _guard_data (_data_mtx);
+		RQ_UNUSED(_guard_data);
+
+		auto _it = _pool.begin();
+		while (_it != _pool.end() && _pool.size() > size) {
 			// delete a thread that is still waiting
-			std::weak_ptr<Work_State_Overlay> sec = it->second;
-			std::shared_ptr<Work_State_Overlay> state = sec.lock();
-			if (nullptr != state) {
-				if (Work_State_Overlay::WAITING == *state) {
-					it->first.detach();
-					pool.erase (it);
-					it = pool.begin();
-					*state = static_cast<Work_State_Overlay> (exit_t);
-					cond.notify_all();
-					break;
-				}
+			std::weak_ptr<Work_State_Overlay> _sec = _it->second;
+			std::shared_ptr<Work_State_Overlay> _state = _sec.lock();
+			// auto state = it.base()->second.lock();
+			if (_state == nullptr) {
+				// the thread has surely stopped. delete it.
+				// we should never get here anyway
+				assert(false && "RQ: thread0: we should have not goten here!");
+				_it = _pool.erase (_it);
 			} else {
-				// thread terminated.
-				// will never happen here, but whatever...
-				assert (false && "libRaptorQ: thread already terminated");
-				it->first.detach();
-				pool.erase (it);
-				break;
+				if (Work_State_Overlay::WAITING == *_state) {
+					th_state pair = {std::thread(),
+								std::shared_ptr<Work_State_Overlay> (nullptr)};
+					pair.swap (*_it);
+					_it = _pool.erase (_it);
+					*_state = static_cast<Work_State_Overlay> (exit_t);
+					_exiting.emplace_back (std::move(pair));
+				} else {
+                    ++_it;
+                }
 			}
 		}
-		if (pool.size() > size && it == pool.end()) {
+		if (_pool.size() > size && _it == _pool.end()) {
 			// all threads are busy, but we must terminate one :(
-			auto end = pool.rbegin();
-			auto locked = end->second.lock();
-			if (nullptr != locked) {
-				end->first.detach();
-				pool.erase (end.base());
-				*locked = static_cast<Work_State_Overlay> (exit_t);
+			auto _end = _pool.begin();
+			//auto state = end->second.lock();
+			std::weak_ptr<Work_State_Overlay> _sec = _end->second;
+			std::shared_ptr<Work_State_Overlay> _state = _sec.lock();
+			if (_state == nullptr) {
+				// the thread has surely stopped. delete it.
+				// we should never get here anyway
+				assert(false && "RQ: thread1: we should have not goten here!");
+				_pool.erase (_end);
+			} else {
+				th_state pair = {std::thread(),
+								std::shared_ptr<Work_State_Overlay> (nullptr)};
+				pair.swap (*_end);
+				_pool.erase (_end);
+				*_state = static_cast<Work_State_Overlay> (exit_t);
+				_exiting.emplace_back (std::move(pair));
 			}
-			cond.notify_all();
 		}
     }
-    while (pool.size() < size) {
-        auto state = std::make_shared<Work_State_Overlay> (
+    while (_pool.size() < size) {
+		auto state = std::make_shared<Work_State_Overlay> (
 											Work_State_Overlay::KEEP_WORKING);
-        pool.emplace_back (std::thread (working_thread, this, state),
+		_pool.emplace_back (std::thread (working_thread, this, state),
 									std::weak_ptr<Work_State_Overlay> (state));
     }
+	_lock_pool.unlock();
+	_cond.notify_all();
 }
 
 bool Thread_Pool::add_work (std::unique_ptr<Pool_Work> work)
 {
-    if (pool.size() == 0)
+    std::unique_lock<std::mutex> _lock_data (_data_mtx);
+	if (_pool.size() == 0)
         return false;
 
-    std::unique_lock<std::mutex> lock_data (data_mtx);
-
-    queue.push_back (std::move(work));
-	cond.notify_one();
+    _queue.emplace_back (std::move(work));
+    _lock_data.unlock();
+	_cond.notify_all();
 
     return true;
 }
@@ -125,24 +143,26 @@ void Thread_Pool::working_thread (Thread_Pool *obj,
 									std::shared_ptr<Work_State_Overlay> state)
 {
 	while (Work_State_Overlay::KEEP_WORKING == *state) {
-		std::unique_lock<std::mutex> lock_data (obj->data_mtx);
-		if (Work_State_Overlay::KEEP_WORKING != *state)
+		std::unique_lock<std::mutex> lock_data (obj->_data_mtx);
+        if (Work_State_Overlay::KEEP_WORKING != *state) {
+            lock_data.unlock();
 			break;
-		if (obj->queue.size() == 0) {
+        }
+		if (obj->_queue.size() == 0) {
 			*state = Work_State_Overlay::WAITING;
-			obj->cond.wait (lock_data);
-			if (Work_State_Overlay::WAITING != *state)	// => abort
+			obj->_cond.wait (lock_data);
+            if (Work_State_Overlay::WAITING != *state) {    // => abort
+                lock_data.unlock();
 				break;
-			if (obj->queue.size() == 0)	{ // unlock intended for other threads?
-				*state = Work_State_Overlay::KEEP_WORKING;
-				lock_data.unlock();
-				continue;
-			}
+            }
 			*state = Work_State_Overlay::KEEP_WORKING;
+            lock_data.unlock();
+            continue;
 		}
 
-		std::unique_ptr<Pool_Work> my_work = std::move(obj->queue.front());
-		obj->queue.pop_front();
+		std::unique_ptr<Pool_Work> my_work;
+        my_work.swap (obj->_queue.front());
+		obj->_queue.pop_front();
 		lock_data.unlock();
 
 		auto exit_stat = my_work->do_work (
@@ -153,16 +173,35 @@ void Thread_Pool::working_thread (Thread_Pool *obj,
 			break;
 		case Work_Exit_Status::STOPPED:
 			lock_data.lock();
-			obj->queue.push_front (std::move(my_work));
-			obj->cond.notify_one();
-			lock_data.unlock();
+			obj->_queue.push_front (std::move(my_work));
+            lock_data.unlock();
+			obj->_cond.notify_all();
 			break;
 		case Work_Exit_Status::REQUEUE:
-			lock_data.lock();
-			obj->queue.push_back (std::move(my_work));
-			obj->cond.notify_one();
-			lock_data.unlock();
+            Thread_Pool::get().add_work (std::move(my_work));
 			break;
+		}
+	}
+	// delete ourselves from the thread queue.
+	std::unique_lock<std::mutex> _lock_pool (obj->_pool_mtx);
+
+	for (auto _th = obj->_pool.begin(); _th != obj->_pool.end(); ++_th) {
+		if (_th->first.get_id() == std::this_thread::get_id()) {
+			_th->first.detach();
+			obj->_pool.erase (_th);
+            _lock_pool.unlock();
+			obj->_cond.notify_all();
+			return;
+		}
+	}
+	// were we moved to the exiting queue?
+	for (auto _th = obj->_exiting.begin(); _th != obj->_exiting.end(); ++_th) {
+		if (_th->first.get_id() == std::this_thread::get_id()) {
+			_th->first.detach();
+			obj->_exiting.erase (_th);
+            _lock_pool.unlock();
+			obj->_cond.notify_all();
+			return;
 		}
 	}
 }

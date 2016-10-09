@@ -24,6 +24,7 @@
 #include <condition_variable>
 #include <deque>
 #include <functional>
+#include <list>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -37,7 +38,6 @@ enum class RAPTORQ_API Work_Exit_Status : uint8_t {
 	STOPPED = 1,
 	REQUEUE = 2
 };
-
 
 namespace Impl {
 
@@ -62,17 +62,12 @@ public:
 class RAPTORQ_API Thread_Pool
 {
 public:
-	static Thread_Pool& get()
-	{
-		//#pragma GCC diagnostic push
-		#pragma clang diagnostic push
-		#pragma clang diagnostic ignored "-Wexit-time-destructors"
-		#pragma clang diagnostic ignored "-Wglobal-constructors"
-		static Thread_Pool pool;
-		#pragma clang diagnostic pop
-		//#pragma GCC diagnostic pop
-		return pool;
-	}
+    Thread_Pool(Thread_Pool const&) = delete;
+    Thread_Pool(Thread_Pool&&) = delete;
+    Thread_Pool& operator=(Thread_Pool const&) = delete;
+    Thread_Pool& operator=(Thread_Pool &&) = delete;
+
+	static Thread_Pool& get();
 
 	size_t size();
     void resize_pool (const size_t size, const RaptorQ__v1::Work_State exit_t);
@@ -81,13 +76,13 @@ public:
 private:
 	Thread_Pool();
     ~Thread_Pool();
-    std::mutex data_mtx, pool_mtx;
-	std::condition_variable cond;
+    std::mutex _data_mtx, _pool_mtx;
+	std::condition_variable _cond;
     // map will not invalidate references on add/delete.
 	// pair (thread, &keep_working)
 	using th_state = std::pair<std::thread, std::weak_ptr<Work_State_Overlay>>;
-    std::deque<th_state> pool;
-	std::deque<std::unique_ptr<Pool_Work>> queue;
+    std::list<th_state> _pool, _exiting;
+	std::deque<std::unique_ptr<Pool_Work>> _queue;
 
     static void working_thread (Thread_Pool *obj,
 									std::shared_ptr<Work_State_Overlay> state);
