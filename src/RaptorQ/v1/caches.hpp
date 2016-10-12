@@ -48,13 +48,12 @@ std::vector<uint8_t> RAPTORQ_API decompress (const Compress algorithm,
 
 namespace RFC6330__v1 {
 
-// NOTE: Copy of the above. keep in sync!
-Compress RAPTORQ_API supported_compressions();
-Compress RAPTORQ_API get_compression();
-bool     RAPTORQ_API set_compression (const Compress compression);
-size_t RAPTORQ_API shared_cache_size (const size_t shared_cache);
-bool RAPTORQ_API local_cache_size (const size_t local_cache);
-size_t RAPTORQ_API get_shared_cache_size();
-size_t RAPTORQ_API get_local_cache_size();
+using RaptorQ__v1::supported_compressions;
+using RaptorQ__v1::get_compression;
+using RaptorQ__v1::set_compression;
+using RaptorQ__v1::shared_cache_size;
+using RaptorQ__v1::local_cache_size;
+using RaptorQ__v1::get_shared_cache_size;
+using RaptorQ__v1::get_local_cache_size;
 
 } // namespace RFC6330__v1

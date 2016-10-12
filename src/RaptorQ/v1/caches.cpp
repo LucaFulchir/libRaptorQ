@@ -118,28 +118,3 @@ std::vector<uint8_t> decompress (const Compress algorithm,
 
 } // namespace Impl
 } // namespace RaptorQ__v1
-
-
-namespace RFC6330__v1 {
-Compress supported_compressions()
-{ return RaptorQ__v1::supported_compressions(); }
-
-Compress get_compression()
-{ return RaptorQ__v1::get_compression(); }
-
-bool set_compression (const Compress compression)
-{ return RaptorQ__v1::set_compression (compression); }
-
-size_t shared_cache_size (const size_t shared_cache)
-{ return RaptorQ__v1::shared_cache_size (shared_cache); }
-
-bool local_cache_size (const size_t local_cache)
-{ return RaptorQ__v1::local_cache_size (local_cache); }
-
-size_t get_shared_cache_size()
-{ return RaptorQ__v1::get_shared_cache_size(); }
-
-size_t get_local_cache_size()
-{ return RaptorQ__v1::get_local_cache_size(); }
-
-} // namespace RFC6330__v1
