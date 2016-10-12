@@ -52,8 +52,11 @@ class RAPTORQ_LOCAL Raw_Decoder
 	using Vect = Eigen::Matrix<Impl::Octet, 1, Eigen::Dynamic, Eigen::RowMajor>;
 	using T_in = typename std::iterator_traits<In_It>::value_type;
 public:
+
+    bool end_of_input;
+
 	Raw_Decoder (const uint16_t symbols, const uint16_t symbol_size)
-		:_symbols (symbols), keep_working (true), type (test_computation()),
+		:keep_working (true), type (test_computation()), _symbols (symbols),
 																mask (_symbols)
 	{
 		IS_INPUT(In_It, "RaptorQ__v1::Impl::Decoder");
@@ -62,6 +65,7 @@ public:
 		source_symbols = DenseMtx (_symbols, symbol_size);
 		concurrent = 0;
 		can_retry = false;
+        end_of_input = false;
 	}
 	~Raw_Decoder();
 
@@ -91,11 +95,11 @@ public:
 	void drop_concurrent();
 
 private:
-	std::mutex lock;
-	const uint16_t _symbols;
-	uint16_t concurrent;	// currently running decoders retry
 	bool keep_working, can_retry;
 	const Save_Computation type;
+    std::mutex lock;
+	const uint16_t _symbols;
+	uint16_t concurrent;	// currently running decoders retry
 	Bitmask mask;
 	DenseMtx source_symbols;
 	std::vector<std::pair<uint32_t, Vect>> received_repair;
@@ -471,11 +475,12 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 		mask.add (row);
 	}
 
-	keep_working = false;	 // tell eventual threads to top crunching,
+	keep_working = false;	 // tell eventual threads to stop crunching,
 	// free some memory, we don't need recover symbols anymore
 	received_repair = std::vector<std::pair<uint32_t, Vect>>();
 	mask.free();
-    stop(); // tell other threads to stop working.
+
+
 	return Decoder_Result::DECODED;
 }
 

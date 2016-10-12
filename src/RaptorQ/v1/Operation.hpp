@@ -53,7 +53,7 @@ private:
 
 
 
-class RAPTORQ_LOCAL Operation_Swap : public Operation
+class RAPTORQ_LOCAL Operation_Swap final : public Operation
 {
 public:
 	Operation_Swap (const uint16_t row_1, const uint16_t row_2)
@@ -66,7 +66,7 @@ private:
 	std::ostream &print (std::ostream &os) const override;
 };
 
-class RAPTORQ_LOCAL Operation_Add_Mul : public Operation
+class RAPTORQ_LOCAL Operation_Add_Mul final : public Operation
 {
 public:
 	Operation_Add_Mul (const uint16_t row_1, const uint16_t row_2,
@@ -81,7 +81,7 @@ private:
 	std::ostream &print (std::ostream &os) const override;
 };
 
-class RAPTORQ_LOCAL Operation_Div : public Operation
+class RAPTORQ_LOCAL Operation_Div final : public Operation
 {
 public:
 	Operation_Div (const uint16_t row_1, const Octet scalar)
@@ -96,7 +96,7 @@ private:
 	std::ostream &print (std::ostream &os) const override;
 };
 
-class RAPTORQ_LOCAL Operation_Block : public Operation
+class RAPTORQ_LOCAL Operation_Block final : public Operation
 {
 public:
 	Operation_Block (const DenseMtx &block)
@@ -110,7 +110,7 @@ private:
 	std::ostream &print (std::ostream &os) const override;
 };
 
-class RAPTORQ_LOCAL Operation_Reorder : public Operation
+class RAPTORQ_LOCAL Operation_Reorder final : public Operation
 {
 public:
 	Operation_Reorder (const std::vector<uint16_t> &order)

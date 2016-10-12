@@ -126,7 +126,11 @@ extern "C"
 	// Decoding
 	///////////
 
-	uint64_t RAPTORQ_API RaptorQ_bytes (struct RaptorQ_ptr *dec);
+    void RAPTORQ_API RaptorQ_end_of_input (struct RaptorQ_ptr *dec);
+	void RAPTORQ_API RaptorQ_end_of_block_input (struct RaptorQ_ptr *dec,
+                                                        const uint8_t block);
+
+    uint64_t RAPTORQ_API RaptorQ_bytes (struct RaptorQ_ptr *dec);
 
 	struct RaptorQ_Dec_Result {
 		uint64_t written;

@@ -149,7 +149,7 @@ private:
 	static void wait_threads (Encoder<Rnd_It, Fwd_It> *obj, const Compute flags,
 									std::promise<std::pair<Error, uint8_t>> p);
 
-	class Block_Work : public Impl::Pool_Work {
+	class Block_Work final : public Impl::Pool_Work {
 	public:
 		std::weak_ptr<RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It>> work;
 		std::weak_ptr<std::condition_variable> notify;
@@ -272,6 +272,10 @@ public:
 	}
 
 	std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
+    // if you can tell there is no more input, we can avoid locking
+    // forever and return an error.
+    void end_of_input (const uint8_t block);
+    void end_of_input();
 
 	// result in BYTES
 	uint64_t decode_bytes (Fwd_It &start, const Fwd_It end, const uint8_t skip);
@@ -299,7 +303,7 @@ public:
 private:
 	// using shared pointers to avoid locking too much or
 	// worrying about deleting used stuff.
-	class RAPTORQ_LOCAL Block_Work : public Impl::Pool_Work {
+	class RAPTORQ_LOCAL Block_Work final : public Impl::Pool_Work {
 	public:
 		std::weak_ptr<RaptorQ__v1::Impl::Raw_Decoder<In_It>> work;
 		std::weak_ptr<std::condition_variable> notify;
@@ -816,6 +820,32 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 }
 
 template <typename In_It, typename Fwd_It>
+void Decoder<In_It, Fwd_It>::end_of_input()
+{
+    std::unique_lock<std::mutex> pool_lock (*_pool_mtx);
+    std::unique_lock<std::mutex> dec_lock (_mtx);
+    for (auto &it : decoders)
+        it.second.dec->end_of_input = true;
+    dec_lock.unlock();
+    pool_lock.unlock();
+    _pool_notify->notify_all();
+}
+
+template <typename In_It, typename Fwd_It>
+void Decoder<In_It, Fwd_It>::end_of_input (const uint8_t block)
+{
+    std::unique_lock<std::mutex> pool_lock (*_pool_mtx);
+    std::unique_lock<std::mutex> dec_lock (_mtx);
+    auto it = decoders.find(block);
+    if (it != decoders.end()) {
+        it->second.dec->end_of_input = true;
+        dec_lock.unlock();
+        pool_lock.unlock();
+        _pool_notify->notify_all();
+    }
+}
+
+template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::Block_Work::~Block_Work()
 {
 	// have we been called before the computation finished?
@@ -844,9 +874,9 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
         std::unique_lock<std::mutex> p_lock (*locked_mtx, std::defer_lock);
 		switch (ret) {
 		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::DECODED:
-            locked_dec->drop_concurrent();
 			work.reset();
             p_lock.lock();
+            locked_dec->drop_concurrent();
             locked_notify->notify_all();
             p_lock.unlock();
 			return Work_Exit_Status::DONE;
@@ -857,11 +887,18 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
                 return Work_Exit_Status::REQUEUE;
             } else {
                 locked_dec->drop_concurrent();
+                if (locked_dec->end_of_input && locked_dec->threads() == 0)
+                    locked_notify->notify_all();
                 p_lock.unlock();
                 work.reset();
                 return Work_Exit_Status::DONE;
             }
 		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::STOPPED:
+            p_lock.lock();
+            if (locked_dec->ready()) // did an other thread stop us?
+                locked_dec->drop_concurrent();
+                work.reset();
+                return Work_Exit_Status::DONE;
             // requeued. Do not drop_concurrent
 			return Work_Exit_Status::STOPPED;
 		case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::CAN_RETRY:
@@ -981,25 +1018,32 @@ std::pair<Error, uint8_t> Decoder<In_It, Fwd_It>::get_report (
 	if (Compute::COMPLETE == (flags & Compute::COMPLETE) ||
 			Compute::PARTIAL_FROM_BEGINNING ==
 									(flags & Compute::PARTIAL_FROM_BEGINNING)) {
-		auto it = decoders.begin();
-		// get first non-reported block.
-		for (;it != decoders.end(); ++it) {
-			if (pool_last_reported <= it->first)
-				break;
-		}
-		uint16_t reportable = 0;
+        uint16_t reportable = 0;
+        uint16_t next_expected = static_cast<uint16_t> (pool_last_reported + 1);
+        std::unique_lock<std::mutex> dec_lock (_mtx);
+        auto it = decoders.lower_bound (static_cast<uint8_t> (next_expected));
+
 		// get last reportable block
 		for (; it != decoders.end(); ++it) {
+            auto id = it->first;
+            if (id != next_expected)
+                break; // not consecutive
 			auto ptr = it->second.dec;
-			if (ptr != nullptr) {
-				if (!ptr->ready()) {
-					if (ptr->is_stopped())
-						return {Error::EXITING, 0};
-					break;
-				}
-			}
+            if (ptr == nullptr) {
+                assert(false && "RFC6330: decoder should never be nullptr.");
+                break;
+            }
+            if (!ptr->ready()) {
+                if (ptr->is_stopped())
+                    return {Error::EXITING, 0};
+                if (ptr->end_of_input && ptr->threads() == 0)
+                    return {Error::NEED_DATA, 0};
+                break; // still working
+            }
 			++reportable;
+            ++next_expected;
 		}
+        dec_lock.unlock();
 		if (reportable > 0) {
 			pool_last_reported += reportable;
 			if (Compute::PARTIAL_FROM_BEGINNING ==
@@ -1007,23 +1051,40 @@ std::pair<Error, uint8_t> Decoder<In_It, Fwd_It>::get_report (
 				return {Error::NONE, static_cast<uint8_t>(pool_last_reported)};
 			} else {
 				// complete
-				if (pool_last_reported == _blocks)
+				if (pool_last_reported == _blocks - 1)
 					return {Error::NONE,
                                     static_cast<uint8_t>(pool_last_reported)};
 			}
 		}
 	} else if (Compute::PARTIAL_ANY == (flags & Compute::PARTIAL_ANY)) {
-		for (auto &it : decoders) {
-			if (!it.second.reported) {
-				auto ptr = it.second.dec;
-				if (ptr != nullptr) {
-					if (ptr->ready())
-						return {Error::NONE, it.first};
-					if (ptr->is_stopped())
-						return {Error::EXITING, 0};
-				}
+        // FIXME: locking might not be necessary. map emplace/erase do not
+        // invalidate other pointers.
+        auto undecodable = decoders.end();
+        std::unique_lock<std::mutex> dec_lock (_mtx);
+        RQ_UNUSED(dec_lock);
+        for (auto it = decoders.begin(); it != decoders.end(); ++it) {
+			if (!it->second.reported) {
+				auto ptr = it->second.dec;
+                if (ptr == nullptr) {
+                    assert(false && "RFC6330: decoder should never be nullptr");
+                    break;
+                }
+                if (ptr->ready()) {
+                    it->second.reported = true;
+                    return {Error::NONE, it->first};
+                }
+                if (ptr->is_stopped())
+                    return {Error::EXITING, 0};
+                // first return all decodable blocks
+                // then return the ones we can not decode.
+                if (ptr->end_of_input && ptr->threads() == 0)
+                    undecodable = it;
 			}
 		}
+        if (undecodable != decoders.end()) {
+            undecodable->second.reported = true;
+            return {Error::NEED_DATA, undecodable->first};
+        }
 	}
 	// can be reached if computing thread was stopped
 	return {Error::WORKING, 0};

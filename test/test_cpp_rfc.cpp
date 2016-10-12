@@ -212,6 +212,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			abort();
 		}
 	}
+    dec.end_of_input();
 
 	async_dec.wait();
 

@@ -164,7 +164,10 @@ void Thread_Pool::working_thread (Thread_Pool *obj,
         my_work.swap (obj->_queue.front());
 		obj->_queue.pop_front();
 		lock_data.unlock();
-
+        if (my_work == nullptr) {
+            assert (false && "thread null work");
+            continue; // should never happen
+        }
 		auto exit_stat = my_work->do_work (
 					reinterpret_cast<RaptorQ__v1::Work_State *> (state.get()));
 

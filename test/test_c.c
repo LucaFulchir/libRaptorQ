@@ -255,6 +255,9 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		// "data" now points to encoded[i].symbol +
 		//					ceil(RaptorQ_symbol_size(dec) / sizeof(uint32_t))
 	}
+    // tell the decoder not to wait indefinitely
+    // and exit if it does not have enough data.
+    RaptorQ_end_of_input (dec);
 
 	// make sure that there's enough place in "received" to get the
 	// whole decoded data.

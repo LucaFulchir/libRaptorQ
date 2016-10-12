@@ -749,6 +749,61 @@ uint32_t RaptorQ_id (const uint32_t esi, const uint8_t sbn)
 ///////////
 // Decoding
 ///////////
+void RAPTORQ_API RaptorQ_end_of_input (struct RaptorQ_ptr *dec)
+{
+	if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE)
+		return;
+
+	switch (dec->type) {
+	case RaptorQ_type::RQ_DEC_8:
+		return (reinterpret_cast<RFC6330__v1::Decoder<uint8_t*, uint8_t*>*> (
+                                                    dec->ptr))->end_of_input();
+	case RaptorQ_type::RQ_DEC_16:
+		return (reinterpret_cast<RFC6330__v1::Decoder<uint16_t*, uint16_t*>*> (
+                                                    dec->ptr))->end_of_input();
+	case RaptorQ_type::RQ_DEC_32:
+		return (reinterpret_cast<RFC6330__v1::Decoder<uint32_t*, uint32_t*>*> (
+                                                    dec->ptr))->end_of_input();
+	case RaptorQ_type::RQ_DEC_64:
+		return (reinterpret_cast<RFC6330__v1::Decoder<uint64_t*, uint64_t*>*> (
+                                                    dec->ptr))->end_of_input();
+	case RaptorQ_type::RQ_ENC_8:
+	case RaptorQ_type::RQ_ENC_16:
+	case RaptorQ_type::RQ_ENC_32:
+	case RaptorQ_type::RQ_ENC_64:
+	case RaptorQ_type::RQ_NONE:
+		return;
+	}
+}
+
+
+void RAPTORQ_API RaptorQ_end_of_block_input (struct RaptorQ_ptr *dec,
+                                                            const uint8_t block)
+{
+    if (dec == nullptr || dec->type == RaptorQ_type::RQ_NONE)
+		return;
+
+	switch (dec->type) {
+	case RaptorQ_type::RQ_DEC_8:
+		return (reinterpret_cast<RFC6330__v1::Decoder<uint8_t*, uint8_t*>*> (
+                                            dec->ptr))->end_of_input (block);
+	case RaptorQ_type::RQ_DEC_16:
+		return (reinterpret_cast<RFC6330__v1::Decoder<uint16_t*, uint16_t*>*> (
+                                            dec->ptr))->end_of_input (block);
+	case RaptorQ_type::RQ_DEC_32:
+		return (reinterpret_cast<RFC6330__v1::Decoder<uint32_t*, uint32_t*>*> (
+                                            dec->ptr))->end_of_input (block);
+	case RaptorQ_type::RQ_DEC_64:
+		return (reinterpret_cast<RFC6330__v1::Decoder<uint64_t*, uint64_t*>*> (
+                                            dec->ptr))->end_of_input (block);
+	case RaptorQ_type::RQ_ENC_8:
+	case RaptorQ_type::RQ_ENC_16:
+	case RaptorQ_type::RQ_ENC_32:
+	case RaptorQ_type::RQ_ENC_64:
+	case RaptorQ_type::RQ_NONE:
+		return;
+	}
+}
 
 uint64_t RaptorQ_bytes (struct RaptorQ_ptr *dec)
 {

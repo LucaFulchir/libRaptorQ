@@ -221,6 +221,18 @@ public:
         return p.get_future();
     }
 
+    void end_of_input (const uint8_t block)
+    {
+        if (rfc_decoder != nullptr)
+            return rfc_decoder->end_of_input (block);
+    }
+
+    void end_of_input()
+    {
+        if (rfc_decoder != nullptr)
+            return rfc_decoder->end_of_input();
+    }
+
 	// result in BYTES
 	uint64_t decode_bytes (Fwd_It &start, const Fwd_It end, const uint8_t skip)
     {
