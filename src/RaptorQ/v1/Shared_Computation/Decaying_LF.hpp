@@ -155,6 +155,7 @@ DLF<User_Data, Key>::DLF_Data::DLF_Data (const DLF_Data &d)
 {
 	auto _score = d.score.load();
 	auto _tick = d.tick.load();
+	algorithm = d.algorithm;
 	score = _score;
 	tick = _tick;
 	raw = d.raw;

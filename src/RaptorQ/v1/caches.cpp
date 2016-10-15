@@ -45,15 +45,15 @@ Compress get_compression()
 	return Impl::compression;
 }
 
-bool set_compression (const Compress compression)
+bool set_compression (const Compress _compression)
 {
-	switch (compression) {
+	switch (_compression) {
 	case Compress::NONE:
-		Impl::compression = compression;
+		Impl::compression = Compress::NONE;
 		return true;
 	case Compress::LZ4:
 #ifdef RQ_USE_LZ4
-		Impl::compression = compression;
+		Impl::compression = Compress::LZ4;
 		return true;
 #else
 		return false;
@@ -90,13 +90,12 @@ namespace Impl {
 std::pair<Compress, std::vector<uint8_t>> compress (
 											const std::vector<uint8_t> &data)
 {
-	Compress algo = get_compression();
-    if (algo == Compress::NONE)
-		return {algo, data};
+    if (Impl::compression == Compress::NONE)
+		return {Compress::NONE, data};
 #ifdef RQ_USE_LZ4
-    if (algo == Compress::LZ4) {
+    if (Impl::compression == Compress::LZ4) {
         LZ4<LZ4_t::ENCODER> lz4;
-		return {algo, lz4.encode (data)};
+		return {Compress::LZ4, lz4.encode (data)};
     }
 #endif
 	return {Compress::NONE, std::vector<uint8_t>()};

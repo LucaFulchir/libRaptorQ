@@ -276,8 +276,13 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	struct RaptorQ_Result dec_stat = RaptorQ_future_get (async_dec);
     RaptorQ_future_free (&async_dec);
 	if (dec_stat.error != RQ_ERR_NONE) {
-		printf ("ERR in getting future\n");
-		return false;
+        if (dec_stat.error == RQ_ERR_NEED_DATA) {
+            printf ("Decoding failed. try again?\n");
+            return true;
+        } else {
+            printf ("ERR in getting future\n");
+            return false;
+        }
 	}
 
 	uint64_t written = RaptorQ_decode_bytes (dec, (void **)&rec, decoded_size, 0);
@@ -334,7 +339,7 @@ int main (void)
 {
 	// set local cache size to 100MB
 #ifdef RQ_USE_LZ4
-	RaptorQ_set_compression (RQ_COMPRESS_LZ4);
+	RaptorQ_set_compression (RQ_COMPRESS_NONE);
 #else
 	RaptorQ_set_compression (RQ_COMPRESS_NONE);
 #endif
