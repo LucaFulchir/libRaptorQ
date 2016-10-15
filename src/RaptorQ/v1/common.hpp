@@ -173,6 +173,18 @@ inline Compute operator& (const Compute a, const Compute b)
 // Now just some macros to check the iterator type
 #ifdef __cplusplus
 
+namespace RaptorQ__v1 {
+namespace Impl {
+#ifndef RQ_DEBUG
+    #define RQ_DEBUG false
+#endif
+// don't use #define everywhere. let the dead code elimination take care
+// of eliminating unused code.
+constexpr bool debug = RQ_DEBUG;
+}
+}
+
+
 #include <cassert>
 #include <iterator>
 

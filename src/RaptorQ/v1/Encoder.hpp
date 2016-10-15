@@ -170,12 +170,13 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 
 	if (type == Save_Computation::ON) {
 		const uint16_t size = precode_on->_params.L;
-		const Cache_Key key (size, 0, 0, std::vector<bool>());
+        const auto tmp_bool = std::vector<bool>();
+		const Cache_Key key (size, 0, 0, tmp_bool, tmp_bool);
 		auto compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
 		if (compressed.second.size() != 0) {
 			auto uncompressed = decompress (compressed.first,compressed.second);
-			DenseMtx precomputed = raw_to_Mtx (uncompressed, key._mt_size);
+			DenseMtx precomputed = raw_to_Mtx (uncompressed, key.out_size());
 			if (precomputed.rows() != 0) {
 				return precomputed;
 			}
@@ -210,7 +211,8 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 	// don't save really small matrices.
 
 	const uint16_t size = precode_on->_params.L;
-	const Cache_Key key (size, 0, 0, std::vector<bool>());
+    const auto tmp_bool = std::vector<bool>();
+    const Cache_Key key (size, 0, 0, tmp_bool, tmp_bool);
 	res.setIdentity (size, size);
 	for (auto &op : ops)
 		op->build_mtx (res);
@@ -267,7 +269,6 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_raw_symbols(const uint16_t K_S_H,
 	return D;
 }
 
-
 template <typename Rnd_It, typename Fwd_It>
 bool Raw_Encoder<Rnd_It, Fwd_It>::generate_symbols (
 								RaptorQ__v1::Work_State *thread_keep_working)
@@ -296,31 +297,31 @@ bool Raw_Encoder<Rnd_It, Fwd_It>::generate_symbols (
 	std::deque<std::unique_ptr<Operation>> ops;
 	if (type == Save_Computation::ON) {
 		const uint16_t size = precode_on->_params.L;
-		const Cache_Key key (size, 0, 0, std::vector<bool>());
+        const auto tmp_bool = std::vector<bool>();
+		const Cache_Key key (size, 0, 0, tmp_bool, tmp_bool);
 		auto compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
 		if (compressed.second.size() != 0) {
 			auto decompressed = decompress (compressed.first,compressed.second);
-			DenseMtx precomputed = raw_to_Mtx (decompressed, key._mt_size);
+			DenseMtx precomputed = raw_to_Mtx (decompressed, key.out_size());
 			if (precomputed.rows() != 0) {
 				// we have a precomputed matrix! let's use that!
 				encoded_symbols = precomputed * D;
 				// result is granted. we only save matrices that work
 				return true;
 			}
-			return false;
 		}
 		std::tie (precode_res, encoded_symbols) = precode_on->intermediate (D,
 														ops, keep_working,
 														thread_keep_working);
+
 		if (precode_res != Precode_Result::DONE || encoded_symbols.cols() == 0)
 			return false;
 
 		// RaptorQ succeded.
 		// build the precomputed matrix.
 		DenseMtx res;
-		// don't save  really small matrices.
-		if (encoded_symbols.cols() != 0 && size > 100) {
+		if (encoded_symbols.cols() != 0) {
 			res.setIdentity (size, size);
 			for (auto &op : ops)
 				op->build_mtx (res);

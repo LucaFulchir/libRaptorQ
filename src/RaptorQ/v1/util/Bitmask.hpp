@@ -38,49 +38,39 @@ public:
         : _max_nonrepair(symbols)
     {
         _holes = _max_nonrepair;
-        size_t max_element = div_ceil<size_t> (_max_nonrepair, sizeof(size_t));
-        _mask.reserve(max_element + 1);
-        for (size_t i = 0; i <= max_element; ++i)
-            _mask.push_back(0);
+        _mask = std::vector<bool> (_max_nonrepair, false);
     }
 
     void add (const size_t id)
     {
-        size_t element = div_floor<size_t> (id, sizeof(size_t));
-        while (element >= _mask.size())
-            _mask.push_back(0);
-        if (exists(id))
+        if (id >= _mask.size()) {
+            _mask.reserve (id + 1);
+            _mask.insert (_mask.end(), ((id + 1) - _mask.size()), false);
+        }
+        if (_mask[id])
             return;
-
-        size_t add_mask = 1 << (id - (element * sizeof(size_t)));
-        _mask[element] |= add_mask;
+        _mask[id] = true;
         if (id < _max_nonrepair)
             --_holes;
     }
     void drop (const size_t id)
     {
-        size_t element = div_floor<size_t> (id, sizeof(size_t));
-        if (element >= _mask.size())
+        if (id >= _mask.size() || !_mask[id])
             return;
-        if (!exists(id))
-            return;
-
-        size_t drop_mask = 1 << (id - (element * sizeof(size_t)));
-        _mask[element] &= ~drop_mask;
+        _mask[id] = false;
         if (id < _max_nonrepair)
             ++_holes;
     }
     bool exists (const size_t id) const
     {
-        size_t element = div_floor<size_t> (id, sizeof(size_t));
-        if (element >= _mask.size())
+        if (id >= _mask.size())
             return false;
-
-        size_t check_mask = 1 << (id - (element * sizeof(size_t)));
-        return (_mask[element] & check_mask) != 0;
+        return _mask[id];
     }
     uint16_t get_holes () const
         { return _holes; }
+    const std::vector<bool>& get_bitmask () const
+        { return _mask; }
 
     void free()
     {
@@ -90,10 +80,7 @@ public:
     }
 
 private:
-    // NOTE: this is not just vector<bool> 'cause this gives us a bit more
-    // breating space and less reallocations, but really, why don't we just
-    // use vector<bool> with more allocated space?
-    std::vector<size_t> _mask;
+    std::vector<bool> _mask;
     uint16_t _holes;
 };
 

@@ -63,20 +63,38 @@ bool Cache_Key::operator< (const Cache_Key &rhs) const
     if (_lost > rhs._lost)
         return false;
     // _lost == rhs._lost
-    if (bitmask.size() < rhs.bitmask.size())
+    if (_lost_bitmask.size() < rhs._lost_bitmask.size())
         return true;
-    if (bitmask.size() > rhs.bitmask.size())
+    if (_lost_bitmask.size() > rhs._lost_bitmask.size())
         return false;
-    // bitmask.size() ==  rhs.bitmask.size()
-    int32_t idx = static_cast<int32_t> (bitmask.size() - 1);
+    // _lost_bitmask.size() == rhs._lost_bitmask.size()
+    int32_t idx = static_cast<int32_t> (_lost_bitmask.size() - 1);
     for (; idx >= 0; --idx) {
         uint32_t i = static_cast<uint32_t> (idx);
-        if (rhs.bitmask[i] == false &&
-                bitmask[i] == true) {
+        if (rhs._lost_bitmask[i] == false &&
+                _lost_bitmask[i] == true) {
             return false;
         }
-        if (rhs.bitmask[i] == true &&
-                bitmask[i] == false) {
+        if (rhs._lost_bitmask[i] == true &&
+                _lost_bitmask[i] == false) {
+            return true;
+        }
+    }
+    // _lost_bitmask == rhs.lost_bitmask
+    if (_repair_bitmask.size() < rhs._repair_bitmask.size())
+        return true;
+    if (_repair_bitmask.size() > rhs._repair_bitmask.size())
+        return false;
+    // _repair_bitmask.size() ==  rhs._repair_bitmask.size()
+    idx = static_cast<int32_t> (_repair_bitmask.size() - 1);
+    for (; idx >= 0; --idx) {
+        uint32_t i = static_cast<uint32_t> (idx);
+        if (rhs._repair_bitmask[i] == false &&
+                _repair_bitmask[i] == true) {
+            return false;
+        }
+        if (rhs._repair_bitmask[i] == true &&
+                _repair_bitmask[i] == false) {
             return true;
         }
     }
@@ -87,8 +105,11 @@ bool Cache_Key::operator< (const Cache_Key &rhs) const
 bool Cache_Key::operator== (const Cache_Key &rhs) const
 {
 	return _mt_size == rhs._mt_size && _lost == rhs._lost &&
-            _repair == rhs._repair &&  bitmask.size() == rhs.bitmask.size() &&
-                                                        bitmask == rhs.bitmask;
+            _repair == rhs._repair &&
+                        _lost_bitmask.size() == rhs._lost_bitmask.size() &&
+                                        _lost_bitmask == rhs._lost_bitmask &&
+                        _repair_bitmask.size() == rhs._repair_bitmask.size() &&
+                                        _repair_bitmask == rhs._repair_bitmask;
 }
 
 uint32_t Cache_Key::out_size() const

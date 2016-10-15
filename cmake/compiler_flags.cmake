@@ -38,6 +38,9 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     else()
         message(STATUS "UBSAN sanitizing support disabled")
     endif()
+    add_definitions(-DRQ_DEBUG=true)
+else()
+    add_definitions(-DRQ_DEBUG=false)
 endif()
 
 ###################

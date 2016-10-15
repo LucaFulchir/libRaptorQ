@@ -148,6 +148,6 @@ void RaptorQ__v1::Impl::Operation_Reorder::build_mtx (
 	uint16_t row = 0;
 	for (const uint16_t pos : _order)
 		ret.row (pos) = mtx.row (row++);
-	mtx = ret;
+	mtx.swap (ret);
 	// other lines will not influence the computation, ignore them
 }

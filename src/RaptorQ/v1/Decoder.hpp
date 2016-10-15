@@ -337,32 +337,27 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 
 	uint16_t S_H;
 	uint16_t L_rows;
-	bool DO_NOT_SAVE = false;
 	std::vector<bool> bitmask_repair;
 	if (type == Save_Computation::ON) {
 		L_rows = precode_on->_params.L;
 		S_H = precode_on->_params.S + precode_on->_params.H;
 		// repair.rbegin() is the highest repair symbol
 		const auto it = received_repair.crbegin();
-		if (it->first >= std::pow (2, 16)) {
-			DO_NOT_SAVE = true;
-		} else {
-			bitmask_repair.reserve ((it->first - _symbols));
-			uint32_t idx = _symbols;
-			for (auto rep = received_repair.begin();
-								rep != received_repair.end(); ++rep, ++idx) {
-				for (;idx < rep->first; ++idx)
-					bitmask_repair.push_back (false);
-				bitmask_repair.push_back (true);
-			}
-		}
+        bitmask_repair.reserve ((it->first - _symbols));
+        uint32_t idx = _symbols;
+        for (auto rep = received_repair.begin();
+                                rep != received_repair.end(); ++rep, ++idx) {
+            for (;idx < rep->first; ++idx)
+                bitmask_repair.push_back (false);
+            bitmask_repair.push_back (true);
+        }
 	} else {
 		L_rows = precode_off->_params.L;
 		S_H = precode_off->_params.S + precode_off->_params.H;
 	}
 	const Cache_Key key (L_rows, mask.get_holes(),
                                 static_cast<uint32_t> (received_repair.size()),
-                                                                bitmask_repair);
+                                            mask.get_bitmask(), bitmask_repair);
 
 	DenseMtx D = DenseMtx (L_rows + overhead, source_symbols.cols());
 
@@ -406,6 +401,7 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 
 	// do not lock this part, as it's the expensive part
 	shared.unlock();
+    bool DO_NOT_SAVE = false;
 	std::deque<std::unique_ptr<Operation>> ops;
 
 	Precode_Result precode_res = Precode_Result::DONE;
@@ -415,18 +411,23 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 															get()->get (key);
 		auto decompressed = decompress (compressed.first, compressed.second);
 		DenseMtx precomputed = raw_to_Mtx (decompressed, key.out_size());
+        DenseMtx tmp_mis, inter2;
 		if (precomputed.rows() != 0) {
-			missing = precomputed * D;
 			DO_NOT_SAVE = true;
+            missing = precomputed * D;
+            missing = precode_on->get_missing (std::move(missing), mask_safe);
 		} else {
 			std::tie (precode_res, missing) = precode_on->intermediate (D,
 											mask_safe, repair_esi, ops,
 											keep_working, thread_keep_working);
+            missing = precode_on->get_missing (std::move(missing), mask_safe);
 		}
+
 	} else {
 		std::tie (precode_res, missing) = precode_off->intermediate (D,
 											mask_safe, repair_esi, ops,
 											keep_working, thread_keep_working);
+        missing = precode_off->get_missing (std::move(missing), mask_safe);
 	}
     if (precode_res == Precode_Result::STOPPED) {
         if (mask.get_holes() == 0)

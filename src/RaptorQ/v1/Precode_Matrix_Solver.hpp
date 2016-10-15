@@ -60,10 +60,12 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
 	for (i = 0; i < _params.L; ++i)
 		c.emplace_back (i);
 
+    DenseMtx CP_D;
+    if (debug)
+        CP_D = D;
 	std::tie (success, i, u) = decode_phase1 (X, D, c , ops,
 											keep_working, thread_keep_working);
-
-	if (stop (keep_working, thread_keep_working))
+    if (stop (keep_working, thread_keep_working))
 		return std::make_pair (Precode_Result::STOPPED, DenseMtx());
 	if (!success)
 		return std::make_pair (Precode_Result::FAILED, DenseMtx());
@@ -73,7 +75,6 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
 		return std::make_pair (Precode_Result::STOPPED, DenseMtx());
 	if (!success)
 		return std::make_pair (Precode_Result::FAILED, DenseMtx());
-
 	// A now should be considered as being LxL from now
 	decode_phase3 (X, D, i, ops);
 	if (stop (keep_working, thread_keep_working))
@@ -91,6 +92,7 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
 		return std::make_pair (Precode_Result::STOPPED, DenseMtx());
 	if (!success)
 		return std::make_pair (Precode_Result::FAILED, DenseMtx());
+
 	// A now must be an LxL identity matrix: check it.
 	// CHECK DISABLED: phase4  does not modify A, as it's never readed
 	// again. So the Matrix is *not* an identity anymore.
@@ -106,9 +108,18 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
 	if (IS_OFFLINE == Save_Computation::ON)
 		ops.emplace_back (new Operation_Reorder (c));
 
-	C = DenseMtx (D.rows(), D.cols());
+	C = DenseMtx (_params.L, D.cols());
 	for (i = 0; i < _params.L; ++i)
 		C.row (c[i]) = D.row (i);
+
+    if (debug && ops.size() != 0) {
+        DenseMtx test_off (D.rows(), D.rows());
+        test_off.setIdentity (CP_D.rows(), CP_D.rows());
+        for (auto &op : ops)
+            op->build_mtx (test_off);
+        DenseMtx test_res = test_off * CP_D;
+        assert (test_res == C && "RQ: I'm different!");
+    }
 	return std::make_pair (Precode_Result::DONE, C);
 }
 
@@ -120,15 +131,17 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
 										const Work_State *thread_keep_working)
 {
 	decode_phase0 (mask, repair_esi);
-	Precode_Result res;
-	DenseMtx C;
-	std::tie (res, C) = intermediate (D, ops, keep_working, thread_keep_working);
+	return intermediate (D, ops, keep_working, thread_keep_working);
+}
 
-	if (res != Precode_Result::DONE)
-		return std::make_pair (res, C);
-
-	DenseMtx missing = DenseMtx (mask.get_holes(), D.cols());
-	uint16_t holes = mask.get_holes();
+template <Save_Computation IS_OFFLINE>
+DenseMtx Precode_Matrix<IS_OFFLINE>::get_missing (const DenseMtx &C,
+                                                      const Bitmask &mask) const
+{
+    if (C.rows() == 0)
+        return C;
+    DenseMtx missing = DenseMtx (mask.get_holes(), C.cols());
+    uint16_t holes = mask.get_holes();
 	uint16_t row = 0;
 	for (uint16_t hole = 0; hole < mask._max_nonrepair && holes > 0; ++hole) {
 		if (mask.exists (hole))
@@ -138,7 +151,7 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
 		++row;
 		--holes;
 	}
-	return std::make_pair (Precode_Result::DONE, missing);
+	return missing;
 }
 
 template <Save_Computation IS_OFFLINE>

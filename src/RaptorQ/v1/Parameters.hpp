@@ -135,6 +135,11 @@ public:
 		return Octet (RaptorQ__v1::Impl::oct_exp[255 - oct_log[data - 1]]);
 	}
 
+    bool operator== (const Octet a) const
+	{ return data == a.data; }
+    bool operator!= (const Octet a) const
+	{ return data != a.data; }
+
 	friend std::ostream &operator<< (std::ostream &os, const Octet m) {
 		// used to print
 		os << static_cast<uint32_t> (m.data);

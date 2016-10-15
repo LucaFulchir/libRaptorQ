@@ -58,14 +58,16 @@ class RAPTORQ_API Cache_Key
 {
 public:
 	Cache_Key (const uint16_t matrix_size, const uint16_t lost,
-                    const uint32_t repair, const std::vector<bool> &repair_mask)
+                    const uint32_t repair, const std::vector<bool> &lost_mask,
+                                        const std::vector<bool> &repair_mask)
 		:  _lost(lost), _mt_size (matrix_size), _repair (repair),
-                                                        bitmask (repair_mask)
+                        _lost_bitmask (lost_mask), _repair_bitmask (repair_mask)
 	{}
 	uint16_t _lost;
 	uint16_t _mt_size;
     uint32_t _repair;
-	std::vector<bool> bitmask;
+    std::vector<bool> _lost_bitmask;
+	std::vector<bool> _repair_bitmask;
 
 	bool operator< (const Cache_Key &rhs) const;
 	bool operator== (const Cache_Key &rhs) const;

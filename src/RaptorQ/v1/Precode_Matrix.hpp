@@ -68,7 +68,8 @@ public:
 										const std::vector<uint32_t> &repair_esi,
 										Op_Vec &ops, bool &keep_working,
 										const Work_State *thread_keep_working);
-	DenseMtx encode (const DenseMtx &C, const uint32_t iSI) const;
+    DenseMtx get_missing (const DenseMtx &C, const Bitmask &mask) const;
+	DenseMtx encode (const DenseMtx &C, const uint32_t ISI) const;
 
 private:
 	DenseMtx A;
