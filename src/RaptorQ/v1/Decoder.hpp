@@ -360,7 +360,9 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 		L_rows = precode_off->_params.L;
 		S_H = precode_off->_params.S + precode_off->_params.H;
 	}
-	const Cache_Key key (L_rows, mask.get_holes(), bitmask_repair);
+	const Cache_Key key (L_rows, mask.get_holes(),
+                                static_cast<uint32_t> (received_repair.size()),
+                                                                bitmask_repair);
 
 	DenseMtx D = DenseMtx (L_rows + overhead, source_symbols.cols());
 
@@ -412,7 +414,7 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 		auto compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
 		auto decompressed = decompress (compressed.first, compressed.second);
-		DenseMtx precomputed = raw_to_Mtx (decompressed, key._mt_size);
+		DenseMtx precomputed = raw_to_Mtx (decompressed, key.out_size());
 		if (precomputed.rows() != 0) {
 			missing = precomputed * D;
 			DO_NOT_SAVE = true;
@@ -438,8 +440,8 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 		DenseMtx res;
 		// TODO: check again if other thread already saved this?
 		if (missing.rows() != 0) {
-			res.setIdentity (static_cast<int32_t>(L_rows + overhead),
-									static_cast<int32_t>(L_rows + overhead));
+            const int32_t mt_size = static_cast<int32_t>(L_rows + overhead);
+			res.setIdentity (mt_size, mt_size);
 			for (auto &op : ops)
 				op->build_mtx (res);
 			// TODO: lots of wasted ram? how to compress things directly?

@@ -170,7 +170,7 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 
 	if (type == Save_Computation::ON) {
 		const uint16_t size = precode_on->_params.L;
-		const Cache_Key key (size, 0, std::vector<bool>());
+		const Cache_Key key (size, 0, 0, std::vector<bool>());
 		auto compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
 		if (compressed.second.size() != 0) {
@@ -210,7 +210,7 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 	// don't save really small matrices.
 
 	const uint16_t size = precode_on->_params.L;
-	const Cache_Key key (size, 0, std::vector<bool>());
+	const Cache_Key key (size, 0, 0, std::vector<bool>());
 	res.setIdentity (size, size);
 	for (auto &op : ops)
 		op->build_mtx (res);
@@ -296,7 +296,7 @@ bool Raw_Encoder<Rnd_It, Fwd_It>::generate_symbols (
 	std::deque<std::unique_ptr<Operation>> ops;
 	if (type == Save_Computation::ON) {
 		const uint16_t size = precode_on->_params.L;
-		const Cache_Key key (size, 0, std::vector<bool>());
+		const Cache_Key key (size, 0, 0, std::vector<bool>());
 		auto compressed = DLF<std::vector<uint8_t>, Cache_Key>::
 															get()->get (key);
 		if (compressed.second.size() != 0) {

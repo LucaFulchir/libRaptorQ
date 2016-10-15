@@ -38,7 +38,7 @@ namespace Impl {
 // easy compress from/to eigen matrix
 std::vector<uint8_t> RAPTORQ_API Mtx_to_raw (const DenseMtx &mtx);
 DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
-														const uint16_t cols);
+														const uint32_t cols);
 
 
 // TODO: keys and search: we might be able to decode things without using
@@ -58,15 +58,19 @@ class RAPTORQ_API Cache_Key
 {
 public:
 	Cache_Key (const uint16_t matrix_size, const uint16_t lost,
-											const std::vector<bool> &repairs)
-		:  _lost(lost), _mt_size (matrix_size), bitmask (repairs)
+                    const uint32_t repair, const std::vector<bool> &repair_mask)
+		:  _lost(lost), _mt_size (matrix_size), _repair (repair),
+                                                        bitmask (repair_mask)
 	{}
 	uint16_t _lost;
 	uint16_t _mt_size;
+    uint32_t _repair;
 	std::vector<bool> bitmask;
 
 	bool operator< (const Cache_Key &rhs) const;
 	bool operator== (const Cache_Key &rhs) const;
+
+    uint32_t out_size() const;
 };
 
 
@@ -100,7 +104,7 @@ public:
     DLF (DLF &&) = delete; // Don't Implement
     DLF& operator= (DLF &&) = delete;// Don't implement
 
-    static DLF *get()
+    static inline DLF *get()
     {
 		// just drop the cache on exit time. Don't bother destroying
 		// it correctly

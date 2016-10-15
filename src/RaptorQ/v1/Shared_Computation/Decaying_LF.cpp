@@ -38,7 +38,7 @@ std::vector<uint8_t> Mtx_to_raw (const DenseMtx &mtx)
 	return ret;
 }
 
-DenseMtx raw_to_Mtx (const std::vector<uint8_t> &raw, const uint16_t cols)
+DenseMtx raw_to_Mtx (const std::vector<uint8_t> &raw, const uint32_t cols)
 {
 	uint16_t rows = static_cast<uint16_t> (raw.size() / cols);
 	DenseMtx ret (rows, cols);
@@ -55,37 +55,46 @@ bool Cache_Key::operator< (const Cache_Key &rhs) const
 {
 	if (_mt_size < rhs._mt_size)
 		return true;
-	if (_mt_size == rhs._mt_size) {
-		if (_lost < rhs._lost)
-			return true;
-		if (_lost == rhs._lost) {
-			if (bitmask.size() < rhs.bitmask.size())
-				return true;
-			if (bitmask.size() == rhs.bitmask.size()) {
-				int32_t idx = static_cast<int32_t> (bitmask.size() - 1);
-				for (; idx >= 0; --idx) {
-					uint32_t i = static_cast<uint32_t> (idx);
-					if (rhs.bitmask[i] == false &&
-							bitmask[i] == true) {
-						return false;
-					}
-					if (rhs.bitmask[i] == true &&
-							bitmask[i] == false) {
-						return true;
-					}
-				}
-			}
-		}
-	}
-	return false;
+    if (_mt_size > rhs._mt_size)
+        return false;
+    // _mt_size == rhs._mt_size
+    if (_lost < rhs._lost)
+        return true;
+    if (_lost > rhs._lost)
+        return false;
+    // _lost == rhs._lost
+    if (bitmask.size() < rhs.bitmask.size())
+        return true;
+    if (bitmask.size() > rhs.bitmask.size())
+        return false;
+    // bitmask.size() ==  rhs.bitmask.size()
+    int32_t idx = static_cast<int32_t> (bitmask.size() - 1);
+    for (; idx >= 0; --idx) {
+        uint32_t i = static_cast<uint32_t> (idx);
+        if (rhs.bitmask[i] == false &&
+                bitmask[i] == true) {
+            return false;
+        }
+        if (rhs.bitmask[i] == true &&
+                bitmask[i] == false) {
+            return true;
+        }
+    }
+    // all the same
+    return false;
 }
 
 bool Cache_Key::operator== (const Cache_Key &rhs) const
 {
 	return _mt_size == rhs._mt_size && _lost == rhs._lost &&
-				bitmask.size() == rhs.bitmask.size() && bitmask == rhs.bitmask;
+            _repair == rhs._repair &&  bitmask.size() == rhs.bitmask.size() &&
+                                                        bitmask == rhs.bitmask;
 }
 
+uint32_t Cache_Key::out_size() const
+{
+    return (_mt_size - _lost) + _repair;
+}
 
 } // namespace Impl
 } // namespace RaptorQ__v1
