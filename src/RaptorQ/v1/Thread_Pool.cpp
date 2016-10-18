@@ -21,6 +21,21 @@
 #include "RaptorQ/v1/Thread_Pool.hpp"
 
 namespace RFC6330__v1 {
+
+bool set_thread_pool (const size_t threads,
+										const uint16_t max_block_concurrency,
+										const RaptorQ__v1::Work_State exit_type)
+{
+	if (max_block_concurrency == 0 || threads == 0 ||
+                                            max_block_concurrency > threads) {
+		return false;
+    }
+	Impl::max_block_decoder_concurrency = max_block_concurrency;
+	Impl::Thread_Pool::get().resize_pool (threads, exit_type);
+	return true;
+}
+
+
 namespace Impl {
 
 Thread_Pool& Thread_Pool::get()

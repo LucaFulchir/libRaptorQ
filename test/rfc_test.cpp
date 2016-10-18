@@ -38,6 +38,10 @@
 uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 															uint8_t overhead);
 
+// make it easy to use
+namespace RaptorQ = RaptorQ__v1;
+namespace RFC6330 = RFC6330__v1;
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wglobal-constructors"
 #pragma clang diagnostic ignored "-Wexit-time-destructors"

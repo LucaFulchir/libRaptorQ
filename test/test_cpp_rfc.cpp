@@ -30,6 +30,8 @@
 // then encode, drop some packets (source and repair)
 // and finally decode everything.
 
+namespace RFC6330 = RFC6330__v1;
+namespace RaptorQ = RaptorQ__v1;
 
 // mysize is bytes.
 template <typename in_enc_align, typename out_enc_align, typename out_dec_align>

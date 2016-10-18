@@ -55,7 +55,7 @@ public:
 
     bool end_of_input;
 
-	Raw_Decoder (const uint16_t symbols, const uint16_t symbol_size)
+	Raw_Decoder (const uint16_t symbols, const size_t symbol_size)
 		:keep_working (true), type (test_computation()), _symbols (symbols),
 																mask (_symbols)
 	{
@@ -411,7 +411,6 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
 															get()->get (key);
 		auto decompressed = decompress (compressed.first, compressed.second);
 		DenseMtx precomputed = raw_to_Mtx (decompressed, key.out_size());
-        DenseMtx tmp_mis, inter2;
 		if (precomputed.rows() != 0) {
 			DO_NOT_SAVE = true;
             missing = precomputed * D;

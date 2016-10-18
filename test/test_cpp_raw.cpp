@@ -32,6 +32,7 @@
 // then encode, drop some packets (source and repair)
 // and finally decode everything.
 
+namespace RaptorQ = RaptorQ__v1;
 
 // mysize is bytes.
 template <typename in_enc_align, typename out_enc_align, typename out_dec_align>
@@ -213,8 +214,9 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 		}
 	}
 
-	auto res = dec.decode();
-	if (res != Decoder_type::Decoder_Result::DECODED) {
+    dec.end_of_input();
+	auto res = dec.wait_sync();
+	if (res.first != RaptorQ::Error::NONE) {
 		std::cout << "Couldn't decode.\n";
 		return false;
 	}

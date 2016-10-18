@@ -18,7 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../src/RaptorQ/RFC6330_v1.h"
+#include "../src/RaptorQ/RFC6330.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -339,7 +339,7 @@ int main (void)
 {
 	// set local cache size to 100MB
 #ifdef RQ_USE_LZ4
-	RaptorQ_set_compression (RQ_COMPRESS_NONE);
+	RaptorQ_set_compression (RQ_COMPRESS_LZ4);
 #else
 	RaptorQ_set_compression (RQ_COMPRESS_NONE);
 #endif

@@ -1,4 +1,5 @@
 v0.2.0 (prealpha):
+    * API reworked to easy manage old/new API in the future
     * new, simpler RAW API (single-block)
     * computations can be stopped
     * precomputation caching

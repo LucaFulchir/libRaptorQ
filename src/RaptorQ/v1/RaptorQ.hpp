@@ -24,10 +24,12 @@
 #include "RaptorQ/v1/RaptorQ_Iterators.hpp"
 #include "RaptorQ/v1/Encoder.hpp"
 #include "RaptorQ/v1/Decoder.hpp"
+#include "RaptorQ/v1/Parameters.hpp"
 #include <algorithm>
 #include <atomic>
 #include <deque>
 #include <future>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -45,27 +47,28 @@ class RAPTORQ_LOCAL Encoder
 public:
 	~Encoder();
     // used for precomputation
-    Encoder (const uint16_t symbols, const uint16_t symbol_size);
+    Encoder (const uint16_t symbols, const size_t symbol_size);
     // with data at the beginning. Less work.
     Encoder (const Rnd_It data_from, const Rnd_It data_to,
-													const uint16_t symbol_size);
+													const size_t symbol_size);
 	uint16_t symbols() const;
-	uint16_t symbol_size() const;
+	size_t symbol_size() const;
 	uint32_t max_repair() const;
 
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> begin_source();
 	RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end_source();
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> begin_repair();
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end_repair
-														(const uint32_t repair);
+                                                        (const uint32_t repair);
 
 	size_t add_data (Rnd_It &from, const Rnd_It to);
+    //TODO: end_of_input!
 	void clear_data();
 	bool compute_sync();
 	size_t needed_bytes();
 
     std::future<Error> compute();
-    size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
+    size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t id);
 
 private:
 	enum class Data_State : uint8_t {
@@ -80,13 +83,14 @@ private:
 	std::vector<typename std::iterator_traits<Rnd_It>::value_type> data;
 	std::thread waiting;
 	std::mutex data_mtx;
-	const uint16_t _symbols, _symbol_size;
+    const size_t _symbol_size;
+	const uint16_t _symbols;
     Data_State state;
 
 
-	static uint16_t real_symbol_size (const uint16_t symbol_size);
+	static size_t real_symbol_size (const size_t symbol_size);
 	static uint16_t calc_symbols (const Rnd_It data_from, const Rnd_It data_to,
-													const uint16_t symbol_size);
+													const size_t symbol_size);
 	static void compute_thread (Encoder<Rnd_It, Fwd_It> *obj,
 														std::promise<Error> p);
 };
@@ -97,29 +101,31 @@ class RAPTORQ_LOCAL Decoder
 public:
 
 	enum class RAPTORQ_LOCAL Report : uint8_t {
-		PARTIAL_FROM_BEGINNING = 1,
-		PARTIAL_ANY = 2,
-		COMPLETE = 3
+		PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
+		PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
+		COMPLETE = RQ_COMPUTE_COMPLETE
 	};
 
 	~Decoder();
-    Decoder (const uint16_t symbols, const uint16_t symbol_size,
+    Decoder (const uint16_t symbols, const size_t symbol_size,
 															const Report type);
 
 	uint16_t symbols() const;
-	uint16_t symbol_size() const;
+	size_t symbol_size() const;
 
-	RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> begin ();
-    RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> end ();
+	RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> begin();
+    RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> end();
 
 	Error add_symbol (In_It &from, const In_It to, const uint32_t esi);
-	using Decoder_Result = typename Raw_Decoder<In_It>::Decoder_Result;
+    void end_of_input();
 
 	bool can_decode() const;
-	Decoder_Result decode();
 	void stop();
 	uint16_t needed_symbols() const;
 
+    void set_max_concurrency (const uint16_t max_threads);
+    using Decoder_Result = typename Raw_Decoder<In_It>::Decoder_Result;
+    Decoder_Result decode_once();
 	std::pair<Error, uint16_t> poll();
 	std::pair<Error, uint16_t> wait_sync();
 	std::future<std::pair<Error, uint16_t>> wait();
@@ -130,7 +136,9 @@ public:
 	std::pair<size_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
 									const size_t from_byte, const size_t skip);
 private:
-	const uint16_t _symbols, _symbol_size;
+    uint16_t _max_threads;
+	const uint16_t _symbols;
+    const size_t _symbol_size;
 	std::atomic<uint32_t> last_reported;
 	const Report _type;
 	RaptorQ__v1::Work_State work;
@@ -161,17 +169,22 @@ Encoder<Rnd_It, Fwd_It>::~Encoder()
 
 template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::Encoder (const uint16_t symbols,
-													const uint16_t symbol_size)
-	: interleaver (nullptr), encoder (symbols), _symbols (symbols),
-													_symbol_size (symbol_size)
+													const size_t symbol_size)
+	: interleaver (nullptr), encoder (symbols), _symbol_size (symbol_size),
+                                                            _symbols (symbols)
 {
 	IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
 	IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
     state = Data_State::NEED_DATA;
+    using T = typename std::iterator_traits<Rnd_It>::value_type;
+    const size_t tot_size = symbols * symbol_size;
+    const size_t it_size = (tot_size / sizeof(T)) +
+                                        (tot_size % sizeof(T) == 0 ? 0 : 1);
+    data.reserve (it_size);
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint16_t Encoder<Rnd_It, Fwd_It>::real_symbol_size (const uint16_t symbol_size)
+size_t Encoder<Rnd_It, Fwd_It>::real_symbol_size (const size_t symbol_size)
 {
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
 	return symbol_size * sizeof(T);
@@ -180,7 +193,7 @@ uint16_t Encoder<Rnd_It, Fwd_It>::real_symbol_size (const uint16_t symbol_size)
 template <typename Rnd_It, typename Fwd_It>
 uint16_t Encoder<Rnd_It, Fwd_It>::calc_symbols (const Rnd_It data_from,
 													const Rnd_It data_to,
-													const uint16_t symbol_size)
+													const size_t symbol_size)
 {
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
 
@@ -193,14 +206,14 @@ uint16_t Encoder<Rnd_It, Fwd_It>::calc_symbols (const Rnd_It data_from,
 
 template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::Encoder (const Rnd_It data_from, const Rnd_It data_to,
-                                            const uint16_t symbol_size)
+                                                    const size_t symbol_size)
     : interleaver (new RFC6330__v1::Impl::Interleaver<Rnd_It> (data_from,
 									data_to, real_symbol_size(symbol_size),
 									SIZE_MAX, real_symbol_size(symbol_size))),
 	  encoder (interleaver.get(), 0),
-		_symbols (calc_symbols (data_from, data_to,
-												real_symbol_size(symbol_size))),
-		_symbol_size (real_symbol_size(symbol_size))
+                                _symbol_size (real_symbol_size(symbol_size)),
+                                _symbols (calc_symbols (data_from, data_to,
+												real_symbol_size(symbol_size)))
 {
 	IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
 	IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
@@ -214,7 +227,7 @@ uint16_t Encoder<Rnd_It, Fwd_It>::symbols() const
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint16_t Encoder<Rnd_It, Fwd_It>::symbol_size() const
+size_t Encoder<Rnd_It, Fwd_It>::symbol_size() const
 {
 	return _symbol_size;
 }
@@ -222,19 +235,28 @@ uint16_t Encoder<Rnd_It, Fwd_It>::symbol_size() const
 template <typename Rnd_It, typename Fwd_It>
 uint32_t Encoder<Rnd_It, Fwd_It>::max_repair() const
 {
-	return static_cast<uint32_t> (std::pow(2, 20)) - _symbols;
+    // you can have up to 56403 symbols in a block
+    // rfc6330 limits you to 992173 repair symbols
+    // but limits are meant to be broken!
+    // the limit sould be up to 4294967279 repair symbols 2^32-(_param.S + H)
+    // but people might misuse the API, and call end_repair(max_repair),
+    // which would overflow.
+    // We are sorry for taking away from you that 0.0014% of repair symbols.
+    auto _param = Parameters (_symbols);
+    return static_cast<uint32_t> (std::numeric_limits<uint32_t>::max() -
+                                                                    _param.L);
 }
 
 template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
-										Encoder<Rnd_It, Fwd_It>::begin_source()
+                                        Encoder<Rnd_It, Fwd_It>::begin_source()
 {
 	return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (this, 0);
 }
 
 template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
-										Encoder<Rnd_It, Fwd_It>::end_source()
+                                       Encoder<Rnd_It, Fwd_It>::end_source()
 {
 	return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (this,
 																	_symbols);
@@ -242,17 +264,17 @@ RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
 
 template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
-										Encoder<Rnd_It, Fwd_It>::begin_repair()
+                                        Encoder<Rnd_It, Fwd_It>::begin_repair()
 {
 	return end_source();
 }
 
 template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
-					Encoder<Rnd_It, Fwd_It>::end_repair (const uint32_t repair)
+                    Encoder<Rnd_It, Fwd_It>::end_repair (const uint32_t repair)
 {
 	return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (nullptr,
-															_symbols + repair);
+                                                            _symbols + repair);
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -346,7 +368,7 @@ std::future<Error> Encoder<Rnd_It, Fwd_It>::compute()
 
 template <typename Rnd_It, typename Fwd_It>
 size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
-															const uint32_t &id)
+															const uint32_t id)
 {
 	// returns number of iterators written
 	switch (state) {
@@ -403,7 +425,7 @@ Decoder<In_It, Fwd_It>::~Decoder ()
 
 template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::Decoder (const uint16_t symbols,
-								const uint16_t symbol_size, const Report type)
+								const size_t symbol_size, const Report type)
 	:_symbols (symbols), _symbol_size (symbol_size), _type (type),
 													dec (_symbols, symbol_size)
 {
@@ -415,6 +437,7 @@ Decoder<In_It, Fwd_It>::Decoder (const uint16_t symbols,
 	for(uint32_t idx = 0; idx < 2 * _symbols; ++idx)
 		symbols_tracker[idx] = false;
 	work = RaptorQ__v1::Work_State::KEEP_WORKING;
+    _max_threads = 2;
 }
 
 template <typename In_It, typename Fwd_It>
@@ -424,21 +447,21 @@ uint16_t Decoder<In_It, Fwd_It>::symbols() const
 }
 
 template <typename In_It, typename Fwd_It>
-uint16_t Decoder<In_It, Fwd_It>::symbol_size() const
+size_t Decoder<In_It, Fwd_It>::symbol_size() const
 {
 	return _symbol_size;
 }
 
 template <typename In_It, typename Fwd_It>
 RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
-												Decoder<In_It, Fwd_It>::begin()
+                                                Decoder<In_It, Fwd_It>::begin()
 {
 	return RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> (this, 0);
 }
 
 template <typename In_It, typename Fwd_It>
 RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
-												Decoder<In_It, Fwd_It>::end()
+                                                Decoder<In_It, Fwd_It>::end()
 {
 	return RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> (nullptr,
 																_symbols);
@@ -466,7 +489,6 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
 template <typename In_It, typename Fwd_It>
 std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
 {
-	std::unique_lock<std::mutex> lock (_mtx, std::defer_lock);
 	uint32_t idx;
 	uint32_t last;
 	bool expected = false;
@@ -493,12 +515,12 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
 				if (last >= idx) {
 					// other thread already reported more than us.
 					// do not report things twice.
-					if (dec.threads() > 0)
-						return {Error::WORKING, 0};
 					if (dec.ready()) {
 						last_reported.store (_symbols);
 						return {Error::NONE, _symbols};
 					}
+                    if (dec.threads() > 0)
+						return {Error::WORKING, 0};
 					return {Error::NEED_DATA, 0};
 				}
 				// else we can report the new stuff
@@ -506,12 +528,12 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
 			return {Error::NONE, idx};
 		}
 		// nothing to report
-		if (dec.threads() > 0)
-			return {Error::WORKING, 0};
 		if (dec.ready()) {
 			last_reported.store (_symbols);
 			return {Error::NONE, _symbols};
 		}
+        if (dec.threads() > 0)
+			return {Error::WORKING, 0};
 		return {Error::NEED_DATA, 0};
 	case Report::PARTIAL_ANY:
 		// report the first available, not yet reported.
@@ -532,18 +554,19 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
 				}
 			}
 		}
-		if (dec.threads() > 0)
-			return {Error::WORKING, 0};
 		if (dec.ready())
 			return {Error::NONE, _symbols};
+        if (dec.threads() > 0)
+			return {Error::WORKING, 0};
 		return {Error::NEED_DATA, 0};
 	case Report::COMPLETE:
-		// "last_reported" is only used in this function, so now we can
-		// make it mean "last index in symbols_tracker", instead of
-		// "last reported symbol number"
-		idx = last_reported.load();
+        auto init = last_reported.load();
+		idx = init * 2;
 		for (; idx < symbols_tracker.size(); idx += 2) {
 			if (symbols_tracker[idx].load() == false) {
+                idx /= 2;
+                while (!last_reported.compare_exchange_weak(init, idx))
+                    idx = std::max(init, idx);
 				if (dec.threads() > 0)
 					return {Error::WORKING, 0};
 				return {Error::NEED_DATA, 0};
@@ -559,21 +582,31 @@ template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::waiting_thread (Decoder<In_It, Fwd_It> *obj,
 									std::promise<std::pair<Error, uint16_t>> p)
 {
-	// return on not enough data or finished computation.
 	while (obj->work == RaptorQ__v1::Work_State::KEEP_WORKING) {
-		obj->dec.decode (&obj->work);
+        bool compute = obj->dec.add_concurrent (obj->_max_threads);
+        if (compute) {
+            obj->decode_once();
+            std::unique_lock<std::mutex> lock (obj->_mtx);
+            obj->dec.drop_concurrent();
+            lock.unlock();
+            obj->_cond.notify_all(); // notify other waiting threads
+        }
 		std::unique_lock<std::mutex> lock (obj->_mtx);
 		// poll() does not actually need to be locked, but we use the
 		// lock-wait mechanism to signal the arrival of new symbols,
-		// so that we retry only when necessary
+		// so that we retry only when we get new data.
 		auto res = obj->poll();
-		if (res.first == Error::NONE || res.first == Error::NEED_DATA) {
+		if (res.first == Error::NONE || (obj->dec.end_of_input == true &&
+                                            !obj->dec.can_decode()  &&
+                                            obj->dec.threads() == 0 &&
+                                                res.first == Error::NEED_DATA)){
 			p.set_value (res);
 			break;
 		}
 		obj->_cond.wait (lock);
 		lock.unlock();
 	}
+
 	if (obj->work != RaptorQ__v1::Work_State::KEEP_WORKING)
 		p.set_value ({Error::EXITING, 0});
 
@@ -610,27 +643,34 @@ std::future<std::pair<Error, uint16_t>> Decoder<In_It, Fwd_It>::wait ()
 }
 
 template <typename In_It, typename Fwd_It>
-bool Decoder<In_It, Fwd_It>::can_decode() const
-{
-	return dec.can_decode();
-}
+void Decoder<In_It, Fwd_It>::end_of_input()
+    { dec.end_of_input = true; }
 
 template <typename In_It, typename Fwd_It>
-typename Decoder<In_It, Fwd_It>::Decoder_Result Decoder<In_It, Fwd_It>::decode()
+bool Decoder<In_It, Fwd_It>::can_decode() const
+    { return dec.can_decode(); }
+
+template <typename In_It, typename Fwd_It>
+void Decoder<In_It, Fwd_It>::set_max_concurrency (const uint16_t max_threads)
+    { _max_threads = max_threads; }
+
+template <typename In_It, typename Fwd_It>
+typename Decoder<In_It, Fwd_It>::Decoder_Result
+                                        Decoder<In_It, Fwd_It>::decode_once()
 {
-	auto res = dec.decode (&work);
-	if (res == Decoder_Result::DECODED) {
-		std::unique_lock<std::mutex> lock (_mtx);
-		RQ_UNUSED (lock);
-		if (_type != Report::COMPLETE) {
-			uint32_t id = last_reported.load();
-			for (; id < symbols_tracker.size(); id += 2)
-				symbols_tracker[id].store (true);
-		}
-		lock.unlock();
-		_cond.notify_all();
-	}
-	return res;
+    auto res = dec.decode (&work);
+    if (res == Decoder_Result::DECODED) {
+        std::unique_lock<std::mutex> lock (_mtx);
+        RQ_UNUSED (lock);
+        if (_type != Report::COMPLETE) {
+            uint32_t id = last_reported.load();
+            for (; id < symbols_tracker.size(); id += 2)
+                symbols_tracker[id].store (true);
+        }
+        last_reported.store(_symbols);
+        lock.unlock();
+    }
+    return res;
 }
 
 template <typename In_It, typename Fwd_It>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -18,23 +18,7 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "RaptorQ/v1/API_Wrapper.hpp"
-#include "RaptorQ/v1/caches.hpp"
-#include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
+#pragma once
 
-namespace RFC6330__v1 {
+#include "RaptorQ/v1/wrapper/C_RAW_API.h"
 
-bool set_thread_pool (const size_t threads,
-										const uint16_t max_block_concurrency,
-										const RaptorQ__v1::Work_State exit_type)
-{
-	if (max_block_concurrency == 0 || threads == 0 ||
-                                            max_block_concurrency > threads) {
-		return false;
-    }
-	Impl::max_block_decoder_concurrency = max_block_concurrency;
-	Impl::Thread_Pool::get().resize_pool (threads, exit_type);
-	return true;
-}
-
-}   // namespace RFC6330__v1

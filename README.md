@@ -159,8 +159,12 @@ LTO			ON/OFF: Default:ON. Activate or deactivate Link time Optimization
 				Only for gcc/clang.
 CLANG_STDLIB ON/OFF: Default:OFF. use clang's libc++
 				Note: only clang can use its standard library
+USE_LZ4     ON/OFF: use the lz4 compression for caching precomputations.
+                Default: ON
+CLI         ON/OFF Build Command Line Interface tools.
 CMAKE_C_COMPILER	gcc, clang...
 CMAKE_CXX_COMPILER	choose between g++ or clang++.
+RQ_LINKER   gold/ld/bsd Choose your linker. Default:autodetect.
 CMAKE_BUILD_TYPE	Debug,MinSizeRel,Release,RelWithDebInfo
 CMAKE_INSTALL_PREFIX Default: /usr/local
 ```

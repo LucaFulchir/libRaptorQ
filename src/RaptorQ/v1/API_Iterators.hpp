@@ -24,15 +24,6 @@
 #include "RaptorQ/v1/Interleaver.hpp"
 #include <cmath>
 
-/////////////////////
-//
-//	These templates are just a wrapper around the
-//	functionalities offered by the RaptorQ__v1::Impl namespace
-//	So if you want to see what the algorithm looks like,
-//	you are in the wrong place
-//
-/////////////////////
-
 namespace RFC6330__v1 {
 namespace Impl {
 

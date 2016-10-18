@@ -115,7 +115,7 @@ public:
     }
 
     size_t get_size() const;
-    bool resize (const size_t new_size);
+    size_t resize (const size_t new_size);
     bool add (const Compress algo, User_Data &raw, const Key &key);
     std::pair<Compress, User_Data> get (const Key &key);
 private:
@@ -199,7 +199,7 @@ size_t DLF<User_Data, Key>::get_size() const
 }
 
 template<typename User_Data, typename Key>
-bool DLF<User_Data, Key>::resize (const size_t new_size)
+size_t DLF<User_Data, Key>::resize (const size_t new_size)
 {
     std::lock_guard<std::mutex> guard (biglock);
     while (actual_size < new_size) {
@@ -212,7 +212,7 @@ bool DLF<User_Data, Key>::resize (const size_t new_size)
         data.erase (it);
     }
     max_size = new_size;
-    return true;
+    return max_size;
 }
 
 template<typename User_Data, typename Key>

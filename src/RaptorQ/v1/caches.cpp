@@ -67,7 +67,7 @@ size_t shared_cache_size (const size_t shared_cache)
     return 0;
 }
 
-bool local_cache_size (const size_t local_cache)
+size_t local_cache_size (const size_t local_cache)
 {
     return RaptorQ__v1::Impl::DLF<std::vector<uint8_t>,
 									RaptorQ__v1::Impl::Cache_Key>::

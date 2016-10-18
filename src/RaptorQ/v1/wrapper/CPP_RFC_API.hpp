@@ -40,14 +40,6 @@
 namespace RFC6330__v1 {
 
 ////////////////////
-//// Free Functions
-////////////////////
-
-bool RAPTORQ_API set_thread_pool (const size_t threads,
-									const uint16_t max_block_concurrency,
-									const RaptorQ__v1::Work_State exit_type);
-
-////////////////////
 //// Encoder
 ////////////////////
 

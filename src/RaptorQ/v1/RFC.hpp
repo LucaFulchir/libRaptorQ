@@ -54,13 +54,6 @@ typedef uint32_t RQ_OTI_Scheme_Specific_Data;
 
 namespace Impl {
 
-// maximum times a single block can be decoded at the same time.
-// the decoder can be launched multiple times with different combinations
-// of repair symbols. This can be useful as the decoding is actually
-// probabilistic, and dropping a set of repair symbols *MIGHT* make things
-// decodable again.
-// keep this low. 1, 2, 3 should be ok.
-static uint16_t max_block_decoder_concurrency = 1;
 static const uint64_t max_data = 946270874880;	// ~881 GB
 
 

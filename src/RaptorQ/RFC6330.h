@@ -20,5 +20,5 @@
 
 #pragma once
 
-#include "RaptorQ/v1/API_Wrapper.h"
+#include "RaptorQ/v1/wrapper/C_RFC_API.h"
 

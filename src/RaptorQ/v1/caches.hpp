@@ -31,7 +31,7 @@ Compress RAPTORQ_API get_compression();
 bool     RAPTORQ_API set_compression (const Compress compression);
 
 size_t RAPTORQ_API shared_cache_size (const size_t shared_cache);
-bool RAPTORQ_API local_cache_size (const size_t local_cache);
+size_t RAPTORQ_API local_cache_size (const size_t local_cache);
 size_t RAPTORQ_API get_shared_cache_size();
 size_t RAPTORQ_API get_local_cache_size();
 

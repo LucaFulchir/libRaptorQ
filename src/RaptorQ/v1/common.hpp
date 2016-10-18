@@ -180,7 +180,7 @@ namespace Impl {
 #endif
 // don't use #define everywhere. let the dead code elimination take care
 // of eliminating unused code.
-constexpr bool debug = RQ_DEBUG;
+constexpr RAPTORQ_LOCAL bool debug = RQ_DEBUG;
 }
 }
 

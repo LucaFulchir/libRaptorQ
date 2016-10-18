@@ -197,21 +197,18 @@ endif()
 
 
 SET(SOURCES
-            src/RaptorQ/v1/API_Wrapper_C.cpp
             src/RaptorQ/v1/caches.cpp
             src/RaptorQ/v1/Operation.cpp
             src/RaptorQ/v1/Parameters.cpp
             src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp
             src/RaptorQ/v1/Rand.cpp
-            src/RaptorQ/v1/RFC.cpp
             src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp
-    		src/RaptorQ/v1/Thread_Pool.cpp)
+    		src/RaptorQ/v1/Thread_Pool.cpp
+            #src/RaptorQ/v1/wrapper/C_RAW_API.cpp
+            src/RaptorQ/v1/wrapper/C_RFC_API.cpp)
 
 SET(HEADERS
             src/RaptorQ/v1/API_Iterators.hpp
-            src/RaptorQ/v1/API_Wrapper.h
-            src/RaptorQ/v1/API_Wrapper.hpp
-            src/RaptorQ/v1/API_Wrapper_Raw.hpp
             src/RaptorQ/v1/caches.hpp
             src/RaptorQ/v1/common.hpp
             src/RaptorQ/v1/De_Interleaver.hpp
@@ -235,9 +232,15 @@ SET(HEADERS
             src/RaptorQ/v1/util/Bitmask.hpp
             src/RaptorQ/v1/util/div.hpp
             src/RaptorQ/v1/util/Graph.hpp
+            src/RaptorQ/RaptorQ.h
+            src/RaptorQ/RaptorQ_v1.hpp
+            src/RaptorQ/RFC6330.h
             src/RaptorQ/RFC6330_v1.hpp
-			src/RaptorQ/RFC6330_v1.h
-			src/RaptorQ/RaptorQ_v1.hpp)
+            src/RaptorQ/v1/wrapper/C_common.h
+            #src/RaptorQ/v1/wrapper/C_RAW_API.h
+            src/RaptorQ/v1/wrapper/C_RFC_API.h
+            src/RaptorQ/v1/wrapper/CPP_RFC_API.hpp
+            src/RaptorQ/v1/wrapper/CPP_RAW_API.hpp)
 
 if (USE_LZ4 MATCHES "ON")
     SET (HEADERS ${HEADERS}
