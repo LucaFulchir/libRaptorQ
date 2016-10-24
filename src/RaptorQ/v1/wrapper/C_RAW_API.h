@@ -67,6 +67,8 @@ extern "C"
                                             const RaptorQ_Block_Size symbols,
                                             const size_t symbol_size,
                                             const RaptorQ_Compute report);
+        bool (*initialized) (const RaptorQ_ptr *ptr);
+
         // common functions
         uint16_t (*symbols)     (const RaptorQ_ptr *ptr);
         size_t   (*symbol_size) (const RaptorQ_ptr *ptr);
