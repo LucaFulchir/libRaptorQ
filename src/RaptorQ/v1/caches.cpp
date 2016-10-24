@@ -34,32 +34,32 @@ static Compress compression = Compress::NONE;
 Compress supported_compressions()
 {
 #ifdef RQ_USE_LZ4
-	return Compress::NONE | Compress::LZ4;
+    return Compress::NONE | Compress::LZ4;
 #else
-	return Compress::NONE;
+    return Compress::NONE;
 #endif
 }
 
 Compress get_compression()
 {
-	return Impl::compression;
+    return Impl::compression;
 }
 
 bool set_compression (const Compress _compression)
 {
-	switch (_compression) {
-	case Compress::NONE:
-		Impl::compression = Compress::NONE;
-		return true;
-	case Compress::LZ4:
+    switch (_compression) {
+    case Compress::NONE:
+        Impl::compression = Compress::NONE;
+        return true;
+    case Compress::LZ4:
 #ifdef RQ_USE_LZ4
-		Impl::compression = Compress::LZ4;
-		return true;
+        Impl::compression = Compress::LZ4;
+        return true;
 #else
-		return false;
+        return false;
 #endif
-	}
-	return false;
+    }
+    return false;
 }
 
 size_t shared_cache_size (const size_t shared_cache)
@@ -70,8 +70,8 @@ size_t shared_cache_size (const size_t shared_cache)
 size_t local_cache_size (const size_t local_cache)
 {
     return RaptorQ__v1::Impl::DLF<std::vector<uint8_t>,
-									RaptorQ__v1::Impl::Cache_Key>::
-												get()->resize (local_cache);
+                                    RaptorQ__v1::Impl::Cache_Key>::
+                                                get()->resize (local_cache);
 }
 
 size_t get_shared_cache_size()
@@ -82,27 +82,27 @@ size_t get_shared_cache_size()
 size_t get_local_cache_size()
 {
     return RaptorQ__v1::Impl::DLF<std::vector<uint8_t>,
-									RaptorQ__v1::Impl::Cache_Key>::
-															get()->get_size();
+                                    RaptorQ__v1::Impl::Cache_Key>::
+                                                            get()->get_size();
 }
 
 namespace Impl {
 std::pair<Compress, std::vector<uint8_t>> compress (
-											const std::vector<uint8_t> &data)
+                                            const std::vector<uint8_t> &data)
 {
     if (Impl::compression == Compress::NONE)
-		return {Compress::NONE, data};
+        return {Compress::NONE, data};
 #ifdef RQ_USE_LZ4
     if (Impl::compression == Compress::LZ4) {
         LZ4<LZ4_t::ENCODER> lz4;
-		return {Compress::LZ4, lz4.encode (data)};
+        return {Compress::LZ4, lz4.encode (data)};
     }
 #endif
-	return {Compress::NONE, std::vector<uint8_t>()};
+    return {Compress::NONE, std::vector<uint8_t>()};
 }
 
 std::vector<uint8_t> decompress (const Compress algorithm,
-											const std::vector<uint8_t> &data)
+                                            const std::vector<uint8_t> &data)
 {
     if (algorithm == Compress::NONE)
         return data;

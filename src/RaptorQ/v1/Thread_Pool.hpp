@@ -34,13 +34,13 @@
 namespace RFC6330__v1 {
 
 bool RAPTORQ_API set_thread_pool (const size_t threads,
-									const uint16_t max_block_concurrency,
-									const RaptorQ__v1::Work_State exit_type);
+                                    const uint16_t max_block_concurrency,
+                                    const RaptorQ__v1::Work_State exit_type);
 
 enum class RAPTORQ_API Work_Exit_Status : uint8_t {
-	DONE = 0,
-	STOPPED = 1,
-	REQUEUE = 2
+    DONE = 0,
+    STOPPED = 1,
+    REQUEUE = 2
 };
 
 
@@ -59,20 +59,20 @@ static uint16_t max_block_decoder_concurrency = 1;
 #pragma GCC diagnostic pop
 
 enum class RAPTORQ_LOCAL Work_State_Overlay : uint8_t {
-		KEEP_WORKING = static_cast<uint8_t> (
-									RaptorQ__v1::Work_State::KEEP_WORKING),
-		ABORT_COMPUTATION = static_cast<uint8_t>(
-									RaptorQ__v1::Work_State::ABORT_COMPUTATION),
-		WAITING = 100
-		};
+        KEEP_WORKING = static_cast<uint8_t> (
+                                    RaptorQ__v1::Work_State::KEEP_WORKING),
+        ABORT_COMPUTATION = static_cast<uint8_t>(
+                                    RaptorQ__v1::Work_State::ABORT_COMPUTATION),
+        WAITING = 100
+        };
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wweak-vtables"
 class RAPTORQ_LOCAL Pool_Work
 {
 public:
-	Work_Exit_Status virtual do_work (RaptorQ__v1::Work_State *state) = 0;
-	virtual ~Pool_Work() {}
+    Work_Exit_Status virtual do_work (RaptorQ__v1::Work_State *state) = 0;
+    virtual ~Pool_Work() {}
 };
 #pragma clang diagnostic pop
 
@@ -84,25 +84,25 @@ public:
     Thread_Pool& operator=(Thread_Pool const&) = delete;
     Thread_Pool& operator=(Thread_Pool &&) = delete;
 
-	static Thread_Pool& get();
+    static Thread_Pool& get();
 
-	size_t size();
+    size_t size();
     void resize_pool (const size_t size, const RaptorQ__v1::Work_State exit_t);
     bool add_work (std::unique_ptr<Pool_Work> work);
 
 private:
-	Thread_Pool();
+    Thread_Pool();
     ~Thread_Pool();
     std::mutex _data_mtx, _pool_mtx;
-	std::condition_variable _cond;
+    std::condition_variable _cond;
     // map will not invalidate references on add/delete.
-	// pair (thread, &keep_working)
-	using th_state = std::pair<std::thread, std::weak_ptr<Work_State_Overlay>>;
+    // pair (thread, &keep_working)
+    using th_state = std::pair<std::thread, std::weak_ptr<Work_State_Overlay>>;
     std::list<th_state> _pool, _exiting;
-	std::deque<std::unique_ptr<Pool_Work>> _queue;
+    std::deque<std::unique_ptr<Pool_Work>> _queue;
 
     static void working_thread (Thread_Pool *obj,
-									std::shared_ptr<Work_State_Overlay> state);
+                                    std::shared_ptr<Work_State_Overlay> state);
 };
 
 } // namespace Impl

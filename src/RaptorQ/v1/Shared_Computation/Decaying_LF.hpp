@@ -38,7 +38,7 @@ namespace Impl {
 // easy compress from/to eigen matrix
 std::vector<uint8_t> RAPTORQ_API Mtx_to_raw (const DenseMtx &mtx);
 DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
-														const uint32_t cols);
+                                                        const uint32_t cols);
 
 
 // TODO: keys and search: we might be able to decode things without using
@@ -57,20 +57,20 @@ DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
 class RAPTORQ_API Cache_Key
 {
 public:
-	Cache_Key (const uint16_t matrix_size, const uint16_t lost,
+    Cache_Key (const uint16_t matrix_size, const uint16_t lost,
                     const uint32_t repair, const std::vector<bool> &lost_mask,
                                         const std::vector<bool> &repair_mask)
-		:  _lost(lost), _mt_size (matrix_size), _repair (repair),
+        :  _lost(lost), _mt_size (matrix_size), _repair (repair),
                         _lost_bitmask (lost_mask), _repair_bitmask (repair_mask)
-	{}
-	uint16_t _lost;
-	uint16_t _mt_size;
+    {}
+    uint16_t _lost;
+    uint16_t _mt_size;
     uint32_t _repair;
     std::vector<bool> _lost_bitmask;
-	std::vector<bool> _repair_bitmask;
+    std::vector<bool> _repair_bitmask;
 
-	bool operator< (const Cache_Key &rhs) const;
-	bool operator== (const Cache_Key &rhs) const;
+    bool operator< (const Cache_Key &rhs) const;
+    bool operator== (const Cache_Key &rhs) const;
 
     uint32_t out_size() const;
 };
@@ -108,8 +108,8 @@ public:
 
     static inline DLF *get()
     {
-		// just drop the cache on exit time. Don't bother destroying
-		// it correctly
+        // just drop the cache on exit time. Don't bother destroying
+        // it correctly
         static DLF<User_Data, Key> *instance = new DLF<User_Data, Key>();
         return instance;
     }
@@ -129,19 +129,19 @@ private:
     class DLF_Data
     {
     public:
-		DLF_Data (const DLF_Data &d);
-		DLF_Data (const Key k, const uint32_t _score, const uint32_t _tick,
-										User_Data &_raw, const Compress alg)
-			: key (k), score (_score), tick(_tick), raw(_raw), algorithm (alg)
-		{}
+        DLF_Data (const DLF_Data &d);
+        DLF_Data (const Key k, const uint32_t _score, const uint32_t _tick,
+                                        User_Data &_raw, const Compress alg)
+            : key (k), score (_score), tick(_tick), raw(_raw), algorithm (alg)
+        {}
         Key key;
         std::atomic<uint32_t> score;
         std::atomic<uint32_t> tick;
         User_Data raw;
-		Compress algorithm;
+        Compress algorithm;
 
         bool operator< (const DLF_Data &rhs) const;
-		DLF_Data& operator= (const DLF_Data &rhs);
+        DLF_Data& operator= (const DLF_Data &rhs);
     };
     std::mutex biglock;
     std::atomic<uint32_t> global_tick;
@@ -153,29 +153,29 @@ private:
 
 template<typename User_Data, typename Key>
 DLF<User_Data, Key>::DLF_Data::DLF_Data (const DLF_Data &d)
-	:key (d.key)
+    :key (d.key)
 {
-	auto _score = d.score.load();
-	auto _tick = d.tick.load();
-	algorithm = d.algorithm;
-	score = _score;
-	tick = _tick;
-	raw = d.raw;
+    auto _score = d.score.load();
+    auto _tick = d.tick.load();
+    algorithm = d.algorithm;
+    score = _score;
+    tick = _tick;
+    raw = d.raw;
 }
 
 template<typename User_Data, typename Key>
 typename DLF<User_Data, Key>::DLF_Data&
    DLF<User_Data, Key>::DLF_Data::operator= (const DLF_Data &d)
 {
-	auto _score = d.score.load();
-	auto _tick = d.tick.load();
-	key = d.key;
-	algorithm = d.algorithm;
-	score = _score;
-	tick = _tick;
-	raw = d.raw;
+    auto _score = d.score.load();
+    auto _tick = d.tick.load();
+    key = d.key;
+    algorithm = d.algorithm;
+    score = _score;
+    tick = _tick;
+    raw = d.raw;
 
-	return *this;
+    return *this;
 }
 
 template<typename User_Data, typename Key>
@@ -187,9 +187,9 @@ bool DLF<User_Data, Key>::DLF_Data::operator< (const DLF_Data &rhs) const
 template<typename User_Data, typename Key>
 DLF<User_Data, Key>::DLF()
 {
-	global_tick = 0;
-	actual_size = 0;
-	max_size = 0;
+    global_tick = 0;
+    actual_size = 0;
+    max_size = 0;
 }
 
 template<typename User_Data, typename Key>
@@ -207,8 +207,8 @@ size_t DLF<User_Data, Key>::resize (const size_t new_size)
         if (item == 0)
             break;
         --item;
-		auto it = data.begin() + item;
-		actual_size -= sizeof(DLF_Data) + it->raw.size();
+        auto it = data.begin() + item;
+        actual_size -= sizeof(DLF_Data) + it->raw.size();
         data.erase (it);
     }
     max_size = new_size;
@@ -221,23 +221,23 @@ std::pair<Compress, User_Data> DLF<User_Data, Key>::get (const Key &key)
     std::lock_guard<std::mutex> guard (biglock);
     for (auto &tmp : data) {
         if (tmp.key == key)
-			return {tmp.algorithm, tmp.raw};
+            return {tmp.algorithm, tmp.raw};
     }
-	return {Compress::NONE, User_Data ()};
+    return {Compress::NONE, User_Data ()};
 }
 
 template<typename User_Data, typename Key>
 bool DLF<User_Data, Key>::add (const Compress algorithm, User_Data &raw,
-																const Key &key)
+                                                                const Key &key)
 {
     std::lock_guard<std::mutex> guard (biglock);
     for (auto &tmp : data) {
         if (tmp.key == key) {
             ++global_tick;
-			if (tmp.score <= global_tick) {
-				auto tick = global_tick.load();
+            if (tmp.score <= global_tick) {
+                auto tick = global_tick.load();
                 tmp.tick = tick;
-			}
+            }
             tmp.score += static_cast<uint32_t> (data.size());
             std::sort(data.begin(), data.end());
             return true;
@@ -246,9 +246,9 @@ bool DLF<User_Data, Key>::add (const Compress algorithm, User_Data &raw,
     // key not present.
     if (max_size - actual_size > sizeof(DLF_Data) + raw.size()) {
         auto tmp_tick = global_tick.load();
-		//DLF_Data tmp (key, tmp_tick + 1, tmp_tick, raw);
-		//data.push_back(tmp);
-		data.emplace_back (key, tmp_tick + 1, tmp_tick, raw, algorithm);
+        //DLF_Data tmp (key, tmp_tick + 1, tmp_tick, raw);
+        //data.push_back(tmp);
+        data.emplace_back (key, tmp_tick + 1, tmp_tick, raw, algorithm);
         std::sort (data.begin(), data.end());
         actual_size += sizeof(DLF_Data) + raw.size();
         return true;
@@ -267,7 +267,7 @@ bool DLF<User_Data, Key>::add (const Compress algorithm, User_Data &raw,
             max_size += raw.size() + sizeof (DLF_Data);
             std::sort (data.begin(), data.end());
             actual_size += sizeof(RaptorQ__v1::Impl::DLF<User_Data, Key>) +
-																	raw.size();
+                                                                    raw.size();
             return true;
         } else {
             return false;

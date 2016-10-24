@@ -149,23 +149,23 @@ break deterministic builds, so check the cmake warnings._
 You can customize the CMake build with the following variables:
 
 ```
-PROFILING	ON/OFF: Default:ON. Activate or deactivate profiling.
-				Profiling compiles everything, then runs a test to see
-				which code paths are more used. Then it recompiles everything
-				but optimizing for for those code paths.
-				Only for gcc/clang.
-LTO			ON/OFF: Default:ON. Activate or deactivate Link time Optimization
-				Makes the library smaller and better optimized.
-				Only for gcc/clang.
+PROFILING   ON/OFF: Default:ON. Activate or deactivate profiling.
+                Profiling compiles everything, then runs a test to see
+                which code paths are more used. Then it recompiles everything
+                but optimizing for for those code paths.
+                Only for gcc/clang.
+LTO         ON/OFF: Default:ON. Activate or deactivate Link time Optimization
+                Makes the library smaller and better optimized.
+                Only for gcc/clang.
 CLANG_STDLIB ON/OFF: Default:OFF. use clang's libc++
-				Note: only clang can use its standard library
+                Note: only clang can use its standard library
 USE_LZ4     ON/OFF: use the lz4 compression for caching precomputations.
                 Default: ON
 CLI         ON/OFF Build Command Line Interface tools.
-CMAKE_C_COMPILER	gcc, clang...
-CMAKE_CXX_COMPILER	choose between g++ or clang++.
+CMAKE_C_COMPILER    gcc, clang...
+CMAKE_CXX_COMPILER  choose between g++ or clang++.
 RQ_LINKER   gold/ld/bsd Choose your linker. Default:autodetect.
-CMAKE_BUILD_TYPE	Debug,MinSizeRel,Release,RelWithDebInfo
+CMAKE_BUILD_TYPE    Debug,MinSizeRel,Release,RelWithDebInfo
 CMAKE_INSTALL_PREFIX Default: /usr/local
 ```
 

@@ -36,16 +36,16 @@ namespace Impl {
 
 class RAPTORQ_LOCAL Rand {
 public:
-	Rand() {}
-	Rand (const Rand&) = delete; // Don't Implement
-	Rand& operator= (const Rand&) = delete;// Don't implement
-	Rand (Rand &&) = delete; // Don't Implement
-	Rand& operator= (Rand &&) = delete;// Don't implement
+    Rand() {}
+    Rand (const Rand&) = delete; // Don't Implement
+    Rand& operator= (const Rand&) = delete;// Don't implement
+    Rand (Rand &&) = delete; // Don't Implement
+    Rand& operator= (Rand &&) = delete;// Don't implement
 
-	static uint32_t get (const uint32_t y, const uint8_t i, const uint32_t m);
+    static uint32_t get (const uint32_t y, const uint8_t i, const uint32_t m);
 private:
-	static const std::array<uint32_t, 256> V0, V1, V2, V3;
+    static const std::array<uint32_t, 256> V0, V1, V2, V3;
 };
 
-}	// namespace Impl
-}	// namespace RaptorQ
+}   // namespace Impl
+}   // namespace RaptorQ

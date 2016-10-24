@@ -24,11 +24,11 @@
 extern "C"
 {
 #endif
-	typedef enum { RQ_NONE = 0, RQ_ENC_8 = 1, RQ_ENC_16 = 2, RQ_ENC_32 = 3,
-					RQ_ENC_64 = 4, RQ_DEC_8 = 5, RQ_DEC_16 = 6, RQ_DEC_32 = 7,
-					RQ_DEC_64 = 8 } RaptorQ_type;
+    typedef enum { RQ_NONE = 0, RQ_ENC_8 = 1, RQ_ENC_16 = 2, RQ_ENC_32 = 3,
+                    RQ_ENC_64 = 4, RQ_DEC_8 = 5, RQ_DEC_16 = 6, RQ_DEC_32 = 7,
+                    RQ_DEC_64 = 8 } RaptorQ_type;
 
 
 #ifdef __cplusplus
-}	// extern "C"
+}   // extern "C"
 #endif

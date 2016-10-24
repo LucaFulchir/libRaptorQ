@@ -69,5 +69,5 @@ private:
     uint16_t _max_connections = 1;
 };
 
-}	// namespace Impl
-}	// namespace RaptorQ
+}   // namespace Impl
+}   // namespace RaptorQ

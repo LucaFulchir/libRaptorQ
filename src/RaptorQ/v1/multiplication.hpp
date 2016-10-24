@@ -90,5 +90,5 @@ static const std::array<uint8_t, 255> oct_log = {
 
 #pragma clang diagnostic pop
 
-}	// namespace Impl
-}	// namespace RaptorQ
+}   // namespace Impl
+}   // namespace RaptorQ

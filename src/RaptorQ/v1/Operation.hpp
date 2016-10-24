@@ -28,27 +28,27 @@ namespace RaptorQ__v1 {
 namespace Impl {
 
 using DenseMtx = Eigen::Matrix<Octet, Eigen::Dynamic, Eigen::Dynamic,
-															Eigen::RowMajor>;
+                                                            Eigen::RowMajor>;
 enum class Operation_type : uint8_t {
-	NONE = 0x00,
-	SWAP = 0x01,
-	ADD_MUL = 0x02,
-	DIV = 0x03,
-	BLOCK = 0x04,
-	REORDER = 0x05
+    NONE = 0x00,
+    SWAP = 0x01,
+    ADD_MUL = 0x02,
+    DIV = 0x03,
+    BLOCK = 0x04,
+    REORDER = 0x05
 };
 
 class RAPTORQ_LOCAL Operation
 {
 public:
-	virtual ~Operation ();
-	virtual void build_mtx (DenseMtx &mtx) const = 0;
-	virtual uint64_t size() const = 0;
-	friend std::ostream &operator<< (std::ostream &os, const Operation &op) {
-		return op.print (os);
-	}
+    virtual ~Operation ();
+    virtual void build_mtx (DenseMtx &mtx) const = 0;
+    virtual uint64_t size() const = 0;
+    friend std::ostream &operator<< (std::ostream &os, const Operation &op) {
+        return op.print (os);
+    }
 private:
-	virtual std::ostream &print (std::ostream &os) const = 0;
+    virtual std::ostream &print (std::ostream &os) const = 0;
 };
 
 
@@ -56,73 +56,73 @@ private:
 class RAPTORQ_LOCAL Operation_Swap final : public Operation
 {
 public:
-	Operation_Swap (const uint16_t row_1, const uint16_t row_2)
-		: _row_1 (row_1), _row_2 (row_2) {}
-	void build_mtx (DenseMtx &mtx) const override;
-	uint64_t size () const override;
+    Operation_Swap (const uint16_t row_1, const uint16_t row_2)
+        : _row_1 (row_1), _row_2 (row_2) {}
+    void build_mtx (DenseMtx &mtx) const override;
+    uint64_t size () const override;
 private:
-	const uint16_t _row_1, _row_2;
+    const uint16_t _row_1, _row_2;
 
-	std::ostream &print (std::ostream &os) const override;
+    std::ostream &print (std::ostream &os) const override;
 };
 
 class RAPTORQ_LOCAL Operation_Add_Mul final : public Operation
 {
 public:
-	Operation_Add_Mul (const uint16_t row_1, const uint16_t row_2,
-															const Octet scalar)
-		: _row_1 (row_1), _row_2 (row_2), _scalar (scalar) {}
-	void build_mtx (DenseMtx &mtx) const override;
-	uint64_t size () const override;
+    Operation_Add_Mul (const uint16_t row_1, const uint16_t row_2,
+                                                            const Octet scalar)
+        : _row_1 (row_1), _row_2 (row_2), _scalar (scalar) {}
+    void build_mtx (DenseMtx &mtx) const override;
+    uint64_t size () const override;
 private:
-	const uint16_t _row_1, _row_2;
-	const Octet _scalar;
+    const uint16_t _row_1, _row_2;
+    const Octet _scalar;
 
-	std::ostream &print (std::ostream &os) const override;
+    std::ostream &print (std::ostream &os) const override;
 };
 
 class RAPTORQ_LOCAL Operation_Div final : public Operation
 {
 public:
-	Operation_Div (const uint16_t row_1, const Octet scalar)
-		: _row_1 (row_1), _scalar (scalar) {}
-	void build_mtx (DenseMtx &mtx) const override;
-	uint64_t size () const override;
+    Operation_Div (const uint16_t row_1, const Octet scalar)
+        : _row_1 (row_1), _scalar (scalar) {}
+    void build_mtx (DenseMtx &mtx) const override;
+    uint64_t size () const override;
 private:
-	const uint16_t _row_1;
-	const Octet _scalar;
+    const uint16_t _row_1;
+    const Octet _scalar;
 
 private:
-	std::ostream &print (std::ostream &os) const override;
+    std::ostream &print (std::ostream &os) const override;
 };
 
 class RAPTORQ_LOCAL Operation_Block final : public Operation
 {
 public:
-	Operation_Block (const DenseMtx &block)
-		: _block (block) {}
-	void build_mtx (DenseMtx &mtx) const override;
-	uint64_t size () const override;
+    Operation_Block (const DenseMtx &block)
+        : _block (block) {}
+    void build_mtx (DenseMtx &mtx) const override;
+    uint64_t size () const override;
 private:
-	const DenseMtx _block;
+    const DenseMtx _block;
 
 private:
-	std::ostream &print (std::ostream &os) const override;
+    std::ostream &print (std::ostream &os) const override;
 };
 
 class RAPTORQ_LOCAL Operation_Reorder final : public Operation
 {
 public:
-	Operation_Reorder (const std::vector<uint16_t> &order)
-		: _order (order) {}
-	void build_mtx (DenseMtx &mtx) const override;
-	uint64_t size () const override;
+    Operation_Reorder (const std::vector<uint16_t> &order)
+        : _order (order) {}
+    void build_mtx (DenseMtx &mtx) const override;
+    uint64_t size () const override;
 private:
-	const std::vector<uint16_t> _order;
+    const std::vector<uint16_t> _order;
 
 private:
-	std::ostream &print (std::ostream &os) const override;
+    std::ostream &print (std::ostream &os) const override;
 };
 
-}	// namespace Impl
-}	// namespace RaptorQ
+}   // namespace Impl
+}   // namespace RaptorQ

@@ -67,9 +67,9 @@ std::vector<uint8_t> LZ4<type>::encode (const std::vector<uint8_t> &in)
 {
     std::vector<uint8_t> ret;
     if (type == LZ4_t::DECODER || in.size() == 0 ||
-											in.size() >= LZ4_MAX_INPUT_SIZE) {
+                                            in.size() >= LZ4_MAX_INPUT_SIZE) {
         return ret;
-	}
+    }
 
     auto max_size = LZ4_compressBound (static_cast<int32_t> (in.size()));
     if (stream == nullptr || max_size == 0)
@@ -77,20 +77,20 @@ std::vector<uint8_t> LZ4<type>::encode (const std::vector<uint8_t> &in)
 
     ret.resize (static_cast<size_t> (max_size) + sizeof(uint32_t), 0);
 
-	// put original size in the first 4 bytes, for decoding.
-	// int32 is fine, LZ4 has a limit of 2^31 bytes.
-	int32_t *size = reinterpret_cast<int32_t *> (ret.data());
-	*size = static_cast<int32_t> (in.size());
+    // put original size in the first 4 bytes, for decoding.
+    // int32 is fine, LZ4 has a limit of 2^31 bytes.
+    int32_t *size = reinterpret_cast<int32_t *> (ret.data());
+    *size = static_cast<int32_t> (in.size());
 
-	// now the compressed data.
+    // now the compressed data.
     auto written = LZ4_compress_fast_continue (
-					static_cast<LZ4_stream_t *> (stream),
-					reinterpret_cast<const char *> (in.data()),
-					reinterpret_cast<char *> (ret.data()) + sizeof(int32_t),
-					static_cast<int32_t> (in.size()),
-					max_size, 1);
+                    static_cast<LZ4_stream_t *> (stream),
+                    reinterpret_cast<const char *> (in.data()),
+                    reinterpret_cast<char *> (ret.data()) + sizeof(int32_t),
+                    static_cast<int32_t> (in.size()),
+                    max_size, 1);
 
-	ret.resize (static_cast<size_t> (written) + sizeof(int32_t));
+    ret.resize (static_cast<size_t> (written) + sizeof(int32_t));
 
     return ret;
 }
@@ -99,27 +99,27 @@ template<LZ4_t type>
 std::vector<uint8_t> LZ4<type>::decode (const std::vector<uint8_t> &in)
 {
     std::vector<uint8_t> ret;
-	if (type == LZ4_t::ENCODER || in.size() < sizeof(uint32_t))
-		return ret;
+    if (type == LZ4_t::ENCODER || in.size() < sizeof(uint32_t))
+        return ret;
 
-	if (stream == nullptr)
-		return ret;
+    if (stream == nullptr)
+        return ret;
 
-	// get the original uncompresseed size:
-	int32_t *orig_size = reinterpret_cast<int32_t *> (
-											const_cast<uint8_t *> (in.data()));
-	// now the compressed data.
-	ret.reserve	(static_cast<size_t> (*orig_size));
+    // get the original uncompresseed size:
+    int32_t *orig_size = reinterpret_cast<int32_t *> (
+                                            const_cast<uint8_t *> (in.data()));
+    // now the compressed data.
+    ret.reserve (static_cast<size_t> (*orig_size));
     ret.resize (static_cast<size_t> (*orig_size), 0);
     auto written = LZ4_decompress_safe_continue (
-				static_cast<LZ4_streamDecode_t *> (stream),
-				reinterpret_cast<const char *> (in.data()) + sizeof(uint32_t),
-				reinterpret_cast<char *> (ret.data()),
-				static_cast<int32_t> (in.size() - sizeof(uint32_t)),
-				*orig_size);
-	if (written <= 0) {
-		return std::vector<uint8_t>();
-	}
+                static_cast<LZ4_streamDecode_t *> (stream),
+                reinterpret_cast<const char *> (in.data()) + sizeof(uint32_t),
+                reinterpret_cast<char *> (ret.data()),
+                static_cast<int32_t> (in.size() - sizeof(uint32_t)),
+                *orig_size);
+    if (written <= 0) {
+        return std::vector<uint8_t>();
+    }
     ret.resize (static_cast<size_t> (written));
 
     return ret;

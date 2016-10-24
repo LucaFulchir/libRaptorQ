@@ -114,12 +114,12 @@ if(LTO MATCHES "ON")
         set(CMAKE_NM ${RQ_NM})
         set(CMAKE_RANLIB ${RQ_RANLIB})
         mark_as_advanced(FORCE RQ_AR RQ_NM RQ_RANLIB)
-	    message(STATUS "Link Time Optimization activated")
+        message(STATUS "Link Time Optimization activated")
     else()
         message(FATAL_ERROR "Sorry, don't know how to do LTO with your compiler")
     endif()
 else()
-	message(STATUS "Link Time Optimization deactivated")
+    message(STATUS "Link Time Optimization deactivated")
 endif()
 
 # Profiling is pretty compiler-specific....
@@ -137,20 +137,20 @@ else()
 endif()
 
 if(CLANG_STDLIB MATCHES "ON")
-	if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
-		message(FATAL_ERROR "libc++ is only supported by clang")
-	endif()
+    if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+        message(FATAL_ERROR "libc++ is only supported by clang")
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-	set(STDLIB stdc++)
+    set(STDLIB stdc++)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-	if(CLANG_STDLIB MATCHES "ON")
-		set(RQ_STDLIB_FLAG -stdlib=libc++)
-		set(STDLIB c++)
-	else()
-		set(STDLIB stdc++)
-	endif()
+    if(CLANG_STDLIB MATCHES "ON")
+        set(RQ_STDLIB_FLAG -stdlib=libc++)
+        set(STDLIB c++)
+    else()
+        set(STDLIB stdc++)
+    endif()
 endif()
 
 
@@ -203,7 +203,7 @@ SET(SOURCES
             src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp
             src/RaptorQ/v1/Rand.cpp
             src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp
-    		src/RaptorQ/v1/Thread_Pool.cpp
+            src/RaptorQ/v1/Thread_Pool.cpp
             #src/RaptorQ/v1/wrapper/C_RAW_API.cpp
             src/RaptorQ/v1/wrapper/C_RFC_API.cpp)
 
@@ -215,21 +215,21 @@ SET(HEADERS
             src/RaptorQ/v1/De_Interleaver.hpp
             src/RaptorQ/v1/Decoder.hpp
             src/RaptorQ/v1/degree.hpp
-    		src/RaptorQ/v1/Encoder.hpp
+            src/RaptorQ/v1/Encoder.hpp
             src/RaptorQ/v1/Interleaver.hpp
             src/RaptorQ/v1/multiplication.hpp
             src/RaptorQ/v1/Operation.hpp
             src/RaptorQ/v1/Parameters.hpp
             src/RaptorQ/v1/Precode_Matrix.hpp
-    		src/RaptorQ/v1/Precode_Matrix_Init.hpp
-    		src/RaptorQ/v1/Precode_Matrix_Solver.hpp
+            src/RaptorQ/v1/Precode_Matrix_Init.hpp
+            src/RaptorQ/v1/Precode_Matrix_Solver.hpp
             src/RaptorQ/v1/Rand.hpp
-			src/RaptorQ/v1/RaptorQ.hpp
-			src/RaptorQ/v1/RaptorQ_Iterators.hpp
+            src/RaptorQ/v1/RaptorQ.hpp
+            src/RaptorQ/v1/RaptorQ_Iterators.hpp
             src/RaptorQ/v1/RFC.hpp
             src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
             src/RaptorQ/v1/table2.hpp
-    		src/RaptorQ/v1/Thread_Pool.hpp
+            src/RaptorQ/v1/Thread_Pool.hpp
             src/RaptorQ/v1/util/Bitmask.hpp
             src/RaptorQ/v1/util/div.hpp
             src/RaptorQ/v1/util/Graph.hpp
@@ -297,11 +297,11 @@ CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/API_Wrapper_C.cpp.gcda)
     # PRE-run: build a library, generate the profile.
     add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS})
     target_link_libraries(RaptorQ_Static_Profiling ${STDLIB} ${RQ_LZ4_DEP} ${RQ_UBSAN})
-	add_dependencies(RaptorQ_Static_Profiling LZ4)
+    add_dependencies(RaptorQ_Static_Profiling LZ4)
     target_compile_options(
         RaptorQ_Static_Profiling PRIVATE
         ${CXX_COMPILER_FLAGS}
-		${PROFILE_GET}
+        ${PROFILE_GET}
     )
     set_target_properties(RaptorQ_Static_Profiling PROPERTIES COMPILER_FLAGS ${PROFILE_GET})
 
@@ -311,7 +311,7 @@ CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/API_Wrapper_C.cpp.gcda)
     target_compile_options(
         test_c_profiled PRIVATE
         ${C_COMPILER_FLAGS}
-		${PROFILE_GET}
+        ${PROFILE_GET}
     )
     target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB} m ${CMAKE_THREAD_LIBS_INIT})
     set_target_properties(test_c_profiled PROPERTIES LINK_FLAGS ${PROFILE_GET})
@@ -354,7 +354,7 @@ endif()
 # build the static library
 if(STATIC_LIB MATCHES "ON")
     add_library(RaptorQ_Static STATIC ${SOURCES} ${HEADERS})
-	add_dependencies(RaptorQ_Static LZ4)
+    add_dependencies(RaptorQ_Static LZ4)
     if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
         set_target_properties(RaptorQ_Static PROPERTIES OUTPUT_NAME RaptorQ.${RQ_ABI})
     endif()
@@ -401,10 +401,10 @@ if(STATIC_LIB MATCHES "ON")
         )
     endif()
 
-	add_custom_target(
-	    make_static_deterministic ALL
-	    DEPENDS deterministic.run
-	)
+    add_custom_target(
+        make_static_deterministic ALL
+        DEPENDS deterministic.run
+    )
 endif()
 
 #build dynamic library
@@ -413,7 +413,7 @@ if(DYNAMIC_LIB MATCHES "ON")
     add_definitions(-DRAPTORQ_DLL_EXPORTS)
 
     add_library(RaptorQ SHARED ${SOURCES} ${HEADERS})
-	add_dependencies(RaptorQ LZ4)
+    add_dependencies(RaptorQ LZ4)
     target_link_libraries(RaptorQ ${RQ_LZ4_DEP})
     target_compile_options(
         RaptorQ PRIVATE
@@ -437,9 +437,9 @@ if(DYNAMIC_LIB MATCHES "ON")
         RaptorQ
         PROPERTIES
         LINK_FLAGS ${RQ_LINK_LIB}
-		SOVERSION ${RQ_ABI}
-		VERSION ${RQ_VERSION}
-	)
+        SOVERSION ${RQ_ABI}
+        VERSION ${RQ_VERSION}
+    )
     set_property(TARGET RaptorQ PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
 endif()
 
@@ -447,8 +447,8 @@ endif()
 # add main tests
 add_executable(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
 target_compile_options(
-	libRaptorQ-test PRIVATE
-	${CXX_COMPILER_FLAGS}
+    libRaptorQ-test PRIVATE
+    ${CXX_COMPILER_FLAGS}
 )
 add_dependencies(libRaptorQ-test RaptorQ)
 target_link_libraries(libRaptorQ-test ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
@@ -458,9 +458,9 @@ add_custom_target(tests DEPENDS libRaptorQ-test)
 # C interface
 add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
 target_compile_options(
-	test_c PRIVATE
-	${C_COMPILER_FLAGS}
-	-Wno-disabled-macro-expansion
+    test_c PRIVATE
+    ${C_COMPILER_FLAGS}
+    -Wno-disabled-macro-expansion
 )
 add_dependencies(test_c RaptorQ)
 target_link_libraries(test_c RaptorQ m ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
@@ -468,8 +468,8 @@ target_link_libraries(test_c RaptorQ m ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS
 # CPP interface - RFC interface
 add_executable(test_cpp_rfc EXCLUDE_FROM_ALL test/test_cpp_rfc.cpp)
 target_compile_options(
-	test_cpp_rfc PRIVATE
-	${CXX_COMPILER_FLAGS}
+    test_cpp_rfc PRIVATE
+    ${CXX_COMPILER_FLAGS}
 )
 add_dependencies(test_cpp_rfc RaptorQ)
 target_link_libraries(test_cpp_rfc ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
@@ -477,8 +477,8 @@ target_link_libraries(test_cpp_rfc ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_
 # CPP interface - RAW interface
 add_executable(test_cpp_raw EXCLUDE_FROM_ALL test/test_cpp_raw.cpp)
 target_compile_options(
-	test_cpp_raw PRIVATE
-	${CXX_COMPILER_FLAGS}
+    test_cpp_raw PRIVATE
+    ${CXX_COMPILER_FLAGS}
 )
 add_dependencies(test_cpp_raw RaptorQ)
 target_link_libraries(test_cpp_raw ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
@@ -494,8 +494,8 @@ else()
     add_custom_target(CLI_tools "")
 endif()
 target_compile_options(
-	CLI_raw PRIVATE
-	${CXX_COMPILER_FLAGS}
+    CLI_raw PRIVATE
+    ${CXX_COMPILER_FLAGS}
 )
 add_dependencies(CLI_raw RaptorQ)
 set_target_properties(CLI_raw PROPERTIES OUTPUT_NAME RaptorQ

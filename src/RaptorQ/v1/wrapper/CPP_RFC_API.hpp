@@ -30,10 +30,10 @@
 
 /////////////////////
 //
-//	These templates are just a wrapper around the
-//	functionalities offered by the RaptorQ__v1::Impl namespace
-//	So if you want to see what the algorithm looks like,
-//	you are in the wrong place
+//  These templates are just a wrapper around the
+//  functionalities offered by the RaptorQ__v1::Impl namespace
+//  So if you want to see what the algorithm looks like,
+//  you are in the wrong place
 //
 /////////////////////
 
@@ -47,104 +47,104 @@ template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder
 {
 public:
-	~Encoder() {}
-	Encoder (const Rnd_It data_from, const Rnd_It data_to,
-											const uint16_t min_subsymbol_size,
-											const uint16_t symbol_size,
-											const size_t max_memory)
-	{
+    ~Encoder() {}
+    Encoder (const Rnd_It data_from, const Rnd_It data_to,
+                                            const uint16_t min_subsymbol_size,
+                                            const uint16_t symbol_size,
+                                            const size_t max_memory)
+    {
         rfc_encoder = std::unique_ptr<Impl::Encoder<Rnd_It, Fwd_It>> (
-								   new Impl::Encoder<Rnd_It, Fwd_It> (
+                                   new Impl::Encoder<Rnd_It, Fwd_It> (
                                         data_from, data_to, min_subsymbol_size,
                                                     symbol_size, max_memory));
-	}
+    }
 
-	Block_Iterator<Rnd_It, Fwd_It> begin ()
-	{
+    Block_Iterator<Rnd_It, Fwd_It> begin ()
+    {
         if (rfc_encoder != nullptr)
             return rfc_encoder->begin();
         return end();
-	}
-	const Block_Iterator<Rnd_It, Fwd_It> end ()
-	{
+    }
+    const Block_Iterator<Rnd_It, Fwd_It> end ()
+    {
         if (rfc_encoder != nullptr)
             return rfc_encoder->end();
         return Block_Iterator<Rnd_It, Fwd_It> (nullptr, Impl::Partition(), 1);
-	}
+    }
 
-	operator bool() const { return rfc_encoder != nullptr && (*rfc_encoder); }
-	RQ_OTI_Common_Data OTI_Common() const
+    operator bool() const { return rfc_encoder != nullptr && (*rfc_encoder); }
+    RQ_OTI_Common_Data OTI_Common() const
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->OTI_Common();
         return 0;
     }
-	RQ_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const
+    RQ_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->OTI_Scheme_Specific();
         return 0;
     }
 
-	std::future<std::pair<Error, uint8_t>> compute (const Compute flags)
+    std::future<std::pair<Error, uint8_t>> compute (const Compute flags)
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->compute (flags);
         std::promise<std::pair<Error, uint8_t>> p;
-		p.set_value ({Error::INITIALIZATION, 0});
+        p.set_value ({Error::INITIALIZATION, 0});
         return p.get_future();
     }
 
-	size_t precompute_max_memory ()
+    size_t precompute_max_memory ()
     {
-		if (rfc_encoder != nullptr)
+        if (rfc_encoder != nullptr)
             return rfc_encoder->precompute_max_memory ();
         return 0;
     }
-	size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
-															const uint8_t sbn)
+    size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
+                                                            const uint8_t sbn)
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->encode (output, end, esi, sbn);
         return 0;
     }
-	// id: 8-bit sbn + 24 bit esi
-	size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id)
+    // id: 8-bit sbn + 24 bit esi
+    size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id)
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->encode (output, end, id);
         return 0;
     }
-	void free (const uint8_t sbn)
+    void free (const uint8_t sbn)
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->free (sbn);
     }
-	uint8_t blocks() const
+    uint8_t blocks() const
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->blocks();
         return 0;
     }
-	uint32_t block_size (const uint8_t sbn) const
+    uint32_t block_size (const uint8_t sbn) const
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->block_size (sbn);
         return 0;
     }
-	uint16_t symbol_size() const
+    uint16_t symbol_size() const
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->symbol_size();
         return 0;
     }
-	uint16_t symbols (const uint8_t sbn) const
+    uint16_t symbols (const uint8_t sbn) const
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->symbols (sbn);
         return 0;
     }
-	uint32_t max_repair (const uint8_t sbn) const
+    uint32_t max_repair (const uint8_t sbn) const
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->max_repair (sbn);
@@ -163,53 +163,53 @@ class RAPTORQ_API Decoder
 {
 public:
 
-	// rfc 6330, pg 6
-	// easy explanation for OTI_* comes next.
-	// we do NOT use bitfields as compilators are not actually forced to put
-	// them in any particular order. meaning tey're useless.
-	//
-	//union OTI_Common_Data {
-	//	uint64_t raw;
-	//	struct {
-	//		uint64_t size:40;
-	//		uint8_t reserved:8;
-	//		uint16_t symbol_size:16;
-	//	};
-	//};
+    // rfc 6330, pg 6
+    // easy explanation for OTI_* comes next.
+    // we do NOT use bitfields as compilators are not actually forced to put
+    // them in any particular order. meaning tey're useless.
+    //
+    //union OTI_Common_Data {
+    //  uint64_t raw;
+    //  struct {
+    //      uint64_t size:40;
+    //      uint8_t reserved:8;
+    //      uint16_t symbol_size:16;
+    //  };
+    //};
 
-	//union OTI_Scheme_Specific_Data {
-	//	uint32_t raw;
-	//	struct {
-	//		uint8_t source_blocks;
-	//		uint16_t sub_blocks;
-	//		uint8_t	alignment;
-	//	};
-	//};
-	Decoder (const RQ_OTI_Common_Data common,
+    //union OTI_Scheme_Specific_Data {
+    //  uint32_t raw;
+    //  struct {
+    //      uint8_t source_blocks;
+    //      uint16_t sub_blocks;
+    //      uint8_t alignment;
+    //  };
+    //};
+    Decoder (const RQ_OTI_Common_Data common,
                             const RQ_OTI_Scheme_Specific_Data scheme)
-	{
+    {
         rfc_decoder = std::unique_ptr<Impl::Decoder<In_It, Fwd_It>> (
-									new Impl::Decoder<In_It, Fwd_It> (
-													        common, scheme));
-	}
+                                    new Impl::Decoder<In_It, Fwd_It> (
+                                                            common, scheme));
+    }
 
-	Decoder (const uint64_t size, const uint16_t symbol_size,
-													const uint16_t sub_blocks,
-													const uint8_t blocks,
-													const uint8_t alignment)
-	{
+    Decoder (const uint64_t size, const uint16_t symbol_size,
+                                                    const uint16_t sub_blocks,
+                                                    const uint8_t blocks,
+                                                    const uint8_t alignment)
+    {
         rfc_decoder = std::unique_ptr<Impl::Decoder<In_It, Fwd_It>> (
                                 new Impl::Decoder<In_It, Fwd_It> (
-												size, symbol_size, sub_blocks,
-												blocks, alignment));
-	}
+                                                size, symbol_size, sub_blocks,
+                                                blocks, alignment));
+    }
 
-	std::future<std::pair<Error, uint8_t>> compute (const Compute flags)
+    std::future<std::pair<Error, uint8_t>> compute (const Compute flags)
     {
         if (rfc_decoder != nullptr)
             return rfc_decoder->compute (flags);
         std::promise<std::pair<Error, uint8_t>> p;
-		p.set_value ({Error::INITIALIZATION, 0});
+        p.set_value ({Error::INITIALIZATION, 0});
         return p.get_future();
     }
 
@@ -225,83 +225,83 @@ public:
             return rfc_decoder->end_of_input();
     }
 
-	// result in BYTES
-	uint64_t decode_bytes (Fwd_It &start, const Fwd_It end, const uint8_t skip)
+    // result in BYTES
+    uint64_t decode_bytes (Fwd_It &start, const Fwd_It end, const uint8_t skip)
     {
         if (rfc_decoder == nullptr)
             return 0;
         return rfc_decoder->decode_bytes (start, end, skip);
     }
-	size_t decode_block_bytes (Fwd_It &start, const Fwd_It end,
-															const uint8_t skip,
-															const uint8_t sbn)
+    size_t decode_block_bytes (Fwd_It &start, const Fwd_It end,
+                                                            const uint8_t skip,
+                                                            const uint8_t sbn)
     {
         if (rfc_decoder == nullptr)
             return 0;
         return rfc_decoder->decode_block_bytes (start, end, skip, sbn);
     }
-	// result in ITERATORS
-	// last *might* be half written depending on data alignments
-	std::pair<uint64_t, uint8_t> decode_aligned (Fwd_It &start,const Fwd_It end,
-															const uint8_t skip)
+    // result in ITERATORS
+    // last *might* be half written depending on data alignments
+    std::pair<uint64_t, uint8_t> decode_aligned (Fwd_It &start,const Fwd_It end,
+                                                            const uint8_t skip)
     {
         if (rfc_decoder == nullptr)
-			return {0, 0};
+            return {0, 0};
         return rfc_decoder->decode_aligned (start, end, skip);
     }
-	std::pair<size_t, uint8_t> decode_block_aligned (Fwd_It &start,
-															const Fwd_It end,
-															const uint8_t skip,
-															const uint8_t sbn)
+    std::pair<size_t, uint8_t> decode_block_aligned (Fwd_It &start,
+                                                            const Fwd_It end,
+                                                            const uint8_t skip,
+                                                            const uint8_t sbn)
     {
         if (rfc_decoder == nullptr)
-			return {0, 0};
+            return {0, 0};
         return rfc_decoder->decode_block_aligned (start, end, skip, sbn);
     }
-	// id: 8-bit sbn + 24 bit esi
-	Error add_symbol (In_It &start, const In_It end, const uint32_t id)
+    // id: 8-bit sbn + 24 bit esi
+    Error add_symbol (In_It &start, const In_It end, const uint32_t id)
     {
         if (rfc_decoder == nullptr)
             return Error::INITIALIZATION;
         return rfc_decoder->add_symbol (start, end, id);
     }
-	Error add_symbol (In_It &start, const In_It end, const uint32_t esi,
-															const uint8_t sbn)
+    Error add_symbol (In_It &start, const In_It end, const uint32_t esi,
+                                                            const uint8_t sbn)
     {
         if (rfc_decoder == nullptr)
             return Error::INITIALIZATION;
         return rfc_decoder->add_symbol (start, end, esi, sbn);
     }
-	void free (const uint8_t sbn)
+    void free (const uint8_t sbn)
     {
         if (rfc_decoder != nullptr)
             return rfc_decoder->free (sbn);
     }
-	uint64_t bytes() const
+    uint64_t bytes() const
     {
         if (rfc_decoder == nullptr)
             return 0;
         return rfc_decoder->bytes();
     }
-	uint8_t blocks() const
+    uint8_t blocks() const
     {
         if (rfc_decoder == nullptr)
             return 0;
         return rfc_decoder->blocks();
     }
-	uint32_t block_size (const uint8_t sbn) const
+    uint32_t block_size (const uint8_t sbn) const
     {
         if (rfc_decoder == nullptr)
             return 0;
         return rfc_decoder->block_size (sbn);
     }
-	uint16_t symbol_size() const
+    uint16_t symbol_size() const
     {
         if (rfc_decoder == nullptr)
             return 0;
         return rfc_decoder->symbol_size();
     }
-	uint16_t symbols (const uint8_t sbn) const
+    uint16_t symbols (const uint8_t sbn) const
     {
         if (rfc_decoder == nullptr)
             return 0;

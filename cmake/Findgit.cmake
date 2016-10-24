@@ -18,29 +18,29 @@
 # along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
 #
 FIND_PROGRAM(GIT_EXECUTABLE git
-  PATHS
-    ${PATH}
-    "C:/Program Files/Git/bin"
-    "C:/Program Files (x86)/Git/bin"
-  DOC "git command line client"
+    PATHS
+        ${PATH}
+        "C:/Program Files/Git/bin"
+        "C:/Program Files (x86)/Git/bin"
+    DOC "git command line client"
 )
 
 IF(GIT_EXECUTABLE)
-  SET(GIT_FOUND TRUE)
+    SET(GIT_FOUND TRUE)
 ELSE(GIT_EXECUTABLE)
-  SET(GIT_FOUND FALSE)
+    SET(GIT_FOUND FALSE)
 ENDIF(GIT_EXECUTABLE)
 
 IF(GIT_FOUND)
-  MESSAGE(STATUS "Found git in ${GIT_EXECUTABLE}")
+    MESSAGE(STATUS "Found git in ${GIT_EXECUTABLE}")
 ELSE(GIT_FOUND)
-  IF(GIT_REQUIRED)
-    MESSAGE(FATAL_ERROR "Could not find \"git\" command")
-  ENDIF(GIT_REQUIRED)
+    IF(GIT_REQUIRED)
+        MESSAGE(FATAL_ERROR "Could not find \"git\" command")
+    ENDIF(GIT_REQUIRED)
 ENDIF(GIT_FOUND)
 
 MARK_AS_ADVANCED(
-  GIT_EXECUTABLE
+    GIT_EXECUTABLE
 )
 
 

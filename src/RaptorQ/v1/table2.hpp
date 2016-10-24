@@ -34,7 +34,7 @@ namespace Impl {
 #pragma clang diagnostic ignored "-Wmissing-braces"
 #pragma clang diagnostic ignored "-Wglobal-constructors"
 #pragma clang diagnostic ignored "-Wexit-time-destructors"
-#endif	//using_clang
+#endif  //using_clang
 
 static const std::array<uint16_t, 477> K_padded = {{
     static_cast<uint16_t>(Block_Size::Block_10),
@@ -721,13 +721,13 @@ static const std::array<rq_tuple16, 477> S_H_W = {
 
 #ifdef USING_CLANG
 #pragma clang diagnostic pop
-#endif	//using_clang
+#endif  //using_clang
 
-}	// namespace Impl
+}   // namespace Impl
 // expose for API
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
 static const std::array<Block_Size, 477> *blocks =
         reinterpret_cast<const std::array<Block_Size, 477> *> (&Impl::K_padded);
 #pragma GCC diagnostic pop
-}	// namespace RaptorQ
+}   // namespace RaptorQ

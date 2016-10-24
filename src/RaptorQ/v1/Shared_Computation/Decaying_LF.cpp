@@ -29,32 +29,32 @@ namespace Impl {
 // easy compress from/to eigen matrix
 std::vector<uint8_t> Mtx_to_raw (const DenseMtx &mtx)
 {
-	std::vector<uint8_t> ret;
-	ret.reserve (static_cast<size_t> (mtx.rows() * mtx.cols()));
-	for (uint32_t row = 0; row < static_cast<uint32_t> (mtx.rows()); ++row) {
-		for (uint32_t col = 0; col < static_cast<uint32_t> (mtx.cols()); ++col)
-			ret.emplace_back (static_cast<uint8_t> (mtx (row, col)));
-	}
-	return ret;
+    std::vector<uint8_t> ret;
+    ret.reserve (static_cast<size_t> (mtx.rows() * mtx.cols()));
+    for (uint32_t row = 0; row < static_cast<uint32_t> (mtx.rows()); ++row) {
+        for (uint32_t col = 0; col < static_cast<uint32_t> (mtx.cols()); ++col)
+            ret.emplace_back (static_cast<uint8_t> (mtx (row, col)));
+    }
+    return ret;
 }
 
 DenseMtx raw_to_Mtx (const std::vector<uint8_t> &raw, const uint32_t cols)
 {
-	uint16_t rows = static_cast<uint16_t> (raw.size() / cols);
-	DenseMtx ret (rows, cols);
-	auto raw_it = raw.begin();
-	for (uint32_t row = 0; row < rows; ++row) {
-		for (uint32_t col = 0; col < cols; ++col, ++raw_it)
-			ret (row, col) = *raw_it;
-	}
-	return ret;
+    uint16_t rows = static_cast<uint16_t> (raw.size() / cols);
+    DenseMtx ret (rows, cols);
+    auto raw_it = raw.begin();
+    for (uint32_t row = 0; row < rows; ++row) {
+        for (uint32_t col = 0; col < cols; ++col, ++raw_it)
+            ret (row, col) = *raw_it;
+    }
+    return ret;
 }
 
 
 bool Cache_Key::operator< (const Cache_Key &rhs) const
 {
-	if (_mt_size < rhs._mt_size)
-		return true;
+    if (_mt_size < rhs._mt_size)
+        return true;
     if (_mt_size > rhs._mt_size)
         return false;
     // _mt_size == rhs._mt_size
@@ -104,7 +104,7 @@ bool Cache_Key::operator< (const Cache_Key &rhs) const
 
 bool Cache_Key::operator== (const Cache_Key &rhs) const
 {
-	return _mt_size == rhs._mt_size && _lost == rhs._lost &&
+    return _mt_size == rhs._mt_size && _lost == rhs._lost &&
             _repair == rhs._repair &&
                         _lost_bitmask.size() == rhs._lost_bitmask.size() &&
                                         _lost_bitmask == rhs._lost_bitmask &&
