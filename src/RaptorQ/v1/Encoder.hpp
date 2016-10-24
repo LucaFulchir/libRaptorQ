@@ -32,6 +32,8 @@
 #include <Eigen/Dense>
 #include <Eigen/SparseLU>
 #include <memory>
+#include <type_traits>
+#include <utility>
 
 namespace RaptorQ__v1 {
 namespace Impl {
@@ -39,87 +41,113 @@ namespace Impl {
 extern template class Precode_Matrix<Save_Computation::OFF>;
 extern template class Precode_Matrix<Save_Computation::ON>;
 
-template <typename Rnd_It, typename Fwd_It>
+using with_interleaver    = std::true_type;
+using without_interleaver = std::false_type;
+
+
+// NOTE: enabled_if methods
+// instead of having 3-4 really similar methods, we use enable_if
+// to enable or disable contructors and methods, so that you are forced
+// to use the right ones and do not use a non-interleaved method on an
+// interleaved encoder.
+
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 class RAPTORQ_LOCAL Raw_Encoder
 {
 public:
-	Raw_Encoder (const uint16_t symbols)
-		: _SBN(0), type (Save_Computation::ON),
-		  precode_on  (init_precode_on (symbols)),
-		  precode_off (nullptr),
-		  _symbols (nullptr)
-	{
-		IS_RANDOM(Rnd_It, "RaptorQ__v1::Impl::Encoder");
-		IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::Encoder");
-		precode_on->gen(0);
-		keep_working = true;
-	}
-	Raw_Encoder (RFC6330__v1::Impl::Interleaver<Rnd_It> *symbols,
-															const uint8_t SBN)
-		: _SBN(SBN), type (test_computation()),
-		  precode_on  (init_precode_on  (symbols->source_symbols(SBN))),
-		  precode_off (init_precode_off (symbols->source_symbols(SBN))),
-		  _symbols (symbols)
-	{
-		IS_RANDOM(Rnd_It, "RaptorQ__v1::Impl::Encoder");
-		IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::Encoder");
-		assert (symbols != nullptr);
-		if (type == Save_Computation::ON) {
-			precode_on->gen (0);
-		} else {
-			precode_off->gen (0);
-		}
-		keep_working = true;
-	}
+    // NOTE: symbols as in RFC table, can't use just any number here!
+    Raw_Encoder (const Block_Size symbols, const size_t symbol_size);
+    // constructor for interleaver mode
+    template <typename R_It = Rnd_It,
+        typename F_It = Fwd_It, typename I = Interleaved,
+        typename std::enable_if<I::value, int>::type = 0>
+    Raw_Encoder (RFC6330__v1::Impl::Interleaver<Rnd_It> *interleaver,
+                                                            const uint8_t sbn);
 	~Raw_Encoder();
 
+    // "Enc" will have two implementations, depending os whether the
+    // interleaver was used or not.
+    template <typename R_It = Rnd_It,
+        typename F_It = Fwd_It, typename I = Interleaved,
+        typename std::enable_if<I::value, int>::type = 0>
 	size_t Enc (const uint32_t ESI, Fwd_It &output, const Fwd_It end) const;
+    template <typename R_It = Rnd_It,
+        typename F_It = Fwd_It, typename I = Interleaved,
+        typename std::enable_if<!I::value, int>::type = 0>
+    size_t Enc (const uint32_t ESI, Fwd_It &output, const Fwd_It end) const;
 
 
+    // for both interleaved and non-interleaved
 	DenseMtx get_precomputed (RaptorQ__v1::Work_State *thread_keep_working);
+
+    // interleaver-only, precomputed
+    template <typename R_It = Rnd_It,
+        typename F_It = Fwd_It, typename I = Interleaved,
+        typename std::enable_if<I::value, int>::type = 0>
+    bool generate_symbols (const DenseMtx &precomputed);
+    // interleaver-only, non precomputed
+    template <typename R_It = Rnd_It,
+        typename F_It = Fwd_It, typename I = Interleaved,
+        typename std::enable_if<I::value, int>::type = 0>
+    bool generate_symbols (RaptorQ__v1::Work_State *thread_keep_working);
+
+
+    // NOTE: these two automatically add padding if needed.
+    // non-interleaved: requires source symbols. precomputed
+    template <typename R_It = Rnd_It,
+        typename F_It = Fwd_It, typename I = Interleaved,
+        typename std::enable_if<!I::value, int>::type = 0>
 	bool generate_symbols (const DenseMtx &precomputed,
-							RFC6330__v1::Impl::Interleaver<Rnd_It> *symbols);
-	bool generate_symbols (RaptorQ__v1::Work_State *thread_keep_working);
+                                        const Rnd_It *from, const Rnd_It *to);
+    // non-interleaved: requires source symbols. non-precomputed
+    template <typename R_It = Rnd_It,
+        typename F_It = Fwd_It, typename I = Interleaved,
+        typename std::enable_if<!I::value, int>::type = 0>
+	bool generate_symbols (RaptorQ__v1::Work_State *thread_keep_working,
+                                        const Rnd_It *from, const Rnd_It *to);
+
+
 	void stop();
 	bool is_stopped() const;
 	void clear_data();
 	bool ready() const;
 
 private:
-	const uint8_t _SBN;
-	const Save_Computation type;
+    const size_t _symbol_size;
+    const uint16_t _symbols;
+	uint8_t _SBN;
 	bool  keep_working;
-	const std::unique_ptr<Precode_Matrix<Save_Computation::ON>> precode_on;
-	const std::unique_ptr<Precode_Matrix<Save_Computation::OFF>> precode_off;
-	RFC6330__v1::Impl::Interleaver<Rnd_It> *_symbols;
+    const Save_Computation _type;
+	std::unique_ptr<Precode_Matrix<Save_Computation::ON>> precode_on;
+	std::unique_ptr<Precode_Matrix<Save_Computation::OFF>> precode_off;
+	RFC6330__v1::Impl::Interleaver<Rnd_It> *_interleaver;
+    Rnd_It *_from, *_to;
 
 	DenseMtx encoded_symbols;
 
+    // interleaved and non-interleaved functions. same signature, though.
+    template <typename R_It = Rnd_It,
+        typename F_It = Fwd_It, typename I = Interleaved,
+        typename std::enable_if<!I::value, int>::type = 0>
 	DenseMtx get_raw_symbols (const uint16_t K_S_H, const uint16_t S_H) const;
-	// to help making things const
+    template <typename R_It = Rnd_It,
+        typename F_It = Fwd_It, typename I = Interleaved,
+        typename std::enable_if<I::value, int>::type = 0>
+	DenseMtx get_raw_symbols (const uint16_t K_S_H, const uint16_t S_H) const;
+
+
+    std::pair<uint16_t, uint16_t> init_ksh() const;
+    bool compute_intermediate (DenseMtx &D,
+                                RaptorQ__v1::Work_State *thread_keep_working);
+
+    size_t Enc_repair (const uint32_t ESI, Fwd_It &output,
+                                                        const Fwd_It end) const;
+    std::pair<uint16_t, uint16_t> init_ksh();
 	static Save_Computation test_computation()
 	{
 		if (DLF<std::vector<uint8_t>, Cache_Key>::get()->get_size() != 0)
 			return Save_Computation::ON;
 		return Save_Computation::OFF;
-	}
-	// to help making things const
-	Precode_Matrix<Save_Computation::ON> *init_precode_on (
-												const uint16_t symbols) const
-	{
-		if (type == Save_Computation::ON)
-			return new Precode_Matrix<Save_Computation::ON> (
-														Parameters(symbols));
-		return nullptr;
-	}
-	// to help making things const
-	Precode_Matrix<Save_Computation::OFF> *init_precode_off (
-												const uint16_t symbols) const
-	{
-		if (type == Save_Computation::OFF)
-			return new Precode_Matrix<Save_Computation::OFF> (
-														Parameters(symbols));
-		return nullptr;
 	}
 };
 
@@ -129,46 +157,70 @@ private:
 //
 //
 
-template <typename Rnd_It, typename Fwd_It>
-Raw_Encoder<Rnd_It, Fwd_It>::~Raw_Encoder()
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::Raw_Encoder (const Block_Size symbols,
+                                                       const size_t symbol_size)
+    : _symbol_size (symbol_size), _symbols (static_cast<uint16_t> (symbols)),
+    _type (test_computation()), precode_on  (nullptr), precode_off (nullptr),
+                        _interleaver (nullptr), _from (nullptr), _to (nullptr)
 {
-	stop();
+    IS_RANDOM(Rnd_It, "RaptorQ__v1::Impl::Encoder");
+    IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::Encoder");
+    keep_working = true;
 }
 
-template <typename Rnd_It, typename Fwd_It>
-void Raw_Encoder<Rnd_It, Fwd_It>::stop()
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+template <typename R_It, typename F_It, typename I,
+                                typename std::enable_if<I::value, int>::type>
+Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::Raw_Encoder (
+        RFC6330__v1::Impl::Interleaver<Rnd_It> *interleaver, const uint8_t sbn)
+    : _symbol_size (interleaver->symbol_size()),
+      _symbols (interleaver->source_symbols (sbn)), _SBN (sbn),
+      _type (test_computation()), precode_on  (nullptr), precode_off (nullptr),
+      _interleaver (interleaver), _from (nullptr), _to (nullptr)
 {
-	keep_working = false;
+    IS_RANDOM(Rnd_It, "RaptorQ__v1::Impl::Encoder");
+    IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::Encoder");
+    keep_working = true;
 }
 
-template <typename Rnd_It, typename Fwd_It>
-bool Raw_Encoder<Rnd_It, Fwd_It>::is_stopped() const
-{
-	return !keep_working;
-}
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::~Raw_Encoder()
+    { stop(); }
 
-template <typename Rnd_It, typename Fwd_It>
-void Raw_Encoder<Rnd_It, Fwd_It>::clear_data()
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+void Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::stop()
+    { keep_working = false; }
+
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::is_stopped() const
+    { return !keep_working; }
+
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+void Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::clear_data()
 {
 	encoded_symbols = DenseMtx();
-	_symbols = nullptr;
+	_interleaver = nullptr;
+    _from = nullptr;
+    _to = nullptr;
 }
 
-template <typename Rnd_It, typename Fwd_It>
-bool Raw_Encoder<Rnd_It, Fwd_It>::ready() const
-{
-	return encoded_symbols.cols() != 0;
-}
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::ready() const
+    { return encoded_symbols.cols() != 0; }
 
-template <typename Rnd_It, typename Fwd_It>
-DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed (
 								RaptorQ__v1::Work_State *thread_keep_working)
 {
-	if (_symbols != nullptr)
-		return DenseMtx();
 	keep_working = true;
 
-	if (type == Save_Computation::ON) {
+    if (precode_on == nullptr) {
+        precode_on = std::unique_ptr<Precode_Matrix<Save_Computation::ON>> (
+                new Precode_Matrix<Save_Computation::ON>(Parameters(_symbols)));
+        precode_on->gen(0);
+    }
+	if (_type == Save_Computation::ON) {
 		const uint16_t size = precode_on->_params.L;
         const auto tmp_bool = std::vector<bool>();
 		const Cache_Key key (size, 0, 0, tmp_bool, tmp_bool);
@@ -216,7 +268,7 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 	res.setIdentity (size, size);
 	for (auto &op : ops)
 		op->build_mtx (res);
-	if (type == Save_Computation::ON) {
+	if (_type == Save_Computation::ON) {
 		auto raw_mtx = Mtx_to_raw (res);
 		auto compressed = compress (raw_mtx);
 		DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed.first,
@@ -225,38 +277,74 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_precomputed (
 	return res;
 }
 
-template <typename Rnd_It, typename Fwd_It>
-bool Raw_Encoder<Rnd_It, Fwd_It>::generate_symbols (const DenseMtx &precomputed,
-						RFC6330__v1::Impl::Interleaver<Rnd_It> *symbols)
+
+
+// GET-RAW - non interleaved
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+template <typename R_It, typename F_It, typename I,
+                                typename std::enable_if<!I::value, int>::type>
+DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_raw_symbols(
+                                 const uint16_t K_S_H, const uint16_t S_H) const
 {
-	if (precomputed.rows() == 0 || symbols == nullptr)
-		return false;
-	const uint16_t S_H = precode_on->_params.S + precode_on->_params.H;
-	const uint16_t K_S_H = precode_on->_params.K_padded + S_H;
-	_symbols = symbols;
-	const DenseMtx D = get_raw_symbols (K_S_H, S_H);
-	encoded_symbols = precomputed * D;
-	return true;
+	using T = typename std::iterator_traits<Rnd_It>::value_type;
+    assert (_to != nullptr && _from != nullptr && "RQ: get raw what?");
+
+	DenseMtx D = DenseMtx (K_S_H, _symbol_size);
+
+	// fill matrix D: full zero for the first S + H symbols
+	D.block (0, 0, S_H, D.cols()).setZero();
+	uint16_t row = S_H;
+
+	// now the C[0...K] symbols follow
+    const T padding = static_cast<T> (0);
+    Rnd_It it = *_from;
+    uint8_t *p = reinterpret_cast<uint8_t*> (&*it);
+    if (it >= *_to)
+        p = reinterpret_cast<uint8_t*> (const_cast<T*> (&padding));
+    size_t in_align = 0;
+	for (; row < S_H + _symbols; ++row) {
+        for (int64_t col = 0; col < static_cast<int64_t>(_symbol_size); ++col) {
+            auto val = *(p++);
+            D (row, col) = val;
+            ++in_align;
+            if (in_align == sizeof(T)) {
+                in_align = 0;
+                ++it;
+                if (it < *_to) {
+                    p = reinterpret_cast<uint8_t*> (&*it);
+                } else {
+                    p = reinterpret_cast<uint8_t*> (const_cast<T*> (&padding));
+                }
+            }
+        }
+    }
+	// finally fill with eventual padding symbols (K...K_padded)
+	D.block (row, 0, D.rows() - row, D.cols()).setZero();
+	return D;
 }
 
-template <typename Rnd_It, typename Fwd_It>
-DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_raw_symbols(const uint16_t K_S_H,
+// GET-RAW - interleaved
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+template <typename R_It, typename F_It, typename I,
+                                typename std::enable_if<I::value, int>::type>
+DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_raw_symbols(
+                                                    const uint16_t K_S_H,
 													const uint16_t S_H) const
 {
 	using T = typename std::iterator_traits<Rnd_It>::value_type;
-	assert (_symbols != nullptr);
+	assert (_interleaver != nullptr);
 
-	DenseMtx D = DenseMtx (K_S_H, sizeof(T) * _symbols->symbol_size());
-	auto C = (*_symbols)[_SBN];
+	DenseMtx D = DenseMtx (K_S_H, sizeof(T) * _interleaver->symbol_size());
+	auto C = (*_interleaver)[_SBN];
 
 	// fill matrix D: full zero for the first S + H symbols
 	D.block (0, 0, S_H, D.cols()).setZero();
 	uint16_t row = S_H;
 	// now the C[0...K] symbols follow
-	for (; row < S_H + _symbols->source_symbols (_SBN); ++row) {
+	for (; row < S_H + _interleaver->source_symbols (_SBN); ++row) {
 		auto symbol = C[row - S_H];
 		uint16_t col = 0;
-		for (uint16_t i = 0; i < _symbols->symbol_size(); ++i) {
+		for (uint16_t i = 0; i < _interleaver->symbol_size(); ++i) {
 			T val = symbol[i];
 			uint8_t *octet = reinterpret_cast<uint8_t *> (&val);
 			for (uint8_t byte = 0; byte < sizeof(T); ++byte)
@@ -269,33 +357,122 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It>::get_raw_symbols(const uint16_t K_S_H,
 	return D;
 }
 
-template <typename Rnd_It, typename Fwd_It>
-bool Raw_Encoder<Rnd_It, Fwd_It>::generate_symbols (
-								RaptorQ__v1::Work_State *thread_keep_working)
+
+
+// GENERATE - interleaved, precomputed
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+template <typename R_It, typename F_It, typename I,
+                                typename std::enable_if<I::value, int>::type>
+bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
+                                                    const DenseMtx &precomputed)
 {
-	if (_symbols == nullptr)
+	if (precomputed.rows() == 0)
 		return false;
-	// do not bother checking for multithread. that is done in RaptorQ.hpp
-	if (encoded_symbols.cols() != 0)
+	const uint16_t S_H = precode_on->_params.S + precode_on->_params.H;
+	const uint16_t K_S_H = precode_on->_params.K_padded + S_H;
+	const DenseMtx D = get_raw_symbols (K_S_H, S_H);
+	encoded_symbols = precomputed * D;
+	return true;
+}
+
+// GENERATE - interleaved, NON precomputed
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+template <typename R_It, typename F_It, typename I,
+                                typename std::enable_if<I::value, int>::type>
+bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
+                                RaptorQ__v1::Work_State *thread_keep_working)
+{
+    if (encoded_symbols.cols() != 0)
 		return true;
 
 	keep_working = true;
 
+    auto ksh = init_ksh();
+    DenseMtx D = get_raw_symbols (ksh.first, ksh.second);
+    return compute_intermediate (D, thread_keep_working);
+}
+
+// GENERATE - NON interleaved, precomputed
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+template <typename R_It, typename F_It, typename I,
+                                typename std::enable_if<!I::value, int>::type>
+bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
+                                        const DenseMtx &precomputed,
+                                        const Rnd_It *from, const Rnd_It *to)
+{
+	if (precomputed.rows() == 0 || from == nullptr || to == nullptr)
+		return false;
+    _from = const_cast<Rnd_It*> (from);
+    _to = const_cast<Rnd_It*> (to);
+	const uint16_t S_H = precode_on->_params.S + precode_on->_params.H;
+	const uint16_t K_S_H = precode_on->_params.K_padded + S_H;
+
+	const DenseMtx D = get_raw_symbols (K_S_H, S_H);
+	encoded_symbols = precomputed * D;
+	return true;
+}
+
+// GENERATE - NON interleaved, NON precomputed
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+template <typename R_It, typename F_It, typename I,
+                                typename std::enable_if<!I::value, int>::type>
+bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
+								RaptorQ__v1::Work_State *thread_keep_working,
+                                const Rnd_It *from, const Rnd_It *to)
+{
+    // do not bother checking for multithread. that is done in the caller
+    if (from == nullptr || to == nullptr)
+        return false;
+	if (encoded_symbols.cols() != 0)
+		return true;
+
+    _from = const_cast<Rnd_It*> (from);
+    _to = const_cast<Rnd_It*> (to);
+	keep_working = true;
+
+    auto ksh = init_ksh();
+    DenseMtx D = get_raw_symbols (ksh.first, ksh.second);
+    return compute_intermediate (D, thread_keep_working);
+}
+
+
+
+
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+std::pair<uint16_t, uint16_t> Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::
+                                                                    init_ksh()
+{
 	uint16_t S_H;
 	uint16_t K_S_H;
-	if (type == Save_Computation::ON) {
+	if (_type == Save_Computation::ON) {
+        if (precode_on == nullptr) {
+            precode_on = std::unique_ptr<Precode_Matrix<Save_Computation::ON>> (
+                                    new Precode_Matrix<Save_Computation::ON> (
+                                                        Parameters(_symbols)));
+            precode_on->gen(0);
+        }
 		S_H = precode_on->_params.S + precode_on->_params.H;
 		K_S_H = precode_on->_params.K_padded + S_H;
 	} else {
+        if (precode_off == nullptr) {
+            precode_off =std::unique_ptr<Precode_Matrix<Save_Computation::OFF>>(
+                                    new Precode_Matrix<Save_Computation::OFF> (
+                                                        Parameters(_symbols)));
+            precode_off->gen(0);
+        }
 		S_H = precode_off->_params.S + precode_off->_params.H;
 		K_S_H = precode_off->_params.K_padded + S_H;
 	}
+    return {K_S_H, S_H};
+}
 
-	DenseMtx D = get_raw_symbols (K_S_H, S_H);
-
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::compute_intermediate (
+                    DenseMtx &D, RaptorQ__v1::Work_State *thread_keep_working)
+{
 	Precode_Result precode_res;
 	std::deque<std::unique_ptr<Operation>> ops;
-	if (type == Save_Computation::ON) {
+	if (_type == Save_Computation::ON) {
 		const uint16_t size = precode_on->_params.L;
         const auto tmp_bool = std::vector<bool>();
 		const Cache_Key key (size, 0, 0, tmp_bool, tmp_bool);
@@ -338,8 +515,12 @@ bool Raw_Encoder<Rnd_It, Fwd_It>::generate_symbols (
 	return (Precode_Result::DONE == precode_res) && 0 != encoded_symbols.cols();
 }
 
-template <typename Rnd_It, typename Fwd_It>
-size_t Raw_Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
+// interleaved encoding
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+template <typename R_It, typename F_It, typename I,
+                                typename std::enable_if<I::value, int>::type>
+size_t Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::Enc (const uint32_t ESI,
+                                                        Fwd_It &output,
 														const Fwd_It end) const
 {
 	// returns iterators written
@@ -349,13 +530,13 @@ size_t Raw_Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
 	// The alignment of "Fwd_It" might *NOT* be the alignment of "Rnd_It"
 
 	size_t written = 0;
-	if (_symbols == nullptr || !ready())
+	if (_interleaver == nullptr || !ready())
 		return written;
-	auto non_repair = _symbols->source_symbols (_SBN);
+	auto non_repair = _interleaver->source_symbols (_SBN);
 
 	if (ESI < non_repair) {
 		// just return the source symbol.
-		auto block = (*_symbols)[_SBN];
+		auto block = (*_interleaver)[_SBN];
 		auto requested_symbol = block[static_cast<uint16_t> (ESI)];
 
 		typedef typename std::iterator_traits<Fwd_It>::value_type out_al;
@@ -382,51 +563,143 @@ size_t Raw_Encoder<Rnd_It, Fwd_It>::Enc (const uint32_t ESI, Fwd_It &output,
 			*(output++) = tmp_out;
 			++written;
 		}
-	} else {
-		// repair symbol requested.
-		if (encoded_symbols.cols() == 0)
-			return false;
-		uint16_t K;
-		if (type == Save_Computation::ON) {
-			K = precode_on->_params.K_padded;
-		} else {
-			K = precode_off->_params.K_padded;
-		}
-		auto ISI = ESI + (K - _symbols->source_symbols (_SBN));
-		DenseMtx tmp;
-		if (type == Save_Computation::ON) {
-			tmp = precode_on->encode (encoded_symbols, ISI);
-		} else {
-			tmp = precode_off->encode (encoded_symbols, ISI);
-		}
+        return written;
+    } else {
+        return Enc_repair (ESI, output, end);
+    }
+}
 
-		// put "tmp" in output, but the alignment is different
+// NON interleaved encoding
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+template <typename R_It, typename F_It, typename I,
+                                typename std::enable_if<!I::value, int>::type>
+size_t Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::Enc (const uint32_t ESI,
+                                                        Fwd_It &output,
+														const Fwd_It end) const
+{
+    // returns iterators written
+	// ESI means that the first _symbols.source_symbols() are the
+	// original symbols, and the next ones are repair symbols.
 
-		using T = typename std::iterator_traits<Fwd_It>::value_type;
-		T al = static_cast<T> (0);
-		uint8_t *p = reinterpret_cast<uint8_t *>  (&al);
-		for (int32_t i = 0; i < tmp.cols(); ++i) {
-			*p = static_cast<uint8_t> (tmp (0, i));
-			++p;
-			if (p == reinterpret_cast<uint8_t *>  (&al) + sizeof(T)) {
-				*output = al;
-				++output;
-				al = static_cast<T> (0);
-				p = reinterpret_cast<uint8_t *>  (&al);
-				++written;
-				if (output == end)
-					return written;
-			}
-		}
-		if (p != reinterpret_cast<uint8_t *>  (&al) + sizeof(T)) {
-			// symbol size is not aligned with Fwd_It type
-			while (p != reinterpret_cast<uint8_t *>  (&al) + sizeof(T))
-				*(p++) = 0;
-			*output = al;
-			++output;
+	// The alignment of "Fwd_It" might *NOT* be the alignment of "Rnd_It"
+
+	size_t written = 0;
+	if (!ready())
+		return written;
+
+	if (ESI < _symbols) {
+		// just return the source symbol.
+        typedef typename std::iterator_traits<Rnd_It>::value_type in_T;
+        typedef typename std::iterator_traits<Fwd_It>::value_type out_T;
+        const in_T padding = static_cast<in_T> (0);
+        const size_t skip_it = (ESI * _symbol_size) / sizeof(in_T);
+              size_t in_al   = (ESI * _symbol_size) % sizeof(in_T);
+        Rnd_It it = *_from + static_cast<int64_t> (skip_it);
+        uint8_t *p_in = reinterpret_cast<uint8_t*> (&*it);
+        if (it >= *_to)
+            p_in = reinterpret_cast<uint8_t*> (const_cast<in_T*> (&padding));
+        p_in += in_al;
+		size_t out_al = 0;
+		out_T tmp_out = static_cast<out_T> (0);
+        uint8_t *p_out = reinterpret_cast<uint8_t*> (&tmp_out);
+        size_t byte = 0;
+        while (output != end && byte != _symbol_size) {
+            *(p_out++) = *(p_in++);
+            ++out_al;
+            ++in_al;
+            ++byte;
+            if (in_al == sizeof(in_T)) {
+                in_al = 0;
+                ++it;
+                if (it < *_to) {
+                    p_in = reinterpret_cast<uint8_t*> (&*it);
+                } else {
+                    p_in = reinterpret_cast<uint8_t*> (const_cast<in_T*> (
+                                                                    &padding));
+                }
+            }
+            if (out_al == sizeof(out_T)) {
+                out_al = 0;
+                ++written;
+                *(output++) = tmp_out;
+                tmp_out = static_cast<out_T> (0);
+                p_out = reinterpret_cast<uint8_t*> (&tmp_out);
+            }
+        }
+		if (out_al != 0) {
+			*(output++) = tmp_out;
 			++written;
 		}
-	}
+        return written;
+	} else {
+        return Enc_repair (ESI, output, end);
+    }
+}
+
+// repair symbol only - no need to diffenretiate between (non)interleaved
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+size_t Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::Enc_repair (const uint32_t ESI,
+                                                        Fwd_It &output,
+														const Fwd_It end) const
+{
+    size_t written = 0;
+    // repair symbol requested.
+    if (encoded_symbols.cols() == 0)
+        return false;
+    uint16_t K;
+    if (_type == Save_Computation::ON) {
+        if (precode_on == nullptr)
+            return 0;
+        K = precode_on->_params.K_padded;
+    } else {
+        if (precode_off == nullptr) {
+            if (precode_on == nullptr)
+                return 0;
+            // we might have used the precode, and thus forced the "precode_on".
+            K = precode_on->_params.K_padded;
+        } else {
+            K = precode_off->_params.K_padded;
+        }
+    }
+    auto ISI = ESI + (K - _symbols);
+    DenseMtx tmp;
+    if (_type == Save_Computation::ON) {
+        tmp = precode_on->encode (encoded_symbols, ISI);
+    } else {
+        if (precode_off == nullptr) {
+            // we were forced to use "precode_on". see earlier "if"
+            tmp = precode_on->encode (encoded_symbols, ISI);
+        } else {
+            tmp = precode_off->encode (encoded_symbols, ISI);
+        }
+    }
+
+    // put "tmp" in output, but the alignment is different
+
+    using T = typename std::iterator_traits<Fwd_It>::value_type;
+    T al = static_cast<T> (0);
+    uint8_t *p = reinterpret_cast<uint8_t *>  (&al);
+    for (int32_t i = 0; i < tmp.cols(); ++i) {
+        *p = static_cast<uint8_t> (tmp (0, i));
+        ++p;
+        if (p == reinterpret_cast<uint8_t *>  (&al) + sizeof(T)) {
+            *output = al;
+            ++output;
+            al = static_cast<T> (0);
+            p = reinterpret_cast<uint8_t *>  (&al);
+            ++written;
+            if (output == end)
+                return written;
+        }
+    }
+    if (p != reinterpret_cast<uint8_t *>  (&al) + sizeof(T)) {
+        // symbol size is not aligned with Fwd_It type
+        while (p != reinterpret_cast<uint8_t *>  (&al) + sizeof(T))
+            *(p++) = 0;
+        *output = al;
+        ++output;
+        ++written;
+    }
 	return written;
 }
 

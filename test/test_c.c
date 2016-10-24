@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luker@fenrirproject.org>, All rights reserved.
+ * Copyright (c) 2015,Luca Fulchir<luker@fenrirproject.org>,All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -74,7 +74,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 	}
 
 	// start background precomputation while we get the source symbols.
-	struct RaptorQ_future *async_enc = RaptorQ_compute (enc, RQ_COMPUTE_COMPLETE);
+	struct RaptorQ_future *async_enc = RaptorQ_compute(enc,RQ_COMPUTE_COMPLETE);
     // wait for all block to finish computing:
     if (async_enc == NULL) {
         fprintf(stderr, "Error in starting computation\n");
@@ -220,7 +220,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 		return false;
 	}
 	// start background precomputation while we get the source symbols.
-	struct RaptorQ_future *async_dec = RaptorQ_compute (dec, RQ_COMPUTE_COMPLETE);
+	struct RaptorQ_future *async_dec =RaptorQ_compute (dec,RQ_COMPUTE_COMPLETE);
     // wait for all block to finish computing:
     if (async_dec == NULL) {
         fprintf(stderr, "Error in starting computation\n");
@@ -285,7 +285,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
         }
 	}
 
-	uint64_t written = RaptorQ_decode_bytes (dec, (void **)&rec, decoded_size, 0);
+	uint64_t written = RaptorQ_decode_bytes(dec, (void **)&rec, decoded_size,0);
 	// we are assuming no errors, all blocks decoded.
 	// "rec" now points to "received + written"
 	// This might help you to call RaptorQ_decode_sbn multiple time

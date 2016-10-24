@@ -52,7 +52,11 @@ namespace Impl {
 // probabilistic, and dropping a set of repair symbols *MIGHT* make things
 // decodable again.
 // keep this low. 1, 2, 3 should be ok.
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
 static uint16_t max_block_decoder_concurrency = 1;
+#pragma GCC diagnostic pop
 
 enum class RAPTORQ_LOCAL Work_State_Overlay : uint8_t {
 		KEEP_WORKING = static_cast<uint8_t> (

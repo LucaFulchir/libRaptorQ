@@ -77,16 +77,17 @@ private:
 
 	// indenting here prepresent which function needs which other.
 	// not standard, ask me if I care.
-	void init_LDPC1 (const uint16_t S, const uint16_t B);
-	void init_LDPC2 (const uint16_t skip, const uint16_t rows,
-														const uint16_t cols);
-	void add_identity (const uint16_t size, const uint16_t skip_row,
-													const uint16_t skip_col);
+	void init_LDPC1 (DenseMtx &_A, const uint16_t S, const uint16_t B) const;
+	void init_LDPC2 (DenseMtx &_A, const uint16_t skip, const uint16_t rows,
+                                                    const uint16_t cols) const;
+	void add_identity (DenseMtx &_A, const uint16_t size,
+                                                const uint16_t skip_row,
+                                                const uint16_t skip_col) const;
 
-	void init_HDPC ();
+	void init_HDPC (DenseMtx &_A) const;
 		DenseMtx make_MT() const;		// rfc 6330, pgg 24, used for HDPC
 		DenseMtx make_GAMMA() const;	// rfc 6330, pgg 24, used for HDPC
-	void add_G_ENC ();
+	void add_G_ENC (DenseMtx &_A) const;
 
 	//DenseMtx intermediate (DenseMtx &D, Op_Vec &ops, bool &keep_working);
 	void decode_phase0 (const Bitmask &mask,

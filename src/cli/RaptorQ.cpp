@@ -127,10 +127,10 @@ struct write_out_args
 
 
 
-bool encode (const int64_t symbol_size, const uint16_t symbols,
-				const size_t repair, std::istream *input, std::ostream *output);
+bool encode (const int64_t symbol_size, const RaptorQ__v1::Block_Size symbols,
+				const uint32_t repair, std::istream *input, std::ostream *output);
 
-bool decode (const size_t bytes, const uint16_t symbols,
+bool decode (const size_t bytes, const RaptorQ__v1::Block_Size symbols,
 													const int64_t symbol_size,
 													std::istream *input,
 													std::ostream *output);
@@ -226,7 +226,7 @@ static void print_output (struct write_out_args args)
 	*args.status = Out_Status::EXITED;
 }
 
-bool decode (const size_t bytes, const uint16_t symbols,
+bool decode (const size_t bytes, const RaptorQ__v1::Block_Size symbols,
 													const int64_t symbol_size,
 													std::istream *input,
 													std::ostream *output)
@@ -261,7 +261,8 @@ bool decode (const size_t bytes, const uint16_t symbols,
 			return false;
 		} else if (read == 0 || input->eof()) {
 			if (bytes_left == 0 && last_block_bytes !=
-								static_cast<uint64_t> (symbols * symbol_size)) {
+								static_cast<uint64_t> (
+                                static_cast<int64_t> (symbols) * symbol_size)) {
 				// the last block was not filled to the end.
 				// we need to pad it with additional symbols.
 				lock.lock();
@@ -342,7 +343,8 @@ bool decode (const size_t bytes, const uint16_t symbols,
 				return false;
 			}
 			last_block_bytes = std::min (bytes_left,
-								static_cast<size_t> (symbol_size * symbols));
+								static_cast<size_t> (
+                                static_cast<int64_t>(symbols) * symbol_size));
 			bytes_left -= last_block_bytes;
 			std::tie (dec_it, success) = decoders.emplace (std::make_pair (
 						block_number,
@@ -379,35 +381,32 @@ bool decode (const size_t bytes, const uint16_t symbols,
 }
 
 // encoding function. manages both input and output
-bool encode (const int64_t symbol_size, const uint16_t symbols,
-				const size_t repair, std::istream *input, std::ostream *output)
+bool encode (const int64_t symbol_size, const RaptorQ__v1::Block_Size symbols,
+            const uint32_t repair, std::istream *input, std::ostream *output)
 {
 	// false on error
-	std::vector<uint8_t> buf (static_cast<size_t> (symbol_size));
+	std::vector<uint8_t> buf (static_cast<size_t> (symbol_size), 0);
+    std::vector<uint8_t> block_buf;
+    block_buf.reserve (static_cast<size_t> (symbols) *
+                                            static_cast<size_t> (symbol_size));
 	// Since we do not change the number of symbols for each block,
 	// we can reuse the encoder, so that less works will be done.
 	// just call clear_data() before feeding it the next block.
 	RaptorQ__v1::Encoder<iter_8, iter_8> encoder (symbols,
 										static_cast<size_t> (symbol_size));
-	auto future = encoder.compute();
+	auto future = encoder.precompute();
 	RaptorQ__v1::Error enc_status = RaptorQ__v1::Error::INITIALIZATION;
 	uint32_t sym_num = 0;
 	uint32_t block_num = 0;
 	while (true) {
-		buf.clear();
-		buf.insert (buf.begin(), static_cast<size_t> (symbol_size), 0);
+		buf.clear(); // with padding already set
+        buf.insert (buf.begin(), static_cast<size_t> (symbol_size), 0);
 		#pragma clang diagnostic push
 		#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 		input->read (reinterpret_cast<char *> (buf.data()), symbol_size);
 		#pragma clang diagnostic pop
 		int64_t read = input->gcount();
 		if (read > 0) {
-			auto buf_start = buf.begin();
-			auto added = encoder.add_data (buf_start, buf.end());
-			if (added != buf.size()) {
-				std::cerr << "ERR: error adding symbol to the encoder\n";
-				return false;
-			}
 			output->write (reinterpret_cast<char *> (&block_num),
 															sizeof(block_num));
 			output->write (reinterpret_cast<char *> (&sym_num),sizeof(sym_num));
@@ -415,29 +414,21 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 			#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 			output->write (reinterpret_cast<char *> (buf.data()), symbol_size);
 			#pragma clang diagnostic pop
+            block_buf.insert (block_buf.end(), buf.begin(), buf.end());
 			++sym_num;
 		}
-		size_t bytes_left = encoder.needed_bytes();
 		if (input->eof() || read <= 0) {
-			// we got EOF. Add padding data & symbols to fill the
-			// encoder.
-			std::vector<uint8_t> padding (bytes_left, 0);
-			auto it = padding.begin();
-			#pragma clang diagnostic push
-			#pragma GCC diagnostic push
-			#pragma clang diagnostic ignored "-Wunused-variable"
-			#pragma GCC diagnostic ignored "-Wunused-variable"
-			auto pad_added = encoder.add_data (it, padding.end());
-			#pragma clang diagnostic pop
-			#pragma GCC diagnostic pop
-			assert (pad_added == padding.size());
-			assert (it == padding.end());
-			bytes_left = encoder.needed_bytes();
-			assert (bytes_left == 0);
-			sym_num = symbols;
+			// end of input.
+			sym_num = static_cast<uint16_t> (symbols);
 		}
 
-		if (bytes_left == 0) {
+		if (sym_num == static_cast<uint16_t> (symbols)) {
+            // give the data to the encoder. It will pad it automatically.
+            size_t ret = encoder.set_data (block_buf.begin(), block_buf.end());
+            if (ret != block_buf.size()) {
+                std::cout << "ERR: can not add block data to the decoder\n";
+                return false;
+            }
 			// we use the same future multiple times, but it has a shared state
 			// only the first time. Do not wait() the other times.
 			if (future.valid()) {
@@ -449,8 +440,8 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 				return false;
 			}
 			std::vector<uint8_t> rep (static_cast<size_t> (symbol_size), 0);
-			for (uint32_t rep_id = sym_num; rep_id < (symbols + repair);
-																++rep_id) {
+			for (uint32_t rep_id = sym_num; rep_id <
+                           (static_cast<size_t> (symbols) + repair); ++rep_id) {
 				auto rep_start = rep.begin();
 				auto rep_length = encoder.encode (rep_start, rep.end(), rep_id);
 				// rep_length is actually the number of iterators written.
@@ -473,7 +464,8 @@ bool encode (const int64_t symbol_size, const uint16_t symbols,
 			if (input->eof())
 				return true;
 			encoder.clear_data();
-			++block_num;
+            block_buf.clear();
+            ++block_num;
 			sym_num = 0;
 		}
 	}
@@ -513,7 +505,7 @@ int main (int argc, char **argv)
 		return 0;
 	}
 
-	size_t repair = 0;
+	uint32_t repair = 0;
 	size_t bytes = 0;
 	const std::string command = std::string (argv[1]);
 	if (parse.nonOptionsCount() == 1) {
@@ -538,7 +530,8 @@ int main (int argc, char **argv)
 			std::cerr << "ERR: encoder requires one \"--repair\" parameter\n";
 			return 1;
 		}
-		repair =  static_cast<size_t> (strtol(options[REPAIR].arg, nullptr,10));
+		repair =  static_cast<uint32_t> (strtol(options[REPAIR].arg, nullptr,
+                                                                        10));
 		if (repair <= 0) {
 			std::cerr << "ERR: Symbol_size must be positive\n";
 			return 1;
@@ -577,16 +570,29 @@ int main (int argc, char **argv)
 		return 1;
 	}
 
-	const uint16_t symbols = static_cast<uint16_t> (strtol(options[SYMBOLS].arg,
+	const uint16_t syms = static_cast<uint16_t> (strtol(options[SYMBOLS].arg,
 																nullptr, 10));
 	const int64_t symbol_size =  static_cast<int64_t> (
 								strtol(options[SYMBOL_SIZE].arg, nullptr, 10));
 
 
-	if (symbols < 1 || symbols > 56403) {
+	if (syms < 1 || syms > 56403) {
 		std::cerr << "ERR: Symbols must be between 1 and 56403\n";
 		return 1;
 	}
+    RaptorQ__v1::Block_Size symbols = RaptorQ__v1::Block_Size::Block_10;
+    for (size_t idx = 0; idx < RaptorQ__v1::blocks->size(); ++idx) {
+        if (static_cast<uint16_t> ((*RaptorQ__v1::blocks)[idx]) >= syms) {
+            if (static_cast<uint16_t> ((*RaptorQ__v1::blocks)[idx]) > syms) {
+                std::cerr << "ERR: wrong symbol number. Closest block: "
+                          << static_cast<uint32_t> ((*RaptorQ__v1::blocks)[idx])
+                          << "\n";
+                return 1;
+            }
+            symbols = (*RaptorQ__v1::blocks)[idx];
+            break;
+        }
+    }
 	if (symbol_size <= 0) {
 		std::cerr << "ERR: Symbol_size must be positive\n";
 		return 1;

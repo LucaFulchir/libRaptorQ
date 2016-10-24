@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luker@fenrirproject.org>, All rights reserved.
+ * Copyright (c) 2015-2016, Luca Fulchir<luker@fenrirproject.org>,
+ * All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -33,6 +34,21 @@
 // and finally decode everything.
 
 namespace RaptorQ = RaptorQ__v1;
+
+
+bool test_enc_output (uint8_t **p_in, const uint8_t *in_end, uint8_t *p_out,
+                                                            size_t symbol_size);
+bool test_enc_output (uint8_t **p_in, const uint8_t *in_end, uint8_t *p_out,
+                                                            size_t symbol_size)
+{
+    for (size_t idx = 0; idx < symbol_size && *p_in < in_end; ++idx) {
+        if (*((*p_in)++) != *(p_out++)) {
+            (*p_in) += (symbol_size - idx);
+            return false;
+        }
+    }
+    return true;
+}
 
 // mysize is bytes.
 template <typename in_enc_align, typename out_enc_align, typename out_dec_align>
@@ -82,8 +98,9 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	}
 	if (shift != 0)
 		myvec.push_back (tmp);
-
 	// done initializing random data.
+    uint8_t *test_encoder = reinterpret_cast<uint8_t*>(&myvec[0]);
+    const uint8_t *test_encoder_end = test_encoder + mysize;
 
 
 
@@ -101,11 +118,26 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	uint16_t symbol_size = in_aligned_symbol_size * sizeof(in_enc_align);
 	const uint16_t out_aligned_symbol_size = static_cast<uint16_t> (std::ceil (
 					static_cast<float> (symbol_size) / sizeof (out_enc_align)));
-	auto enc_it = myvec.begin();
+
+    // find the right enum value for the block size:
+    auto symbols = (myvec.size() * sizeof(in_enc_align)) / symbol_size;
+    if ((myvec.size() * sizeof(in_enc_align)) % symbol_size != 0)
+        ++symbols;
+    RaptorQ::Block_Size block = RaptorQ::Block_Size::Block_10;
+    for (auto blk : *RaptorQ::blocks) {
+        if (static_cast<uint16_t> (blk) >= symbols) {
+            block = blk;
+            break;
+        }
+    }
 
 	RaptorQ::Encoder<typename std::vector<in_enc_align>::iterator,
 							typename std::vector<out_enc_align>::iterator> enc (
-								enc_it, myvec.end(), in_aligned_symbol_size);
+                                                            block, symbol_size);
+    if (enc.set_data (myvec.begin(), myvec.end()) != mysize) {
+        std::cout << "Could not give data to the encoder :(\n";
+        return false;
+    }
 	uint16_t _symbols = enc.symbols();
 	std::cout << "Size: " << mysize << " symbols: " <<
 								static_cast<uint32_t> (_symbols) <<
@@ -133,6 +165,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 			if (dropped <= drop_prob) {
 				// we dropped one source symbol, we need one more repair.
 				++repair;
+                test_encoder += symbol_size;
 				continue;
 			}
 			// create a place where to save our source symbol
@@ -147,6 +180,12 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 									" Could not get the whole source symbol!\n";
 				return false;
 			}
+            if (!test_enc_output (&test_encoder, test_encoder_end,
+                            reinterpret_cast<uint8_t*> (&*source_sym.begin()),
+                                                                symbol_size)) {
+                std::cout << "Encoder produced unexpected result\n";
+                return false;
+            }
 			// finally add it to the encoded vector
 			encoded.emplace_back ((*sym_it).id(), std::move(source_sym));
 		}
@@ -189,7 +228,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 	using Decoder_type = RaptorQ::Decoder<
 								typename std::vector<in_dec_align>::iterator,
 								typename std::vector<out_dec_align>::iterator>;
-	Decoder_type dec (_symbols, symbol_size, Decoder_type::Report::COMPLETE);
+	Decoder_type dec (block, symbol_size, Decoder_type::Report::COMPLETE);
 
 
 	std::vector<out_dec_align> received;

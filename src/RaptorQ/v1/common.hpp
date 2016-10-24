@@ -107,15 +107,21 @@ typedef enum {
 	RQ_COMPRESS_LZ4 = 0x01,
 } RaptorQ_Compress;
 
+
+
 #ifndef __cplusplus
 #include <stdint.h>
+
 #else
 // C++ version. keep the enum synced
 #include <cstdint>
+
 namespace RaptorQ__v1 {
-	enum class Compress : uint8_t { NONE = RQ_COMPRESS_NONE,
-									LZ4 = RQ_COMPRESS_LZ4
-									};
+
+enum class Compress : uint8_t { NONE = RQ_COMPRESS_NONE,
+                                LZ4 = RQ_COMPRESS_LZ4
+                                };
+
 inline Compress operator| (const Compress a, const Compress b)
 {
 	return static_cast<Compress> (static_cast<uint8_t> (a) |
@@ -180,7 +186,7 @@ namespace Impl {
 #endif
 // don't use #define everywhere. let the dead code elimination take care
 // of eliminating unused code.
-constexpr RAPTORQ_LOCAL bool debug = RQ_DEBUG;
+constexpr bool debug = RQ_DEBUG;
 }
 }
 

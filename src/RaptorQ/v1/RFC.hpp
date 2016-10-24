@@ -29,6 +29,7 @@
 //
 /////////////////////
 
+#include "RaptorQ/v1/block_sizes.hpp"
 #include "RaptorQ/v1/Interleaver.hpp"
 #include "RaptorQ/v1/De_Interleaver.hpp"
 #include "RaptorQ/v1/Decoder.hpp"
@@ -144,7 +145,8 @@ private:
 
 	class Block_Work final : public Impl::Pool_Work {
 	public:
-		std::weak_ptr<RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It>> work;
+		std::weak_ptr<RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It,
+                                  RaptorQ__v1::Impl::with_interleaver>> work;
 		std::weak_ptr<std::condition_variable> notify;
         std::weak_ptr<std::mutex> lock;
 
@@ -157,12 +159,13 @@ private:
 	public:
 		Enc (Impl::Interleaver<Rnd_It> *interleaver, const uint8_t sbn)
 		{
-			enc = std::make_shared<
-							RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It>> (
-															interleaver, sbn);
+			enc = std::make_shared<RaptorQ__v1::Impl::Raw_Encoder<Rnd_It,
+                                Fwd_It, RaptorQ__v1::Impl::with_interleaver>> (
+                                                            interleaver, sbn);
 			reported = false;
 		}
-		std::shared_ptr<RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It>> enc;
+		std::shared_ptr<RaptorQ__v1::Impl::Raw_Encoder<Rnd_It, Fwd_It,
+                                    RaptorQ__v1::Impl::with_interleaver>> enc;
 		bool reported;
 	};
 
@@ -277,7 +280,7 @@ public:
 															const uint8_t sbn);
 	// result in ITERATORS
 	// last *might* be half written depending on data alignments
-	std::pair<uint64_t, uint8_t> decode_aligned (Fwd_It &start, const Fwd_It end,
+	std::pair<uint64_t, uint8_t> decode_aligned (Fwd_It &start,const Fwd_It end,
 															const uint8_t skip);
 	std::pair<size_t, uint8_t> decode_block_aligned (Fwd_It &start,
 															const Fwd_It end,
@@ -308,10 +311,10 @@ private:
 	// TODO: tagged pointer
 	class RAPTORQ_LOCAL Dec {
 	public:
-		Dec (const uint16_t symbols, const uint16_t symbol_size)
+		Dec (const RaptorQ__v1::Block_Size symbols, const uint16_t symbol_size)
 		{
-			dec = std::make_shared<RaptorQ__v1::Impl::Raw_Decoder<In_It>> (symbols,
-																symbol_size);
+			dec = std::make_shared<RaptorQ__v1::Impl::Raw_Decoder<In_It>> (
+                                                          symbols, symbol_size);
 			reported = false;
 		}
 		std::shared_ptr<RaptorQ__v1::Impl::Raw_Decoder<In_It>> dec;
@@ -786,7 +789,7 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 													part.size(0) : part.size(1);
 		bool success;
 		std::tie (it, success) = decoders.emplace (std::make_pair(sbn,
-												Dec (symbols, _symbol_size)));
+            Dec (static_cast<RaptorQ__v1::Block_Size>(symbols), _symbol_size)));
 		assert (success);
 	}
 	auto dec = it->second.dec;

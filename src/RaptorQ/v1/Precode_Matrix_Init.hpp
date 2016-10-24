@@ -40,24 +40,26 @@ template<Save_Computation IS_OFFLINE>
 void Precode_Matrix<IS_OFFLINE>::gen (const uint32_t repair_overhead)
 {
 	_repair_overhead = repair_overhead;
-	A = DenseMtx (_params.L + repair_overhead, _params.L);
+	DenseMtx _A = DenseMtx (_params.L + repair_overhead, _params.L);
 
-	init_LDPC1 (_params.S, _params.B);
-	add_identity (_params.S, 0, _params.B);
-	init_LDPC2 (_params.W, _params.S, _params.P);
-	init_HDPC ();
-	add_identity (_params.H, _params.S, _params.L - _params.H);
-	add_G_ENC ();
+	init_LDPC1 (_A, _params.S, _params.B);
+	add_identity (_A, _params.S, 0, _params.B);
+	init_LDPC2 (_A, _params.W, _params.S, _params.P);
+	init_HDPC (_A);
+	add_identity (_A, _params.H, _params.S, _params.L - _params.H);
+	add_G_ENC (_A);
 	// G_ENC only fills up to L rows, but we might have overhead.
 	// initialize it.
 	for (uint16_t row = _params.L; row < A.rows(); ++row) {
 		for (uint16_t col = 0; col < A.cols(); ++col)
-			A(row, col) = 0;
+			_A (row, col) = 0;
 	}
+    A = std::move (_A);
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::init_LDPC1 (const uint16_t S, const uint16_t B)
+void Precode_Matrix<IS_OFFLINE>::init_LDPC1 (DenseMtx &_A, const uint16_t S,
+                                                        const uint16_t B) const
 {
 	// The first LDPC1 submatrix is a SxB matrix of SxS submatrixes
 	// (the last submatrix can have less than S columns)
@@ -80,17 +82,18 @@ void Precode_Matrix<IS_OFFLINE>::init_LDPC1 (const uint16_t S, const uint16_t B)
 					(row == (col + 2 * (submtx + 1)) % S)) {// 2* (i+1) & dshift
 				zero = false ;
 			}
-			A (row, col) = (zero ? 0 : 1);
+			_A (row, col) = (zero ? 0 : 1);
 		}
 	}
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::add_identity (const uint16_t size,
-														const uint16_t skip_row,
-														const uint16_t skip_col)
+void Precode_Matrix<IS_OFFLINE>::add_identity (DenseMtx &_A,
+                                                const uint16_t size,
+												const uint16_t skip_row,
+												const uint16_t skip_col) const
 {
-	auto sub_mtx = A.block (skip_row, skip_col, size, size);
+	auto sub_mtx = _A.block (skip_row, skip_col, size, size);
 	for (uint16_t row = 0; row < sub_mtx.rows(); ++row) {
 		for (uint16_t col = 0; col < sub_mtx.cols(); ++col)
 			sub_mtx (row, col) = (row == col ? 1 : 0);
@@ -98,9 +101,9 @@ void Precode_Matrix<IS_OFFLINE>::add_identity (const uint16_t size,
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::init_LDPC2 (const uint16_t skip,
-															const uint16_t rows,
-															const uint16_t cols)
+void Precode_Matrix<IS_OFFLINE>::init_LDPC2 (DenseMtx &_A, const uint16_t skip,
+													const uint16_t rows,
+													const uint16_t cols) const
 {
 	// this submatrix has two consecutive "1" in the first row, first two
 	// colums, and then every other row is the previous right shifted.
@@ -108,7 +111,7 @@ void Precode_Matrix<IS_OFFLINE>::init_LDPC2 (const uint16_t skip,
 	// You won't find this easily on the rfc, but you can see this in the book:
 	//  Raptor Codes Foundations and Trends in Communications
 	//	and Information Theory
-	auto sub_mtx = A.block (0, skip, rows, cols);
+	auto sub_mtx = _A.block (0, skip, rows, cols);
 	for (uint16_t row = 0; row < sub_mtx.rows(); ++row) {
 		uint16_t start = row % cols;
 		for (uint16_t col = 0; col < sub_mtx.cols(); ++col) {
@@ -170,27 +173,27 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::make_GAMMA() const
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::init_HDPC ()
+void Precode_Matrix<IS_OFFLINE>::init_HDPC (DenseMtx &_A) const
 {
 	// rfc 6330, pg 25
 	DenseMtx MT = make_MT();
 	DenseMtx GAMMA = make_GAMMA();
 
-	A.block(_params.S, 0, _params.H, GAMMA.rows()) = MT * GAMMA;
+	_A.block(_params.S, 0, _params.H, GAMMA.rows()) = MT * GAMMA;
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::add_G_ENC ()
+void Precode_Matrix<IS_OFFLINE>::add_G_ENC (DenseMtx &_A) const
 {
 	// rfc 6330, pg 26
 	for (uint16_t row = _params.S + _params.H; row < _params.L; ++row) {
 		// all to zero
 		for (uint16_t col = 0; col < _params.L; ++col)
-			A (row, col) = 0;
+			_A (row, col) = 0;
 		// only overwrite with ones the columns that need it
 		auto idxs = _params.get_idxs ((row - _params.S) - _params.H);
 		for (auto idx : idxs)
-			A(row, idx) = 1;
+			_A (row, idx) = 1;
 	}
 }
 

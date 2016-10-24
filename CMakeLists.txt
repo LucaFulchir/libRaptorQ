@@ -209,6 +209,7 @@ SET(SOURCES
 
 SET(HEADERS
             src/RaptorQ/v1/API_Iterators.hpp
+            src/RaptorQ/v1/block_sizes.hpp
             src/RaptorQ/v1/caches.hpp
             src/RaptorQ/v1/common.hpp
             src/RaptorQ/v1/De_Interleaver.hpp

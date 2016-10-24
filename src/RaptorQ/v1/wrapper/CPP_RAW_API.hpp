@@ -33,10 +33,7 @@ class RAPTORQ_API Encoder
 {
 public:
     // used for precomputation
-    Encoder (const uint16_t symbols, const size_t symbol_size);
-    // with data at the beginning. Less work.
-    Encoder (const Rnd_It data_from, const Rnd_It data_to,
-													const size_t symbol_size);
+    Encoder (const Block_Size symbols, const size_t symbol_size);
 
 	uint16_t symbols() const;
 	size_t symbol_size() const;
@@ -48,12 +45,15 @@ public:
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end_repair
                                                         (const uint32_t repair);
 
-	size_t add_data (Rnd_It &from, const Rnd_It to);
-	void clear_data();
-	bool compute_sync();
-	size_t needed_bytes();
+    bool has_data() const;
+	size_t set_data (const Rnd_It &from, const Rnd_It &to);
+    void clear_data();
 
+    bool precompute_sync();
+	bool compute_sync();
+    std::future<Error> precompute();
     std::future<Error> compute();
+
     size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t id);
 
 private:
@@ -66,7 +66,7 @@ class RAPTORQ_API Decoder
 public:
     using Report = typename RaptorQ__v1::Impl::Decoder<In_It, Fwd_It>::Report;
 
-    Decoder (const uint16_t symbols, const size_t symbol_size,
+    Decoder (const Block_Size symbols, const size_t symbol_size,
 															const Report type);
 
 	uint16_t symbols() const;
@@ -106,24 +106,13 @@ private:
 
 
 template <typename Rnd_It, typename Fwd_It>
-Encoder<Rnd_It, Fwd_It>::Encoder (const uint16_t symbols,
+Encoder<Rnd_It, Fwd_It>::Encoder (const Block_Size symbols,
 													const size_t symbol_size)
 {
 	IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
 	IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
 	encoder = std::unique_ptr<Impl::Encoder<Rnd_It, Fwd_It>> (
 					new Impl::Encoder<Rnd_It, Fwd_It> (symbols, symbol_size));
-}
-
-template <typename Rnd_It, typename Fwd_It>
-Encoder<Rnd_It, Fwd_It>::Encoder (const Rnd_It data_from, const Rnd_It data_to,
-                                            const size_t symbol_size)
-{
-	IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
-	IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
-	encoder = std::unique_ptr<Impl::Encoder<Rnd_It, Fwd_It>> (
-						new Impl::Encoder<Rnd_It, Fwd_It> (data_from, data_to,
-																symbol_size));
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -191,11 +180,19 @@ RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
 }
 
 template <typename Rnd_It, typename Fwd_It>
-size_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It &from, const Rnd_It to)
+bool Encoder<Rnd_It, Fwd_It>::has_data() const
+{
+	if (encoder == nullptr)
+		return false;
+	return encoder->has_data();
+}
+
+template <typename Rnd_It, typename Fwd_It>
+size_t Encoder<Rnd_It, Fwd_It>::set_data (const Rnd_It &from, const Rnd_It &to)
 {
 	if (encoder == nullptr)
 		return 0;
-	return encoder->add_data (from, to);
+	return encoder->set_data (from, to);
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -207,11 +204,30 @@ void Encoder<Rnd_It, Fwd_It>::clear_data()
 }
 
 template <typename Rnd_It, typename Fwd_It>
+bool Encoder<Rnd_It, Fwd_It>::precompute_sync()
+{
+	if (encoder == nullptr)
+		return false;
+	return encoder->precompute_sync();
+}
+
+template <typename Rnd_It, typename Fwd_It>
 bool Encoder<Rnd_It, Fwd_It>::compute_sync()
 {
 	if (encoder == nullptr)
 		return false;
 	return encoder->compute_sync();
+}
+
+template <typename Rnd_It, typename Fwd_It>
+std::future<Error> Encoder<Rnd_It, Fwd_It>::precompute()
+{
+	if (encoder == nullptr) {
+		std::promise<Error> p;
+		p.set_value (Error::INITIALIZATION);
+		return p.get_future();
+	}
+	return encoder->precompute();
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -234,21 +250,13 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 	return encoder->encode (output, end, id);
 }
 
-template <typename Rnd_It, typename Fwd_It>
-size_t Encoder<Rnd_It, Fwd_It>::needed_bytes ()
-{
-	if (encoder == nullptr)
-		return 0;
-	return encoder->needed_bytes ();
-}
-
 ///////////////////
 //// Decoder
 ///////////////////
 
 
 template <typename In_It, typename Fwd_It>
-Decoder<In_It, Fwd_It>::Decoder (const uint16_t symbols,
+Decoder<In_It, Fwd_It>::Decoder (const Block_Size symbols,
 								const size_t symbol_size, const Report type)
 {
 	IS_INPUT(In_It, "RaptorQ__v1::Decoder");

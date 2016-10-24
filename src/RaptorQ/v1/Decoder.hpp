@@ -55,9 +55,9 @@ public:
 
     bool end_of_input;
 
-	Raw_Decoder (const uint16_t symbols, const size_t symbol_size)
-		:keep_working (true), type (test_computation()), _symbols (symbols),
-																mask (_symbols)
+	Raw_Decoder (const Block_Size symbols, const size_t symbol_size)
+		:keep_working (true), type (test_computation()),
+                    _symbols (static_cast<uint16_t> (symbols)), mask (_symbols)
 	{
 		IS_INPUT(In_It, "RaptorQ__v1::Impl::Decoder");
 		// symbol size is in octets, but we save it in "T" sizes.

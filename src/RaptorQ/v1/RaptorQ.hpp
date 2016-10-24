@@ -21,6 +21,7 @@
 #pragma once
 
 #include "RaptorQ/v1/common.hpp"
+#include "RaptorQ/v1/block_sizes.hpp"
 #include "RaptorQ/v1/RaptorQ_Iterators.hpp"
 #include "RaptorQ/v1/Encoder.hpp"
 #include "RaptorQ/v1/Decoder.hpp"
@@ -47,12 +48,10 @@ class RAPTORQ_LOCAL Encoder
 public:
 	~Encoder();
     // used for precomputation
-    Encoder (const uint16_t symbols, const size_t symbol_size);
-    // with data at the beginning. Less work.
-    Encoder (const Rnd_It data_from, const Rnd_It data_to,
-													const size_t symbol_size);
+    Encoder (const Block_Size symbols, const size_t symbol_size);
+
 	uint16_t symbols() const;
-	size_t symbol_size() const;
+	size_t symbol_size() const; //FIXME: max smbol size is same as signed size_t
 	uint32_t max_repair() const;
 
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> begin_source();
@@ -61,38 +60,32 @@ public:
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end_repair
                                                         (const uint32_t repair);
 
-	size_t add_data (Rnd_It &from, const Rnd_It to);
-    //TODO: end_of_input!
+    bool has_data() const;
+	size_t set_data (const Rnd_It &from, const Rnd_It &to);
 	void clear_data();
-	bool compute_sync();
-	size_t needed_bytes();
 
+    bool precompute_sync();
+	bool compute_sync();
+    std::future<Error> precompute();
     std::future<Error> compute();
+
     size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t id);
 
 private:
-	enum class Data_State : uint8_t {
-		NEED_DATA = 1,	// first constructor used. no interleaver until FULL
-		FULL = 2,
-		INIT = 3	// second constructor used: we already have the interleaver
-	};
 
-    std::unique_ptr<RFC6330__v1::Impl::Interleaver<Rnd_It>> interleaver;
-	Raw_Encoder<Rnd_It, Fwd_It> encoder;
-	DenseMtx precomputed;
-	std::vector<typename std::iterator_traits<Rnd_It>::value_type> data;
-	std::thread waiting;
-	std::mutex data_mtx;
     const size_t _symbol_size;
 	const uint16_t _symbols;
-    Data_State state;
+    bool have_data;
+	Raw_Encoder<Rnd_It, Fwd_It, without_interleaver> encoder;
+	DenseMtx precomputed;
+	std::thread waiting;
+    Rnd_It _from, _to;
 
-
-	static size_t real_symbol_size (const size_t symbol_size);
 	static uint16_t calc_symbols (const Rnd_It data_from, const Rnd_It data_to,
 													const size_t symbol_size);
 	static void compute_thread (Encoder<Rnd_It, Fwd_It> *obj,
-														std::promise<Error> p);
+                                                    bool forced_precomputation,
+													std::promise<Error> p);
 };
 
 template <typename In_It, typename Fwd_It>
@@ -107,7 +100,7 @@ public:
 	};
 
 	~Decoder();
-    Decoder (const uint16_t symbols, const size_t symbol_size,
+    Decoder (const Block_Size symbols, const size_t symbol_size,
 															const Report type);
 
 	uint16_t symbols() const;
@@ -158,38 +151,6 @@ private:
 ///////////////////
 //// Encoder
 ///////////////////
-
-template <typename Rnd_It, typename Fwd_It>
-Encoder<Rnd_It, Fwd_It>::~Encoder()
-{
-	encoder.stop();
-	if (waiting.joinable())
-		waiting.join();
-}
-
-template <typename Rnd_It, typename Fwd_It>
-Encoder<Rnd_It, Fwd_It>::Encoder (const uint16_t symbols,
-													const size_t symbol_size)
-	: interleaver (nullptr), encoder (symbols), _symbol_size (symbol_size),
-                                                            _symbols (symbols)
-{
-	IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
-	IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
-    state = Data_State::NEED_DATA;
-    using T = typename std::iterator_traits<Rnd_It>::value_type;
-    const size_t tot_size = symbols * symbol_size;
-    const size_t it_size = (tot_size / sizeof(T)) +
-                                        (tot_size % sizeof(T) == 0 ? 0 : 1);
-    data.reserve (it_size);
-}
-
-template <typename Rnd_It, typename Fwd_It>
-size_t Encoder<Rnd_It, Fwd_It>::real_symbol_size (const size_t symbol_size)
-{
-	using T = typename std::iterator_traits<Rnd_It>::value_type;
-	return symbol_size * sizeof(T);
-}
-
 template <typename Rnd_It, typename Fwd_It>
 uint16_t Encoder<Rnd_It, Fwd_It>::calc_symbols (const Rnd_It data_from,
 													const Rnd_It data_to,
@@ -205,19 +166,22 @@ uint16_t Encoder<Rnd_It, Fwd_It>::calc_symbols (const Rnd_It data_from,
 }
 
 template <typename Rnd_It, typename Fwd_It>
-Encoder<Rnd_It, Fwd_It>::Encoder (const Rnd_It data_from, const Rnd_It data_to,
-                                                    const size_t symbol_size)
-    : interleaver (new RFC6330__v1::Impl::Interleaver<Rnd_It> (data_from,
-									data_to, real_symbol_size(symbol_size),
-									SIZE_MAX, real_symbol_size(symbol_size))),
-	  encoder (interleaver.get(), 0),
-                                _symbol_size (real_symbol_size(symbol_size)),
-                                _symbols (calc_symbols (data_from, data_to,
-												real_symbol_size(symbol_size)))
+Encoder<Rnd_It, Fwd_It>::~Encoder()
+{
+	encoder.stop();
+	if (waiting.joinable())
+		waiting.join();
+}
+
+template <typename Rnd_It, typename Fwd_It>
+Encoder<Rnd_It, Fwd_It>::Encoder (const Block_Size symbols,
+													const size_t symbol_size)
+	:  _symbol_size (symbol_size), _symbols (static_cast<uint16_t> (symbols)),
+                                                encoder (symbols, _symbol_size)
 {
 	IS_RANDOM(Rnd_It, "RaptorQ__v1::Encoder");
 	IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
-    state = Data_State::INIT;
+    have_data = false;
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -259,15 +223,13 @@ RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
                                        Encoder<Rnd_It, Fwd_It>::end_source()
 {
 	return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (this,
-																	_symbols);
+                                                                    _symbols);
 }
 
 template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
                                         Encoder<Rnd_It, Fwd_It>::begin_repair()
-{
-	return end_source();
-}
+    { return end_source(); }
 
 template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
@@ -278,43 +240,48 @@ RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
 }
 
 template <typename Rnd_It, typename Fwd_It>
-size_t Encoder<Rnd_It, Fwd_It>::add_data (Rnd_It &from, const Rnd_It to)
-{
-	size_t written = 0;
-	using T = typename std::iterator_traits<Rnd_It>::value_type;
+bool Encoder<Rnd_It, Fwd_It>::has_data() const
+    { return have_data; }
 
-	if (state != Data_State::NEED_DATA)
-		return written;
-	std::unique_lock<std::mutex> lock (data_mtx);
-	RQ_UNUSED (lock);
-	while (from != to) {
-		data.emplace_back (*from);
-		++from;
-		++written;
-		if (data.size() * sizeof (T) >=
-							static_cast<uint64_t> (_symbols * _symbol_size)) {
-			state = Data_State::FULL;
-			break;
-		}
-	}
-	return written;
+template <typename Rnd_It, typename Fwd_It>
+size_t Encoder<Rnd_It, Fwd_It>::set_data (const Rnd_It &from, const Rnd_It &to)
+{
+    _from = from;
+    _to = to;
+    have_data = true;
+    return static_cast<size_t>(_to - _from) *
+                    sizeof(typename std::iterator_traits<Rnd_It>::value_type);
 }
 
 template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::clear_data()
 {
-	std::unique_lock<std::mutex> lock (data_mtx);
+    have_data = false;
 	encoder.clear_data();
-	data.clear();
-	state = Data_State::NEED_DATA;
+}
+
+template <typename Rnd_It, typename Fwd_It>
+bool Encoder<Rnd_It, Fwd_It>::precompute_sync()
+{
+	static RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
+    if (precomputed.rows() == 0) {
+        precomputed = encoder.get_precomputed (&work);
+        if (precomputed.rows() == 0)
+            return false; // exit was forced.
+    }
+	if (have_data)
+		encoder.generate_symbols (precomputed, &_from, &_to);
+    return true;
 }
 
 template <typename Rnd_It, typename Fwd_It>
 bool Encoder<Rnd_It, Fwd_It>::compute_sync()
 {
 	static RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
-	if (state == Data_State::INIT) {
-		return encoder.generate_symbols (&work);
+    if (encoder.ready())
+        return true;
+	if (have_data) {
+		return encoder.generate_symbols (&work, &_from, &_to);
 	} else {
 		if (precomputed.rows() != 0)
 			return true;
@@ -325,30 +292,73 @@ bool Encoder<Rnd_It, Fwd_It>::compute_sync()
 
 template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::compute_thread (
-							Encoder<Rnd_It, Fwd_It> *obj, std::promise<Error> p)
+                        Encoder<Rnd_It, Fwd_It> *obj, bool force_precomputation,
+                                                        std::promise<Error> p)
 {
 	static RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
-	if (obj->state == Data_State::INIT) {
-		if (obj->encoder.generate_symbols (&work)) {
-			p.set_value (Error::NONE);
-		} else {
-			// only possible reason:
-			p.set_value (Error::EXITING);
-		}
-	} else {
-		if (obj->precomputed.rows() != 0) {
-			p.set_value (Error::NONE);
-			return;
-		}
-		obj->precomputed = obj->encoder.get_precomputed(&work);
-		if (obj->precomputed.rows() != 0) {
-			p.set_value (Error::NONE);
-			return;
-		}
-		// only possible reason:
-		p.set_value (Error::EXITING);
-		return;
+
+    if (force_precomputation) {
+        if (obj->precomputed.rows() == 0)
+            obj->precomputed = obj->encoder.get_precomputed (&work);
+        if (obj->precomputed.rows() == 0) {
+            // encoder always works. only possible reason:
+            p.set_value (Error::EXITING);
+            return;
+        }
+        // if we finished getting data by the time the computation
+        // finished, update it all.
+        if (obj->have_data && !obj->encoder.ready())
+            obj->encoder.generate_symbols (obj->precomputed,
+                                                    &obj->_from, &obj->_to);
+        p.set_value (Error::NONE);
+    } else {
+        if (obj->encoder.ready()) {
+            p.set_value (Error::NONE);
+            return;
+        }
+        if (obj->have_data) {
+            if (obj->encoder.generate_symbols (&work, &obj->_from, &obj->_to)) {
+                p.set_value (Error::NONE);
+                return;
+            } else {
+                // only possible reason:
+                p.set_value (Error::EXITING);
+                return;
+            }
+        } else {
+            if (obj->precomputed.rows() == 0) {
+                obj->precomputed = obj->encoder.get_precomputed (&work);
+                if (obj->precomputed.rows() == 0) {
+                    // only possible reason:
+                    p.set_value (Error::EXITING);
+                    return;
+                }
+            }
+            if (obj->have_data) {
+                // if we finished getting data by the time the computation
+                // finished, update it all.
+                obj->encoder.generate_symbols (obj->precomputed,
+                                                    &obj->_from, &obj->_to);
+            }
+            p.set_value (Error::NONE);
+            return;
+        }
+    }
+}
+
+template <typename Rnd_It, typename Fwd_It>
+std::future<Error> Encoder<Rnd_It, Fwd_It>::precompute()
+{
+	std::promise<Error> p;
+	auto future = p.get_future();
+
+	// only one waiting thread for the encoder
+	if (waiting.joinable()) {
+		p.set_value (Error::WORKING);
+		return p.get_future();
 	}
+	waiting = std::thread (compute_thread, this, true, std::move(p));
+	return future;
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -362,7 +372,7 @@ std::future<Error> Encoder<Rnd_It, Fwd_It>::compute()
 		p.set_value (Error::WORKING);
 		return p.get_future();
 	}
-	waiting = std::thread (compute_thread, this, std::move(p));
+	waiting = std::thread (compute_thread, this, false, std::move(p));
 	return future;
 }
 
@@ -371,37 +381,15 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 															const uint32_t id)
 {
 	// returns number of iterators written
-	switch (state) {
-	case Data_State::INIT:
-		if (!encoder.ready())
-			return 0;
-		return encoder.Enc (id, output, end);
-	case Data_State::NEED_DATA:
-		break;
-	case Data_State::FULL:
-		if (!encoder.ready()) {
-			if (precomputed.rows() == 0) {
+    if (have_data) {
+        if (!encoder.ready()) {
+            if (precomputed.rows() == 0)
 				return 0;
-			} else if (interleaver == nullptr) {
-				interleaver = std::unique_ptr<
-							RFC6330__v1::Impl::Interleaver<Rnd_It>> (
-									new RFC6330__v1::Impl::Interleaver<Rnd_It> (
-													data.begin(), data.end(),
-													_symbol_size, SIZE_MAX,
-																_symbol_size));
-			}
-			encoder.generate_symbols (precomputed, interleaver.get());
-		}
+            encoder.generate_symbols (precomputed, &_from, &_to);
+        }
 		return encoder.Enc (id, output, end);
 	}
 	return 0;
-}
-
-template <typename Rnd_It, typename Fwd_It>
-size_t Encoder<Rnd_It, Fwd_It>::needed_bytes()
-{
-	using T = typename std::iterator_traits<Rnd_It>::value_type;
-	return (_symbols * _symbol_size) - (data.size() * sizeof(T));
 }
 
 ///////////////////
@@ -424,10 +412,10 @@ Decoder<In_It, Fwd_It>::~Decoder ()
 }
 
 template <typename In_It, typename Fwd_It>
-Decoder<In_It, Fwd_It>::Decoder (const uint16_t symbols,
+Decoder<In_It, Fwd_It>::Decoder (const Block_Size symbols,
 								const size_t symbol_size, const Report type)
-	:_symbols (symbols), _symbol_size (symbol_size), _type (type),
-													dec (_symbols, symbol_size)
+	:_symbols (static_cast<uint16_t> (symbols)), _symbol_size (symbol_size),
+                                    _type (type), dec (symbols, symbol_size)
 {
 	IS_INPUT(In_It, "RaptorQ__v1::Decoder");
 	IS_FORWARD(Fwd_It, "RaptorQ__v1::Decoder");
