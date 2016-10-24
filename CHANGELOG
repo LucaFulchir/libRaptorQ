@@ -1,4 +1,6 @@
 v0.2.0 (prealpha):
+    * RAW API block size is now typesafe.
+    * RAW API does not the interleaving code.
     * API reworked to easy manage old/new API in the future
     * new, simpler RAW API (single-block)
     * computations can be stopped
