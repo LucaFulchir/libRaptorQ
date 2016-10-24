@@ -72,6 +72,7 @@ extern "C"
         // common functions
         uint16_t (*symbols)     (const RaptorQ_ptr *ptr);
         size_t   (*symbol_size) (const RaptorQ_ptr *ptr);
+        void (*stop) (const RaptorQ_ptr *ptr);
         RaptorQ_Error (*future_state) (struct RaptorQ_future *f);
         RaptorQ_Error (*future_wait_for) (struct RaptorQ_future *f,
                                                 const uint64_t time,
@@ -98,7 +99,6 @@ extern "C"
                                                             const uint32_t esi);
 
         bool (*can_decode) (const RaptorQ_ptr *dec);
-        void (*stop) (const RaptorQ_ptr *dec); //TODO: make common.
         uint16_t (*needed_symbols) (const RaptorQ_ptr *dec);
 
         RaptorQ_dec_result (*poll) (const RaptorQ_ptr *dec);

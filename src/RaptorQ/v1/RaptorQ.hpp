@@ -65,6 +65,7 @@ public:
     bool has_data() const;
     size_t set_data (const Rnd_It &from, const Rnd_It &to);
     void clear_data();
+    void stop();
 
     bool precompute_sync();
     bool compute_sync();
@@ -283,6 +284,10 @@ void Encoder<Rnd_It, Fwd_It>::clear_data()
     _state = Enc_State::NEED_DATA;
     encoder.clear_data();
 }
+
+template <typename Rnd_It, typename Fwd_It>
+void Encoder<Rnd_It, Fwd_It>::stop()
+    { encoder.stop(); }
 
 template <typename Rnd_It, typename Fwd_It>
 bool Encoder<Rnd_It, Fwd_It>::precompute_sync()
