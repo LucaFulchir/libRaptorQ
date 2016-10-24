@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "RaptorQ/v1/block_sizes.hpp"
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/C_common.h"
 #include <stdbool.h>
@@ -59,16 +60,13 @@ extern "C"
         size_t  (*get_local_cache_size)();
 
         // contructos
-        struct RaptorQ_ptr* (*Encoder_nodata) (RaptorQ_type type,
-                                                    const uint16_t symbols,
-                                                    const size_t symbol_size);
-        struct RaptorQ_ptr* (*Encoder) (RaptorQ_type type, const void* from,
-                                                      const void* to,
-                                                      const size_t symbol_size);
+        struct RaptorQ_ptr* (*Encoder) (RaptorQ_type type,
+                                            const RaptorQ_Block_Size symbols,
+                                            const size_t symbol_size);
         struct RaptorQ_ptr* (*Decoder) (RaptorQ_type type,
-                                                const uint16_t symbols,
-                                                const size_t symbol_size,
-                                                const RaptorQ_Compute report);
+                                            const RaptorQ_Block_Size symbols,
+                                            const size_t symbol_size,
+                                            const RaptorQ_Compute report);
         // common functions
         uint16_t (*symbols)     (const RaptorQ_ptr *ptr);
         size_t   (*symbol_size) (const RaptorQ_ptr *ptr);
@@ -81,10 +79,12 @@ extern "C"
 
         // encoder-specific
         uint32_t (*max_repair)  (const RaptorQ_ptr *enc);
-        size_t (*add_data) (const RaptorQ_ptr *enc, void *from, const void *to);
+        size_t (*set_data) (const RaptorQ_ptr *enc, void *from, const void *to);
+        bool (*has_data) (const RaptorQ_ptr *enc);
         void (*clear_data) (const RaptorQ_ptr *enc);
-        size_t (*needed_bytes) (const RaptorQ_ptr *enc);
+        bool (*precompute_sync) (const RaptorQ_ptr *enc);
         bool (*compute_sync) (const RaptorQ_ptr *enc);
+        RaptorQ_future_enc* (*precompute) (const RaptorQ_ptr *enc);
         RaptorQ_future_enc* (*compute) (const RaptorQ_ptr *enc);
         RaptorQ_Error (*enc_future_get) (struct RaptorQ_future_enc *f);
         size_t (*encode) (const RaptorQ_ptr *enc,
