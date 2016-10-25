@@ -75,14 +75,17 @@ static option::ArgStatus Numeric (const option::Option& option, bool msg)
 }
 };
 
-enum  optionIndex { UNKNOWN, HELP, SYMBOLS, SYMBOL_SIZE, REPAIR, BYTES };
+enum  optionIndex { UNKNOWN, HELP, FORMAT, SYMBOLS, SYMBOL_SIZE, REPAIR, BYTES};
 const option::Descriptor usage[] =
 {
+ {UNKNOWN, 0, "", "", Arg::Unknown, "USAGE: benchmark|blocks"},
  {UNKNOWN, 0, "", "", Arg::Unknown,
-                    "USAGE: encode|decode|benchmark PARAMETERS INPUT OUTPUT\n"
+                    "USAGE: encode|decode PARAMETERS INPUT OUTPUT\n"
                                             "  use '-' for stdin/stdout\n\n"
                                                     "Standalone parameters:"},
  {HELP,    0, "h", "help", Arg::None, "  -h --help\tThis help."},
+ {FORMAT,    0, "f", "format", Arg::None, "  -f --format\taddidional "
+                                                    "information/examples"},
  {UNKNOWN, 0, "", "", Arg::Unknown, "ENCODE/DECODE parameters:"},
  {SYMBOLS, 0, "s", "symbols", Arg::Numeric, "  -s --symbols\t"
                                                 "number of symbols per block"},
@@ -94,14 +97,28 @@ const option::Descriptor usage[] =
  {UNKNOWN, 0, "", "", Arg::None, "DECODE only parameters:"},
  {BYTES, 0, "b", "bytes", Arg::Numeric, "  -b --bytes\t"
                                     "data size for each {en,de}coder block"},
- {UNKNOWN, 0, "", "", Arg::Unknown,
-                            "Encoder output format/Decoder input format:\n"
-                            "\t(uint32_t) block  number\n"
-                            "\t(uint32_t) symbol number\n"
-                            "\tsymbol\n"},
  {0,0,0,0,0,0}
 };
 
+
+static void info (const char *prog_name);
+static void info (const char *prog_name)
+{
+    std::cout << "RaptorQ library version: " << RaptorQ_version << "\n";
+    std::cout << "\tThis program uses the libRaptorQ library encoder and "
+                                                                    "decoder\n";
+    std::cout << "\tExample:\n";
+    std::cout << "\t\t" << prog_name << " encode -s 10 -w 8 -r 10 input "
+                                                                    "output\n";
+    std::cout << "\t\t" << prog_name << " decode -s 10 -w 8 -b 1024 input "
+                                                                    "output\n";
+    std:: cout << "\tUse \"-\" for stdin and stdout\n";
+    std::cout << "\n";
+    std::cout << "Encoder output format/Decoder input format:\n";
+    std::cout << "\tuint32_t: block  number\n";
+    std::cout << "\tuint32_t: symbol number\n";
+    std::cout << "\tsymbol:   data\n";
+}
 
 // argument passing and data between input7output thread for the
 // decoder
@@ -127,10 +144,13 @@ struct write_out_args
 
 
 
-bool encode (const int64_t symbol_size, const RaptorQ__v1::Block_Size symbols,
-                const uint32_t repair, std::istream *input, std::ostream *output);
+static bool encode (const int64_t symbol_size,
+                                        const RaptorQ__v1::Block_Size symbols,
+                                        const uint32_t repair,
+                                        std::istream *input,
+                                        std::ostream *output);
 
-bool decode (const size_t bytes, const RaptorQ__v1::Block_Size symbols,
+static bool decode (const size_t bytes, const RaptorQ__v1::Block_Size symbols,
                                                     const int64_t symbol_size,
                                                     std::istream *input,
                                                     std::ostream *output);
@@ -226,7 +246,7 @@ static void print_output (struct write_out_args args)
     *args.status = Out_Status::EXITED;
 }
 
-bool decode (const size_t bytes, const RaptorQ__v1::Block_Size symbols,
+static bool decode (const size_t bytes, const RaptorQ__v1::Block_Size symbols,
                                                     const int64_t symbol_size,
                                                     std::istream *input,
                                                     std::ostream *output)
@@ -381,8 +401,11 @@ bool decode (const size_t bytes, const RaptorQ__v1::Block_Size symbols,
 }
 
 // encoding function. manages both input and output
-bool encode (const int64_t symbol_size, const RaptorQ__v1::Block_Size symbols,
-            const uint32_t repair, std::istream *input, std::ostream *output)
+static bool encode (const int64_t symbol_size,
+                                        const RaptorQ__v1::Block_Size symbols,
+                                        const uint32_t repair,
+                                        std::istream *input,
+                                        std::ostream *output)
 {
     // false on error
     std::vector<uint8_t> buf (static_cast<size_t> (symbol_size), 0);
@@ -475,20 +498,30 @@ int main (int argc, char **argv)
 {
     // manually parse first argument as command.
     // then use optionparser
+    bool helponly = false;
     if (argc == 1 || (strncmp("encode", argv[1], 7) &&
                                             strncmp("decode", argv[1], 7) &&
-                                            strncmp("banchmark", argv[1], 10))){
-        std::cerr << "ERR: need a command as first argument: "
-                                                    "encode/decode/benchmark\n";
-        option::printUsage (std::cout, usage);
-        return 1;
+                                            strncmp("blocks", argv[1], 7) &&
+                                            strncmp("benchmark", argv[1], 10))){
+        helponly = true;
     }
 
     // skip both program name and first command
     // apparently "optionparser" treats every option as "unknown" once one
     // unknown option has been found. :/
-    auto arg_num   = (argc <= 2 ? 0 : argc - 2);
-    auto arguments = (argc <= 2 ? nullptr : argv + 2);
+    auto arg_num   = (argc <= 2 ? argc - 1 : argc - 2);
+    char **arguments;
+    if (argc <= 1) {
+        // no arguments
+        arguments = nullptr;
+    } else if (argc == 2) {
+        // maybe "help" or "format"
+        arguments = argv + 1;
+    } else {
+        // command. but if we do not skip it the command line parsing library
+        // will interpret everything after it as a non-option argument.
+        arguments = argv + 2;
+    }
 
     option::Stats  stats (usage, arg_num, arguments);
     std::vector<option::Option> options (stats.options_max);
@@ -504,69 +537,126 @@ int main (int argc, char **argv)
             return 1;
         return 0;
     }
+    if (options[FORMAT].count() != 0) {
+        info (argv[0]);
+        return 0;
+    }
+
+    if (helponly) {
+        std::cerr << "ERR: need a command as first argument: "
+                                            "encode/decode/benchmark/blocks\n";
+        option::printUsage (std::cout, usage);
+        return 1;
+    }
+
 
     uint32_t repair = 0;
     size_t bytes = 0;
     const std::string command = std::string (argv[1]);
-    if (parse.nonOptionsCount() == 1) {
-        if (command.compare ("benchmark") == 0 || options[SYMBOLS].count() != 0
-                                            || options[SYMBOL_SIZE].count() != 0
-                                            || options[REPAIR].count() != 0
-                                            || options[BYTES].count() != 0) {
-            std::cerr << "ERR: beckmark does not use arguments\n";
+    if (command.compare ("benchmark") == 0) {
+        if (options[SYMBOLS].count() != 0 || options[SYMBOL_SIZE].count() != 0
+                                        || options[REPAIR].count() != 0
+                                        || options[BYTES].count() != 0
+                                        || parse.nonOptionsCount() != 0) {
+            std::cerr << "ERR: \"benchmark\" does not use arguments\n";
             option::printUsage (std::cout, usage);
             return 1;
         }
         // TODO: launch benchmark
         std::cerr << "Benchmarks not implemented yet\n";
         return 0;
-    }
-    if (command.compare ("encode") == 0) {
+    } else if (command.compare ("blocks") == 0) {
+        std::cout << "Usable block sizes:\n";
+        for (size_t idx = 0; idx < RaptorQ__v1::blocks->size(); ++idx) {
+            std::cout << static_cast<uint16_t> ((*RaptorQ__v1::blocks)[idx])
+                                                                    << "\n";
+        }
+        return 0;
+    } else if (command.compare ("encode") == 0) {
+        bool err = false;
+        // parameters that should NOT be here:
         if (options[BYTES].count() != 0) {
-            std::cerr << "ERR: encoder does not need \"--bytes\" parameter\n";
-            return 1;
+            std::cerr << "ERR: encoder does not need the \"--bytes\" "
+                                                                "parameter\n";
+            err = true;
+        }
+        // parameter that are missing/multiple times:
+        if (options[SYMBOLS].count() != 1) {
+            std::cerr << "ERR: encoder requires exactly one \"--symbols\" "
+                                                                "parameter\n";
+            err = true;
+        }
+        if (options[SYMBOL_SIZE].count() != 1) {
+            std::cerr << "ERR: encoder requires exactly one \"--symbol-size\" "
+                                                                "parameter\n";
+            err = true;
         }
         if (options[REPAIR].count() != 1) {
-            std::cerr << "ERR: encoder requires one \"--repair\" parameter\n";
+            std::cerr << "ERR: encoder requires exactly one \"--repair\" "
+                                                                "parameter\n";
+            err = true;
+        }
+        // input/output parameters:
+        if (parse.nonOptionsCount() != 2) {
+            std::cerr << "ERR: You need to specify exactly one input and output\n";
+            if (parse.nonOptionsCount() > 2)
+                std:: cerr << "\t(Did you pass unkown parameters?\n";
+            err = true;
+        }
+        if (err) {
+            option::printUsage (std::cout, usage);
             return 1;
         }
+
         repair =  static_cast<uint32_t> (strtol(options[REPAIR].arg, nullptr,
                                                                         10));
-        if (repair <= 0) {
-            std::cerr << "ERR: Symbol_size must be positive\n";
-            return 1;
-        }
-        if (parse.nonOptionsCount() != 2) {
-            std::cerr << "ERR: Need to specify exactly one input and output\n";
-            option::printUsage (std::cout, usage);
+        if (repair == 0) {
+            std::cerr << "ERR: number of repair symbols must be positive\n";
             return 1;
         }
     } else if (command.compare ("decode") == 0) {
-        if (options[BYTES].count() != 1) {
-            std::cerr << "ERR: decoder requires one \"--bytes\" parameter\n";
-            return 1;
-        }
-        bytes =  static_cast<size_t> (strtol(options[BYTES].arg, nullptr, 10));
-        if (bytes <= 0) {
-            std::cerr << "ERR: bytes must be positive\n";
-            return 1;
-        }
+        bool err = false;
+        // parameters that should NOT be here:
         if (options[REPAIR].count() != 0) {
-            std::cerr << "ERR: decoder does not need \"--repair\" parameter\n";
+            std::cerr << "ERR: decoder does not need the \"--repair\" "
+                                                                "parameter\n";
+            err = true;
+        }
+        // parameter that are missing/multiple times:
+        if (options[SYMBOLS].count() != 1) {
+            std::cerr << "ERR: decoder requires exactly one \"--symbols\" "
+                                                                "parameter\n";
+            err = true;
+        }
+        if (options[SYMBOL_SIZE].count() != 1) {
+            std::cerr << "ERR: decoder requires exactly one \"--symbol-size\" "
+                                                                "parameter\n";
+            err = true;
+        }
+        if (options[BYTES].count() != 1) {
+            std::cerr << "ERR: decoder requires exactly one \"--bytes\" "
+                                                                "parameter\n";
+            err = true;
+        }
+        // input/output parameters:
+        if (parse.nonOptionsCount() != 2) {
+            std::cerr << "ERR: You need to specify exactly one input and output\n";
+            if (parse.nonOptionsCount() > 2)
+                std:: cerr << "\t(Did you pass unkown parameters?\n";
+            err = true;
+        }
+        if (err) {
+            option::printUsage (std::cout, usage);
             return 1;
         }
-        if (parse.nonOptionsCount() != 2) {
-            std::cerr << "ERR: Need to specify exactly one input and output\n";
-            option::printUsage (std::cout, usage);
+
+        bytes =  static_cast<size_t> (strtol(options[BYTES].arg, nullptr, 10));
+        if (repair == 0) {
+            std::cerr << "ERR: \"--bytes\" must be positive\n";
             return 1;
         }
     } else {
         std::cerr << "ERR: command \"" << command << "\" not understood\n";
-        return 1;
-    }
-
-    if (options[SYMBOLS].count() != 1 || options[SYMBOL_SIZE].count() != 1) {
-        std::cerr << "ERR: number of symbols and symbols size are required\n";
         return 1;
     }
 
@@ -584,18 +674,21 @@ int main (int argc, char **argv)
     for (size_t idx = 0; idx < RaptorQ__v1::blocks->size(); ++idx) {
         if (static_cast<uint16_t> ((*RaptorQ__v1::blocks)[idx]) >= syms) {
             if (static_cast<uint16_t> ((*RaptorQ__v1::blocks)[idx]) > syms) {
-                std::cerr << "ERR: wrong symbol number. Closest block: "
-                          << static_cast<uint32_t> ((*RaptorQ__v1::blocks)[idx])
+                size_t pre_idx = (idx == 0 ? 0 : idx - 1);
+                size_t post_idx = (idx == RaptorQ__v1::blocks->size() - 1 ?
+                                                                idx : idx + 1);
+                std::cerr << "ERR: wrong symbol number. Closest blocks: "
+                    << static_cast<uint32_t> ((*RaptorQ__v1::blocks)[pre_idx])
+                    << " - "
+                    << static_cast<uint32_t> ((*RaptorQ__v1::blocks)[idx])
+                    << " - "
+                    << static_cast<uint32_t> ((*RaptorQ__v1::blocks)[post_idx])
                           << "\n";
                 return 1;
             }
             symbols = (*RaptorQ__v1::blocks)[idx];
             break;
         }
-    }
-    if (symbol_size <= 0) {
-        std::cerr << "ERR: Symbol_size must be positive\n";
-        return 1;
     }
 
     const std::string input_file = parse.nonOption (0);

@@ -60,6 +60,13 @@
 
 #define RAPTORQ_DEPRECATED __attribute__ ((deprecated))
 
+#ifndef RQ_VERSION
+// let's see if I remember to update this...
+static char RaptorQ_version[] = "1.0.0-prealpha";
+#else
+static char RaptorQ_version[] = RQ_VERSION;
+#endif
+
 ///////////////////////////
 ////
 //// Common error codes
