@@ -43,6 +43,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <limits>
 #include <thread>
 #include <tuple>
 #include <type_traits>
@@ -50,9 +51,9 @@
 
 namespace RFC6330__v1 {
 
-namespace Impl {
-
 static const uint64_t max_data = 946270874880;  // ~881 GB
+
+namespace Impl {
 
 
 template <typename Rnd_It, typename Fwd_It>
@@ -215,21 +216,24 @@ public:
     Decoder (const RFC6330_OTI_Common_Data common,
                             const RFC6330_OTI_Scheme_Specific_Data scheme)
     {
+        // _size > max_data means improper initialization.
         IS_INPUT(In_It, "RaptorQ__v1::Decoder");
         IS_FORWARD(Fwd_It, "RaptorQ__v1::Decoder");
 
         // see the above commented bitfields for quick reference
         _symbol_size = static_cast<uint16_t> (common);
+        _size = common >> 24;
         uint16_t tot_sub_blocks = static_cast<uint16_t> (scheme >> 8);
         _alignment = static_cast<uint8_t> (scheme);
+        _blocks = static_cast<uint8_t> (scheme >> 24);
+        if (_size > max_data || _size % _alignment != 0 ||
+                                            _symbol_size % _alignment != 0) {
+            _size = std::numeric_limits<uint64_t>::max();
+            return;
+        }
         _sub_blocks = Impl::Partition (_symbol_size /
                                                 static_cast<uint8_t> (scheme),
                                                                 tot_sub_blocks);
-        _blocks = static_cast<uint8_t> (scheme >> 24);
-        _size = common >> 24;
-        //  (common >> 24) == total file size
-        if (_size > max_data)
-            return;
 
         const uint64_t total_symbols = static_cast<uint64_t> (ceil (
                                 _size / static_cast<double> (_symbol_size)));
@@ -249,8 +253,15 @@ public:
         :_size (size), _symbol_size (symbol_size), _blocks (blocks),
                                                         _alignment(alignment)
     {
-        if (_size > max_data)
+        // _size > max_data means improper initialization.
+        if (_size > max_data || _size % _alignment != 0 ||
+                                            _symbol_size % _alignment != 0) {
+            // really, not all the possible tests are here.
+            // but the RFC sucks really bad... input validation is a pain...
+            // please use the RAW API...
+            _size = std::numeric_limits<uint64_t>::max();
             return;
+        }
 
         const uint64_t total_symbols = static_cast<uint64_t> (ceil (
                                 _size / static_cast<double> (_symbol_size)));
@@ -264,7 +275,7 @@ public:
         exiting = false;
     }
     operator bool() const
-        { return true; }    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
+        { return _size <= max_data; }
 
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     // if you can tell there is no more input, we can avoid locking
@@ -780,6 +791,8 @@ template <typename In_It, typename Fwd_It>
 Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
                                         const uint32_t esi, const uint8_t sbn)
 {
+    if (!operator bool())
+        return Error::INITIALIZATION;
     if (sbn >= _blocks)
         return Error::WRONG_INPUT;
     std::unique_lock<std::mutex> lock (_mtx);
@@ -818,6 +831,8 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::end_of_input()
 {
+    if (!operator bool())
+        return;
     std::unique_lock<std::mutex> pool_lock (*_pool_mtx);
     std::unique_lock<std::mutex> dec_lock (_mtx);
     for (auto &it : decoders)
@@ -830,6 +845,8 @@ void Decoder<In_It, Fwd_It>::end_of_input()
 template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::end_of_input (const uint8_t block)
 {
+    if (!operator bool())
+        return;
     std::unique_lock<std::mutex> pool_lock (*_pool_mtx);
     std::unique_lock<std::mutex> dec_lock (_mtx);
     auto it = decoders.find(block);
@@ -912,7 +929,7 @@ std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
     using ret_t = std::pair<Error, uint8_t>;
     std::promise<ret_t> p;
 
-    bool error = false;
+    bool error = !operator bool();    // test correct class initialization
     // need some flags
     if (flags == Compute::NONE)
         error = true;
@@ -1090,6 +1107,8 @@ template <typename In_It, typename Fwd_It>
 uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
                                                         const uint8_t skip)
 {
+    if (!operator bool())
+        return 0;
     // Decode from the beginning, up untill we can.
     // return number of BYTES written, starting at "start + skip" bytes
     //
@@ -1171,7 +1190,7 @@ size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
                                                             const uint8_t skip,
                                                             const uint8_t sbn)
 {
-    if (sbn >= _blocks)
+    if (!operator bool() || sbn >= _blocks)
         return 0;
 
     std::shared_ptr<RaptorQ__v1::Impl::Raw_Decoder<In_It>> dec_ptr = nullptr;
@@ -1251,18 +1270,24 @@ std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode_block_aligned (
 template <typename In_It, typename Fwd_It>
 uint64_t Decoder<In_It, Fwd_It>::bytes() const
 {
+    if (!operator bool())
+        return 0;
     return _size;
 }
 
 template <typename In_It, typename Fwd_It>
 uint8_t Decoder<In_It, Fwd_It>::blocks() const
 {
+    if (!operator bool())
+        return 0;
     return static_cast<uint8_t> (part.num (0) + part.num (1));
 }
 
 template <typename In_It, typename Fwd_It>
 uint32_t Decoder<In_It, Fwd_It>::block_size (const uint8_t sbn) const
 {
+    if (!operator bool())
+        return 0;
     if (sbn < part.num (0)) {
         return part.size (0) * _symbol_size;
     } else if (sbn - part.num (0) < part.num (1)) {
@@ -1274,11 +1299,16 @@ uint32_t Decoder<In_It, Fwd_It>::block_size (const uint8_t sbn) const
 template <typename In_It, typename Fwd_It>
 uint16_t Decoder<In_It, Fwd_It>::symbol_size() const
 {
+    if (!operator bool())
+        return 0;
     return _symbol_size;
 }
+
 template <typename In_It, typename Fwd_It>
 uint16_t Decoder<In_It, Fwd_It>::symbols (const uint8_t sbn) const
 {
+    if (!operator bool())
+        return 0;
     if (sbn < part.num (0)) {
         return part.size (0);
     } else if (sbn - part.num (0) < part.num (1)) {

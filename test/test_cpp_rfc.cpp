@@ -193,6 +193,10 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     RFC6330::Decoder<typename std::vector<in_dec_align>::iterator,
                             typename std::vector<out_dec_align>::iterator>
                                                 dec (oti_common, oti_scheme);
+    if (!dec) {
+        std::cout << "Could not initialize decoder\n";
+        abort();
+    }
 
     auto async_dec = dec.compute (RFC6330::Compute::COMPLETE);
 

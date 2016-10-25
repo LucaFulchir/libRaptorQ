@@ -69,7 +69,7 @@ bool decode (struct RFC6330_v1 *rfc, uint32_t mysize, float drop_prob,
     struct RFC6330_ptr *enc = rfc->Encoder (RQ_ENC_32, myvec, mysize, subsymbol,
                                                             symbol_size, 200);
 
-    if (enc == NULL) {
+    if (enc == NULL || !rfc->initialized (enc)) {
         fprintf(stderr, "Coud not initialize encoder.\n");
         free (myvec);
         return false;
@@ -213,7 +213,7 @@ bool decode (struct RFC6330_v1 *rfc, uint32_t mysize, float drop_prob,
 
     struct RFC6330_ptr *dec = rfc->Decoder (RQ_DEC_32, oti_common, oti_scheme);
 
-    if (dec == NULL) {
+    if (dec == NULL || !rfc->initialized (dec)) {
         fprintf(stderr, "Could not initialize decoder!\n");
         free (myvec);
         for (uint32_t k = 0; k < next_encoded; ++k)

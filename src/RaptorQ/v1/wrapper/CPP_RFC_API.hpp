@@ -205,7 +205,7 @@ public:
     }
     operator bool() const
     {
-        if (rfc_decoder != nullptr)
+        if (rfc_decoder == nullptr)
             return false;
         return *rfc_decoder;
     }
