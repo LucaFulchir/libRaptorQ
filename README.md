@@ -5,8 +5,9 @@
 [Homepage](https://www.fenrirproject.org/Luker/libRaptorQ/wikis/home)
 
 stable  release: **v0.1.9**  
-current release: **v0.2-prealpha**  
-**CURRENTLY BREAKING APIs, stick with the stable release**
+current release: **v1.0.0-prealpha**  
+**CURRENTLY BREAKING APIs, stick with the stable release**  
+UPDATE: **almost finished the brakage, things should be stable enough**
 
 RaptorQ is a **Forward Error Correction** algorithm designed to deliver your data
 efficiently and without retransmissions for lost packets.

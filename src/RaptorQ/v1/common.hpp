@@ -60,12 +60,19 @@
 
 #define RAPTORQ_DEPRECATED __attribute__ ((deprecated))
 
+
+#pragma clang diagnostic push
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma clang diagnostic ignored "-Wunused-variable"
 #ifndef RQ_VERSION
-// let's see if I remember to update this...
-static char RaptorQ_version[] = "1.0.0-prealpha";
+    // let's see if I remember to update this...
+    static char RaptorQ_version[] = "1.0.0-prealpha";
 #else
-static char RaptorQ_version[] = RQ_VERSION;
+    static char RaptorQ_version[] = RQ_VERSION;
 #endif
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 
 ///////////////////////////
 ////

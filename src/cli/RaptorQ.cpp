@@ -677,7 +677,7 @@ int main (int argc, char **argv)
                 size_t pre_idx = (idx == 0 ? 0 : idx - 1);
                 size_t post_idx = (idx == RaptorQ__v1::blocks->size() - 1 ?
                                                                 idx : idx + 1);
-                std::cerr << "ERR: wrong symbol number. Closest blocks: "
+                std::cerr << "ERR: wrong block size. Closest blocks: "
                     << static_cast<uint32_t> ((*RaptorQ__v1::blocks)[pre_idx])
                     << " - "
                     << static_cast<uint32_t> ((*RaptorQ__v1::blocks)[idx])

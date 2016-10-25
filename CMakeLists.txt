@@ -23,9 +23,10 @@ enable_language(CXX)
 enable_language(C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
-set(RQ_VERSION 0.2-prealpha)
+set(RQ_VERSION 1.0.0-prealpha)
 set(RQ_ABI 1)
 message(STATUS "libRaptorQ version ${RQ_VERSION}")
+add_definitions(-DRQ_VERSION="${RQ_VERSION}")
 
 # default values
 if(NOT CMAKE_BUILD_TYPE)
@@ -399,12 +400,11 @@ if(STATIC_LIB MATCHES "ON")
             COMMENT "Removing creation date from library..."
             VERBATIM
         )
+        add_custom_target(
+            make_static_deterministic ALL
+            DEPENDS deterministic.run
+        )
     endif()
-
-    add_custom_target(
-        make_static_deterministic ALL
-        DEPENDS deterministic.run
-    )
 endif()
 
 #build dynamic library
@@ -460,9 +460,16 @@ add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
 target_compile_options(
     test_c PRIVATE
     ${C_COMPILER_FLAGS}
-    -Wno-disabled-macro-expansion
 )
 add_dependencies(test_c RaptorQ)
+if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+    # Linux, *BSD
+    target_link_libraries(test_c RaptorQ m ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+else()
+    # windows: no "m" library
+    target_link_libraries(test_c RaptorQ ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+endif()
+
 target_link_libraries(test_c RaptorQ m ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
 # CPP interface - RFC interface
