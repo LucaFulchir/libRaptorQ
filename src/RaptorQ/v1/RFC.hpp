@@ -908,10 +908,11 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
             }
         case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::STOPPED:
             p_lock.lock();
-            if (locked_dec->ready()) // did an other thread stop us?
+            if (locked_dec->ready()) { // did an other thread stop us?
                 locked_dec->drop_concurrent();
                 work.reset();
                 return Work_Exit_Status::DONE;
+            }
             // requeued. Do not drop_concurrent
             return Work_Exit_Status::STOPPED;
         case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::CAN_RETRY:

@@ -52,106 +52,98 @@ struct RAPTORQ_LOCAL RFC6330_future
 ////////////////////////
 
 // precomputation caching
-static RFC6330_Compress RAPTORQ_LOCAL v1_supported_compressions();
-static RFC6330_Compress RAPTORQ_LOCAL v1_get_compression();
-static bool RAPTORQ_LOCAL v1_set_compression (
-                                            const RFC6330_Compress compression);
-static size_t RAPTORQ_LOCAL v1_shared_cache_size (const size_t shared_cache);
-static size_t RAPTORQ_LOCAL v1_local_cache_size (const size_t local_cache);
-static size_t RAPTORQ_LOCAL v1_get_shared_cache_size ();
-static size_t RAPTORQ_LOCAL v1_get_local_cache_size ();
+static RFC6330_Compress v1_supported_compressions();
+static RFC6330_Compress v1_get_compression();
+static bool v1_set_compression (const RFC6330_Compress compression);
+static size_t v1_shared_cache_size (const size_t shared_cache);
+static size_t v1_local_cache_size (const size_t local_cache);
+static size_t v1_get_shared_cache_size ();
+static size_t v1_get_local_cache_size ();
 // constructors
-struct RFC6330_ptr* RAPTORQ_LOCAL v1_Encoder (RFC6330_type type,
+static struct RFC6330_ptr* v1_Encoder (RFC6330_type type,
                                               const void *data_from,
                                               const size_t size,
                                               const uint16_t min_subsymbol_size,
                                               const uint16_t symbol_size,
                                               const size_t max_memory);
-struct RFC6330_ptr* RAPTORQ_LOCAL v1_Decoder (RFC6330_type type,
+static struct RFC6330_ptr* v1_Decoder (RFC6330_type type,
                               const RFC6330_OTI_Common_Data common,
                               const RFC6330_OTI_Scheme_Specific_Data scheme);
-struct RFC6330_ptr* RAPTORQ_LOCAL v1_Decoder_raw (RFC6330_type type,
+static struct RFC6330_ptr* v1_Decoder_raw (RFC6330_type type,
                                                     const uint64_t size,
                                                     const uint16_t symbol_size,
                                                     const uint16_t sub_blocks,
                                                     const uint8_t blocks,
                                                     const uint8_t alignment);
-static bool RAPTORQ_LOCAL v1_initialized (const struct RFC6330_ptr *ptr);
+static bool v1_initialized (const struct RFC6330_ptr *ptr);
 
 
 // common functions
-uint8_t RAPTORQ_LOCAL v1_blocks (const struct RFC6330_ptr *ptr);
-uint16_t RAPTORQ_LOCAL v1_symbols (const struct RFC6330_ptr *ptr,
-                                                            const uint8_t sbn);
-size_t RAPTORQ_LOCAL v1_symbol_size (const struct RFC6330_ptr *ptr);
-RaptorQ_Error RAPTORQ_LOCAL v1_future_state (const struct RFC6330_future *f);
-RaptorQ_Error RAPTORQ_LOCAL v1_future_wait_for (const struct RFC6330_future *f,
+static uint8_t  v1_blocks (const struct RFC6330_ptr *ptr);
+static uint16_t v1_symbols (const struct RFC6330_ptr *ptr, const uint8_t sbn);
+static size_t v1_symbol_size (const struct RFC6330_ptr *ptr);
+static RaptorQ_Error v1_future_state (const struct RFC6330_future *f);
+static RaptorQ_Error v1_future_wait_for (const struct RFC6330_future *f,
                                                 const uint64_t time,
                                                 const RFC6330_Unit_Time unit);
-void RAPTORQ_LOCAL v1_future_wait (const struct RFC6330_future *f);
-void RAPTORQ_LOCAL v1_future_free (struct RFC6330_future **f);
-struct RFC6330_Result RAPTORQ_LOCAL v1_future_get (
-                                                struct RFC6330_future *future);
-bool RAPTORQ_LOCAL v1_set_thread_pool (const size_t threads,
+static void v1_future_wait (const struct RFC6330_future *f);
+static void v1_future_free (struct RFC6330_future **f);
+static struct RFC6330_Result v1_future_get (struct RFC6330_future *future);
+static bool v1_set_thread_pool (const size_t threads,
                                 const uint16_t max_block_concurrency,
                                 const RFC6330_Work exit_type);
-struct RFC6330_future* RAPTORQ_LOCAL v1_compute (const struct RFC6330_ptr *ptr,
+static struct RFC6330_future* v1_compute (const struct RFC6330_ptr *ptr,
                                                 const RFC6330_Compute flags);
-void RAPTORQ_LOCAL v1_free (struct RFC6330_ptr **ptr);
-void RAPTORQ_LOCAL v1_free_block (const struct RFC6330_ptr *ptr,
-                                                            const uint8_t sbn);
+static void v1_free (struct RFC6330_ptr **ptr);
+static void v1_free_block (const struct RFC6330_ptr *ptr, const uint8_t sbn);
 
 
 // encoder-specific
-RFC6330_OTI_Common_Data RAPTORQ_LOCAL v1_OTI_Common (
+static RFC6330_OTI_Common_Data v1_OTI_Common (const struct RFC6330_ptr *enc);
+static RFC6330_OTI_Scheme_Specific_Data v1_OTI_Scheme_Specific (
                                                 const struct RFC6330_ptr *enc);
-RFC6330_OTI_Scheme_Specific_Data RAPTORQ_LOCAL v1_OTI_Scheme_Specific (
-                                                const struct RFC6330_ptr *enc);
-uint32_t RAPTORQ_LOCAL v1_max_repair (const struct RFC6330_ptr *enc,
+static uint32_t v1_max_repair (const struct RFC6330_ptr *enc,
                                                             const uint8_t sbn);
-size_t RAPTORQ_LOCAL v1_precompute_max_memory (const struct RFC6330_ptr *enc);
+static size_t v1_precompute_max_memory (const struct RFC6330_ptr *enc);
 
-size_t RAPTORQ_LOCAL v1_encode_id (const struct RFC6330_ptr *enc, void **data,
+static size_t v1_encode_id (const struct RFC6330_ptr *enc, void **data,
                                                             const size_t size,
                                                             const uint32_t id);
-size_t RAPTORQ_LOCAL v1_encode (const struct RFC6330_ptr *enc, void **data,
+static size_t v1_encode (const struct RFC6330_ptr *enc, void **data,
                                                             const size_t size,
                                                             const uint32_t esi,
                                                             const uint8_t sbn);
-uint32_t RAPTORQ_LOCAL v1_id (const uint32_t esi, const uint8_t sbn);
+static uint32_t v1_id (const uint32_t esi, const uint8_t sbn);
 
 
 // decoder-specific
-void RAPTORQ_LOCAL v1_end_of_input (const struct RFC6330_ptr *dec);
-void RAPTORQ_LOCAL v1_end_of_block_input (const struct RFC6330_ptr *dec,
+static void v1_end_of_input (const struct RFC6330_ptr *dec);
+static void v1_end_of_block_input (const struct RFC6330_ptr *dec,
                                                         const uint8_t block);
-uint64_t RAPTORQ_LOCAL v1_bytes (const struct RFC6330_ptr *dec);
-struct RFC6330_Dec_Result RAPTORQ_LOCAL v1_decode_aligned (
+static uint64_t v1_bytes (const struct RFC6330_ptr *dec);
+static struct RFC6330_Dec_Result v1_decode_aligned (
                                                 const struct RFC6330_ptr *dec,
                                                 void **data,
                                                 const uint64_t size,
                                                 const uint8_t skip);
-struct RFC6330_Dec_Result RAPTORQ_LOCAL v1_decode_block_aligned (
+static struct RFC6330_Dec_Result v1_decode_block_aligned (
                                                 const struct RFC6330_ptr *dec,
                                                 void **data,
                                                 const size_t size,
                                                 const uint8_t skip,
                                                 const uint8_t sbn);
-uint64_t RAPTORQ_LOCAL v1_decode_bytes (const struct RFC6330_ptr *dec,
-                                                            void **data,
+static uint64_t v1_decode_bytes (const struct RFC6330_ptr *dec, void **data,
                                                             const uint64_t size,
                                                             const uint8_t skip);
-size_t RAPTORQ_LOCAL v1_decode_block_bytes (const struct RFC6330_ptr *dec,
-                                                            void **data,
+static size_t v1_decode_block_bytes (const struct RFC6330_ptr *dec, void **data,
                                                             const size_t size,
                                                             const uint8_t skip,
                                                             const uint8_t sbn);
-RFC6330_Error RAPTORQ_LOCAL v1_add_symbol_id (const struct RFC6330_ptr *dec,
+static RFC6330_Error v1_add_symbol_id (const struct RFC6330_ptr *dec,
                                                             void **data,
                                                             const uint32_t size,
                                                             const uint32_t id);
-RFC6330_Error RAPTORQ_LOCAL v1_add_symbol (const struct RFC6330_ptr *dec,
-                                                            void **data,
+static RFC6330_Error v1_add_symbol (const struct RFC6330_ptr *dec, void **data,
                                                             const uint32_t size,
                                                             const uint32_t esi,
                                                             const uint8_t sbn);
@@ -265,7 +257,7 @@ static size_t v1_get_local_cache_size ()
 // Constructors
 /////////////////////
 
-struct RFC6330_ptr* v1_Encoder (RFC6330_type type,
+static struct RFC6330_ptr* v1_Encoder (RFC6330_type type,
                                               const void *data_from,
                                               const size_t size,
                                               const uint16_t min_subsymbol_size,
@@ -322,7 +314,7 @@ struct RFC6330_ptr* v1_Encoder (RFC6330_type type,
     return new RFC6330_ptr (type, raw_ptr);
 }
 
-struct RFC6330_ptr* v1_Decoder (RFC6330_type type,
+static struct RFC6330_ptr* v1_Decoder (RFC6330_type type,
                                   const RFC6330_OTI_Common_Data common,
                                   const RFC6330_OTI_Scheme_Specific_Data scheme)
 {
@@ -357,7 +349,7 @@ struct RFC6330_ptr* v1_Decoder (RFC6330_type type,
     return new RFC6330_ptr (type, raw_ptr);
 }
 
-struct RFC6330_ptr* v1_Decoder_raw (RFC6330_type type,
+static struct RFC6330_ptr* v1_Decoder_raw (RFC6330_type type,
                                                   const uint64_t size,
                                                   const uint16_t symbol_size,
                                                   const uint16_t sub_blocks,
@@ -455,7 +447,7 @@ static bool v1_initialized (const struct RFC6330_ptr *ptr)
 // Common functions
 /////////////////////
 
-uint8_t v1_blocks (const struct RFC6330_ptr *ptr)
+static uint8_t v1_blocks (const struct RFC6330_ptr *ptr)
 {
     if (ptr == nullptr || ptr->ptr == nullptr)
         return 0;
@@ -498,7 +490,7 @@ uint8_t v1_blocks (const struct RFC6330_ptr *ptr)
     return 0;
 }
 
-uint16_t v1_symbols (const struct RFC6330_ptr *ptr, const uint8_t sbn)
+static uint16_t v1_symbols (const struct RFC6330_ptr *ptr, const uint8_t sbn)
 {
     if (ptr == nullptr || ptr->ptr == nullptr)
         return 0;
@@ -541,7 +533,7 @@ uint16_t v1_symbols (const struct RFC6330_ptr *ptr, const uint8_t sbn)
     return 0;
 }
 
-size_t v1_symbol_size (const struct RFC6330_ptr *ptr)
+static size_t v1_symbol_size (const struct RFC6330_ptr *ptr)
 {
     if (ptr == nullptr || ptr->ptr == nullptr)
         return 0;
@@ -584,7 +576,7 @@ size_t v1_symbol_size (const struct RFC6330_ptr *ptr)
     return 0;
 }
 
-RaptorQ_Error v1_future_state (const struct RFC6330_future *f)
+static RaptorQ_Error v1_future_state (const struct RFC6330_future *f)
 {
     if (f == nullptr)
         return RFC6330_Error::RQ_ERR_WRONG_INPUT;
@@ -594,7 +586,7 @@ RaptorQ_Error v1_future_state (const struct RFC6330_future *f)
     return RaptorQ_Error::RQ_ERR_NOT_NEEDED;
 }
 
-RaptorQ_Error v1_future_wait_for (const struct RFC6330_future *f,
+static RaptorQ_Error v1_future_wait_for (const struct RFC6330_future *f,
                                                 const uint64_t time,
                                                 const RFC6330_Unit_Time unit)
 {
@@ -626,14 +618,14 @@ RaptorQ_Error v1_future_wait_for (const struct RFC6330_future *f,
     return RaptorQ_Error::RQ_ERR_WORKING;
 }
 
-void v1_future_wait (const struct RFC6330_future *f)
+static void v1_future_wait (const struct RFC6330_future *f)
 {
     if (f == nullptr)
         return;
     f->f.wait();
 }
 
-void v1_future_free (struct RFC6330_future **f)
+static void v1_future_free (struct RFC6330_future **f)
 {
     if (f == nullptr || *f == nullptr)
         return;
@@ -642,7 +634,7 @@ void v1_future_free (struct RFC6330_future **f)
     *f = nullptr;
 }
 
-struct RFC6330_Result v1_future_get (struct RFC6330_future *const future)
+static struct RFC6330_Result v1_future_get (struct RFC6330_future *const future)
 {
     RFC6330_Result res = {RQ_ERR_WRONG_INPUT, 0 };
     if (future != nullptr && future->f.valid()) {
@@ -653,7 +645,7 @@ struct RFC6330_Result v1_future_get (struct RFC6330_future *const future)
     return res;
 }
 
-bool v1_set_thread_pool (const size_t threads,
+static bool v1_set_thread_pool (const size_t threads,
                                         const uint16_t max_block_concurrency,
                                         const RFC6330_Work exit_type)
 {
@@ -661,7 +653,7 @@ bool v1_set_thread_pool (const size_t threads,
                             static_cast<RaptorQ__v1::Work_State> (exit_type));
 }
 
-struct RFC6330_future* v1_compute (const struct RFC6330_ptr *ptr,
+static struct RFC6330_future* v1_compute (const struct RFC6330_ptr *ptr,
                                                  const RFC6330_Compute flags)
 {
     if (ptr == nullptr || ptr->ptr == nullptr)
@@ -763,7 +755,7 @@ void v1_free (struct RFC6330_ptr **ptr)
     *ptr = nullptr;
 }
 
-void v1_free_block (const struct RFC6330_ptr *ptr, const uint8_t sbn)
+static void v1_free_block (const struct RFC6330_ptr *ptr, const uint8_t sbn)
 {
     if (ptr == nullptr || ptr->ptr == nullptr)
         return;
@@ -812,7 +804,7 @@ void v1_free_block (const struct RFC6330_ptr *ptr, const uint8_t sbn)
 /////////////
 
 
-RFC6330_OTI_Common_Data v1_OTI_Common (const struct RFC6330_ptr *enc)
+static RFC6330_OTI_Common_Data v1_OTI_Common (const struct RFC6330_ptr *enc)
 {
     if (enc == nullptr || enc->ptr == nullptr)
         return 0;
@@ -843,7 +835,7 @@ RFC6330_OTI_Common_Data v1_OTI_Common (const struct RFC6330_ptr *enc)
     return 0;
 }
 
-RFC6330_OTI_Scheme_Specific_Data v1_OTI_Scheme_Specific (
+static RFC6330_OTI_Scheme_Specific_Data v1_OTI_Scheme_Specific (
                                                 const struct RFC6330_ptr *enc)
 {
     if (enc == nullptr || enc->ptr == nullptr)
@@ -875,7 +867,7 @@ RFC6330_OTI_Scheme_Specific_Data v1_OTI_Scheme_Specific (
     return 0;
 }
 
-uint32_t v1_max_repair (const struct RFC6330_ptr *enc, const uint8_t sbn)
+static uint32_t v1_max_repair (const struct RFC6330_ptr *enc, const uint8_t sbn)
 {
     if (enc == nullptr || enc->ptr == nullptr)
         return 0;
@@ -906,7 +898,7 @@ uint32_t v1_max_repair (const struct RFC6330_ptr *enc, const uint8_t sbn)
     return 0;
 }
 
-size_t v1_precompute_max_memory (const struct RFC6330_ptr *enc)
+static size_t v1_precompute_max_memory (const struct RFC6330_ptr *enc)
 {
     if (enc == nullptr || enc->ptr == nullptr)
         return 0;
@@ -937,7 +929,7 @@ size_t v1_precompute_max_memory (const struct RFC6330_ptr *enc)
     return 0;
 }
 
-size_t v1_encode_id (const struct RFC6330_ptr *enc, void **data,
+static size_t v1_encode_id (const struct RFC6330_ptr *enc, void **data,
                                                             const size_t size,
                                                             const uint32_t id)
 {
@@ -991,7 +983,8 @@ size_t v1_encode_id (const struct RFC6330_ptr *enc, void **data,
     return 0;
 }
 
-size_t v1_encode (const struct RFC6330_ptr *enc, void **data, const size_t size,
+static size_t v1_encode (const struct RFC6330_ptr *enc, void **data,
+                                                            const size_t size,
                                                             const uint32_t esi,
                                                             const uint8_t sbn)
 {
@@ -1049,7 +1042,7 @@ size_t v1_encode (const struct RFC6330_ptr *enc, void **data, const size_t size,
     return 0;
 }
 
-uint32_t v1_id (const uint32_t esi, const uint8_t sbn)
+static uint32_t v1_id (const uint32_t esi, const uint8_t sbn)
 {
     uint32_t ret = static_cast<uint32_t> (sbn) << 24;
     ret += esi % static_cast<uint32_t> (std::pow (2, 24));
@@ -1062,7 +1055,7 @@ uint32_t v1_id (const uint32_t esi, const uint8_t sbn)
 // Decoding
 /////////////
 
-void v1_end_of_input (const struct RFC6330_ptr *dec)
+static void v1_end_of_input (const struct RFC6330_ptr *dec)
 {
     if (dec == nullptr || dec->ptr == nullptr)
         return;
@@ -1093,7 +1086,8 @@ void v1_end_of_input (const struct RFC6330_ptr *dec)
     return;
 }
 
-void v1_end_of_block_input (const struct RFC6330_ptr *dec, const uint8_t block)
+static void v1_end_of_block_input (const struct RFC6330_ptr *dec,
+                                                            const uint8_t block)
 {
     if (dec == nullptr || dec->ptr == nullptr)
         return;
@@ -1124,7 +1118,7 @@ void v1_end_of_block_input (const struct RFC6330_ptr *dec, const uint8_t block)
     return;
 }
 
-uint64_t v1_bytes (const struct RFC6330_ptr *dec)
+static uint64_t v1_bytes (const struct RFC6330_ptr *dec)
 {
     if (dec == nullptr || dec->ptr == nullptr)
         return 0;
@@ -1155,10 +1149,11 @@ uint64_t v1_bytes (const struct RFC6330_ptr *dec)
     return 0;
 }
 
-struct RFC6330_Dec_Result v1_decode_aligned (const struct RFC6330_ptr *dec,
-                                                        void **data,
-                                                        const uint64_t size,
-                                                        const uint8_t skip)
+static struct RFC6330_Dec_Result v1_decode_aligned (
+                                                const struct RFC6330_ptr *dec,
+                                                void **data,
+                                                const uint64_t size,
+                                                const uint8_t skip)
 {
     uint8_t *p_8;
     uint16_t *p_16;
@@ -1215,11 +1210,13 @@ struct RFC6330_Dec_Result v1_decode_aligned (const struct RFC6330_ptr *dec,
     }
     return RFC6330_Dec_Result {cpp_res.first, cpp_res.second};
 }
-struct RFC6330_Dec_Result v1_decode_block_aligned(const struct RFC6330_ptr *dec,
-                                                        void **data,
-                                                        const size_t size,
-                                                        const uint8_t skip,
-                                                        const uint8_t sbn)
+
+static struct RFC6330_Dec_Result v1_decode_block_aligned(
+                                                const struct RFC6330_ptr *dec,
+                                                void **data,
+                                                const size_t size,
+                                                const uint8_t skip,
+                                                const uint8_t sbn)
 {
     uint8_t *p_8;
     uint16_t *p_16;
@@ -1276,7 +1273,7 @@ struct RFC6330_Dec_Result v1_decode_block_aligned(const struct RFC6330_ptr *dec,
     }
     return RFC6330_Dec_Result {ret.first, ret.second};
 }
-uint64_t v1_decode_bytes (const struct RFC6330_ptr *dec, void **data,
+static uint64_t v1_decode_bytes (const struct RFC6330_ptr *dec, void **data,
                                                             const uint64_t size,
                                                             const uint8_t skip)
 {
@@ -1336,7 +1333,7 @@ uint64_t v1_decode_bytes (const struct RFC6330_ptr *dec, void **data,
     return ret;
 }
 
-size_t v1_decode_block_bytes (const struct RFC6330_ptr *dec, void **data,
+static size_t v1_decode_block_bytes (const struct RFC6330_ptr *dec, void **data,
                                                             const size_t size,
                                                             const uint8_t skip,
                                                             const uint8_t sbn)
@@ -1397,7 +1394,8 @@ size_t v1_decode_block_bytes (const struct RFC6330_ptr *dec, void **data,
     return ret;
 }
 
-RFC6330_Error v1_add_symbol_id (const struct RFC6330_ptr *dec, void **data,
+static RFC6330_Error v1_add_symbol_id (const struct RFC6330_ptr *dec,
+                                                            void **data,
                                                             const uint32_t size,
                                                             const uint32_t id)
 {
@@ -1457,7 +1455,7 @@ RFC6330_Error v1_add_symbol_id (const struct RFC6330_ptr *dec, void **data,
     return ret;
 }
 
-RFC6330_Error v1_add_symbol (const struct RFC6330_ptr *dec, void **data,
+static RFC6330_Error v1_add_symbol (const struct RFC6330_ptr *dec, void **data,
                                                             const uint32_t size,
                                                             const uint32_t esi,
                                                             const uint8_t sbn)

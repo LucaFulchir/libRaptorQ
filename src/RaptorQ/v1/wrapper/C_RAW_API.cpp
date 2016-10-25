@@ -68,62 +68,61 @@ struct RAPTORQ_LOCAL RaptorQ_future_dec
 ////////////////////////
 
 // precomputation caching
-static RaptorQ_Compress RAPTORQ_LOCAL v1_supported_compressions();
-static RaptorQ_Compress RAPTORQ_LOCAL v1_get_compression();
-static bool RAPTORQ_LOCAL v1_set_compression (
+static RaptorQ_Compress v1_supported_compressions();
+static RaptorQ_Compress v1_get_compression();
+static bool v1_set_compression (
                                             const RaptorQ_Compress compression);
-static size_t RAPTORQ_LOCAL v1_shared_cache_size (const size_t shared_cache);
-static size_t RAPTORQ_LOCAL v1_local_cache_size (const size_t local_cache);
-static size_t RAPTORQ_LOCAL v1_get_shared_cache_size ();
-static size_t RAPTORQ_LOCAL v1_get_local_cache_size ();
+static size_t v1_shared_cache_size (const size_t shared_cache);
+static size_t v1_local_cache_size (const size_t local_cache);
+static size_t v1_get_shared_cache_size ();
+static size_t v1_get_local_cache_size ();
 // constructors
-struct RaptorQ_ptr* RAPTORQ_LOCAL v1_Encoder (RaptorQ_type type,
+static struct RaptorQ_ptr* v1_Encoder (RaptorQ_type type,
                                             const RaptorQ_Block_Size symbols,
                                             const size_t symbol_size);
-struct RaptorQ_ptr* RAPTORQ_LOCAL v1_Decoder (RaptorQ_type type,
+static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
                                             const RaptorQ_Block_Size symbols,
                                             const size_t symbol_size,
                                             const RaptorQ_Compute report);
-static bool RAPTORQ_LOCAL v1_initialized (const RaptorQ_ptr *ptr);
+static bool v1_initialized (const RaptorQ_ptr *ptr);
 // common functions
-static uint16_t RAPTORQ_LOCAL v1_symbols (const RaptorQ_ptr *ptr);
-static size_t   RAPTORQ_LOCAL v1_symbol_size (const RaptorQ_ptr *ptr);
-static void RAPTORQ_LOCAL v1_stop (const RaptorQ_ptr *ptr);
-static RaptorQ_Error RAPTORQ_LOCAL v1_future_state (struct RaptorQ_future *f);
-static RaptorQ_Error RAPTORQ_LOCAL v1_future_wait_for (struct RaptorQ_future *f,
+static uint16_t v1_symbols (const RaptorQ_ptr *ptr);
+static size_t v1_symbol_size (const RaptorQ_ptr *ptr);
+static void v1_stop (const RaptorQ_ptr *ptr);
+static RaptorQ_Error v1_future_state (struct RaptorQ_future *f);
+static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *f,
                                                 const uint64_t time,
                                                 const RaptorQ_Unit_Time unit);
-static void RAPTORQ_LOCAL v1_future_wait (struct RaptorQ_future *f);
-static void RAPTORQ_LOCAL v1_future_free (struct RaptorQ_future **f);
-static void RAPTORQ_LOCAL v1_free (struct RaptorQ_ptr **ptr);
+static void v1_future_wait (struct RaptorQ_future *f);
+static void v1_future_free (struct RaptorQ_future **f);
+static void v1_free (struct RaptorQ_ptr **ptr);
 
 // encoder-specific
-static uint32_t RAPTORQ_LOCAL v1_max_repair  (const RaptorQ_ptr *enc);
-static size_t RAPTORQ_LOCAL v1_set_data (const RaptorQ_ptr *enc, void *from,
+static uint32_t v1_max_repair  (const RaptorQ_ptr *enc);
+static size_t v1_set_data (const RaptorQ_ptr *enc, void *from,
                                                                 const void *to);
-static bool RAPTORQ_LOCAL v1_has_data (const RaptorQ_ptr *enc);
-static void RAPTORQ_LOCAL v1_clear_data (const RaptorQ_ptr *enc);
-static bool RAPTORQ_LOCAL v1_precompute_sync (const RaptorQ_ptr *enc);
-static bool RAPTORQ_LOCAL v1_compute_sync (const RaptorQ_ptr *enc);
-static RaptorQ_future_enc* RAPTORQ_LOCAL v1_precompute (const RaptorQ_ptr *enc);
-static RaptorQ_future_enc* RAPTORQ_LOCAL v1_compute (const RaptorQ_ptr *enc);
-static RaptorQ_Error RAPTORQ_LOCAL v1_enc_future_get (
+static bool v1_has_data (const RaptorQ_ptr *enc);
+static void v1_clear_data (const RaptorQ_ptr *enc);
+static bool v1_precompute_sync (const RaptorQ_ptr *enc);
+static bool v1_compute_sync (const RaptorQ_ptr *enc);
+static RaptorQ_future_enc* v1_precompute (const RaptorQ_ptr *enc);
+static RaptorQ_future_enc* v1_compute (const RaptorQ_ptr *enc);
+static RaptorQ_Error v1_enc_future_get (
                                                 struct RaptorQ_future_enc *f);
-static size_t RAPTORQ_LOCAL v1_encode (const RaptorQ_ptr *enc, void *from,
+static size_t v1_encode (const RaptorQ_ptr *enc, void *from,
                                             const void *to, const uint32_t id);
 
 // decoder-specific
-static RaptorQ_Error RAPTORQ_LOCAL v1_add_symbol (const RaptorQ_ptr *dec,
+static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec,
                                                             void *from,
                                                             const void *to,
                                                             const uint32_t esi);
-static bool RAPTORQ_LOCAL v1_can_decode (const RaptorQ_ptr *dec);
-static uint16_t RAPTORQ_LOCAL v1_needed_symbols (const RaptorQ_ptr *dec);
-static RaptorQ_dec_result RAPTORQ_LOCAL v1_poll (const RaptorQ_ptr *dec);
-static RaptorQ_dec_result RAPTORQ_LOCAL v1_wait_sync (const RaptorQ_ptr *dec);
-static RaptorQ_future_dec* RAPTORQ_LOCAL v1_wait (const RaptorQ_ptr *dec);
-static RaptorQ_dec_result RAPTORQ_LOCAL v1_dec_future_get (
-                                                struct RaptorQ_future_dec *f);
+static bool v1_can_decode (const RaptorQ_ptr *dec);
+static uint16_t v1_needed_symbols (const RaptorQ_ptr *dec);
+static RaptorQ_dec_result v1_poll (const RaptorQ_ptr *dec);
+static RaptorQ_dec_result v1_wait_sync (const RaptorQ_ptr *dec);
+static RaptorQ_future_dec* v1_wait (const RaptorQ_ptr *dec);
+static RaptorQ_dec_result v1_dec_future_get (struct RaptorQ_future_dec *f);
 
 
 
@@ -137,7 +136,7 @@ void RaptorQ_free_api (struct RaptorQ_base_api **api)
     *api = nullptr;
 }
 
-struct RaptorQ_base_api* RAPTORQ_API RaptorQ_api (uint32_t version)
+struct RaptorQ_base_api* RaptorQ_api (uint32_t version)
 {
     if (version != 1)
         return nullptr;
@@ -227,7 +226,7 @@ static size_t v1_get_local_cache_size ()
 // Constructors
 /////////////////////
 
-struct RaptorQ_ptr* RAPTORQ_LOCAL v1_Encoder (RaptorQ_type type,
+static struct RaptorQ_ptr* v1_Encoder (RaptorQ_type type,
                                             const RaptorQ_Block_Size symbols,
                                             const size_t symbol_size)
 {
@@ -270,7 +269,7 @@ struct RaptorQ_ptr* RAPTORQ_LOCAL v1_Encoder (RaptorQ_type type,
     return ret.release();
 }
 
-struct RaptorQ_ptr* RAPTORQ_LOCAL v1_Decoder (RaptorQ_type type,
+static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
                                             const RaptorQ_Block_Size symbols,
                                             const size_t symbol_size,
                                             const RaptorQ_Compute report)
@@ -328,7 +327,7 @@ struct RaptorQ_ptr* RAPTORQ_LOCAL v1_Decoder (RaptorQ_type type,
     return ret.release();
 }
 
-static bool RAPTORQ_LOCAL v1_initialized (const RaptorQ_ptr *ptr)
+static bool v1_initialized (const RaptorQ_ptr *ptr)
 {
     if (ptr == nullptr || ptr->ptr == nullptr)
         return false;
@@ -1258,8 +1257,7 @@ static RaptorQ_future_dec* v1_wait (const RaptorQ_ptr *dec)
     return nullptr;
 }
 
-static RaptorQ_dec_result RAPTORQ_LOCAL v1_dec_future_get (
-                                                struct RaptorQ_future_dec *f)
+static RaptorQ_dec_result v1_dec_future_get (struct RaptorQ_future_dec *f)
 {
     RaptorQ_dec_result res;
     res.err = RaptorQ_Error::RQ_ERR_WRONG_INPUT;
