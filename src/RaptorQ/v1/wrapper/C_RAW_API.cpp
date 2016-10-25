@@ -26,10 +26,13 @@
 
 struct RAPTORQ_LOCAL RaptorQ_ptr
 {
-    void *ptr;
+    void *const ptr;
     const RaptorQ_type type;
 
-    RaptorQ_ptr (const RaptorQ_type _type) : ptr (nullptr), type (_type) {}
+    RaptorQ_ptr ()
+        : ptr (nullptr), type (RaptorQ_type::RQ_NONE) {}
+    RaptorQ_ptr (const RaptorQ_type _type, void *const _ptr)
+        : ptr (_ptr), type (_type) {}
 };
 
 
@@ -44,6 +47,7 @@ struct RAPTORQ_LOCAL RaptorQ_future
     RaptorQ_future (const RaptorQ_Future_Type t)
         :type (t) {}
 };
+
 struct RAPTORQ_LOCAL RaptorQ_future_enc
 {
     const struct RaptorQ_future base;
@@ -51,6 +55,7 @@ struct RAPTORQ_LOCAL RaptorQ_future_enc
     RaptorQ_future_enc ()
         :base (RaptorQ_Future_Type::RQ_FUTURE_ENCODER) {}
 };
+
 struct RAPTORQ_LOCAL RaptorQ_future_dec
 {
     const struct RaptorQ_future base;
@@ -70,12 +75,12 @@ struct RAPTORQ_LOCAL RaptorQ_future_dec
 // precomputation caching
 static RaptorQ_Compress v1_supported_compressions();
 static RaptorQ_Compress v1_get_compression();
-static bool v1_set_compression (
-                                            const RaptorQ_Compress compression);
+static bool v1_set_compression (const RaptorQ_Compress compression);
 static size_t v1_shared_cache_size (const size_t shared_cache);
 static size_t v1_local_cache_size (const size_t local_cache);
 static size_t v1_get_shared_cache_size ();
 static size_t v1_get_local_cache_size ();
+
 // constructors
 static struct RaptorQ_ptr* v1_Encoder (RaptorQ_type type,
                                             const RaptorQ_Block_Size symbols,
@@ -85,37 +90,36 @@ static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
                                             const size_t symbol_size,
                                             const RaptorQ_Compute report);
 static bool v1_initialized (const RaptorQ_ptr *ptr);
+
 // common functions
 static uint16_t v1_symbols (const RaptorQ_ptr *ptr);
 static size_t v1_symbol_size (const RaptorQ_ptr *ptr);
 static void v1_stop (const RaptorQ_ptr *ptr);
-static RaptorQ_Error v1_future_state (struct RaptorQ_future *f);
-static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *f,
+static RaptorQ_Error v1_future_state (struct RaptorQ_future *const f);
+static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *const f,
                                                 const uint64_t time,
                                                 const RaptorQ_Unit_Time unit);
-static void v1_future_wait (struct RaptorQ_future *f);
+static void v1_future_wait (struct RaptorQ_future *const f);
 static void v1_future_free (struct RaptorQ_future **f);
 static void v1_free (struct RaptorQ_ptr **ptr);
 
 // encoder-specific
 static uint32_t v1_max_repair  (const RaptorQ_ptr *enc);
-static size_t v1_set_data (const RaptorQ_ptr *enc, void *from,
-                                                                const void *to);
+static size_t v1_set_data (const RaptorQ_ptr *enc, void **from,
+                                                            const size_t size);
 static bool v1_has_data (const RaptorQ_ptr *enc);
 static void v1_clear_data (const RaptorQ_ptr *enc);
 static bool v1_precompute_sync (const RaptorQ_ptr *enc);
 static bool v1_compute_sync (const RaptorQ_ptr *enc);
 static RaptorQ_future_enc* v1_precompute (const RaptorQ_ptr *enc);
 static RaptorQ_future_enc* v1_compute (const RaptorQ_ptr *enc);
-static RaptorQ_Error v1_enc_future_get (
-                                                struct RaptorQ_future_enc *f);
-static size_t v1_encode (const RaptorQ_ptr *enc, void *from,
-                                            const void *to, const uint32_t id);
+static RaptorQ_Error v1_enc_future_get (struct RaptorQ_future_enc *f);
+static size_t v1_encode (const RaptorQ_ptr *enc, void **from, const size_t size,
+                                                            const uint32_t id);
 
 // decoder-specific
-static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec,
-                                                            void *from,
-                                                            const void *to,
+static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec, void **from,
+                                                            const size_t size,
                                                             const uint32_t esi);
 static bool v1_can_decode (const RaptorQ_ptr *dec);
 static uint16_t v1_needed_symbols (const RaptorQ_ptr *dec);
@@ -140,56 +144,57 @@ struct RaptorQ_base_api* RaptorQ_api (uint32_t version)
 {
     if (version != 1)
         return nullptr;
-    auto api = new RaptorQ_v1();
-    api->base.version = 1;
+    return reinterpret_cast<RaptorQ_base_api*> (new RaptorQ_v1());
+}
+
+RaptorQ_v1::RaptorQ_v1()
+    : base (1),
 
     // precomputation caching
-    api->supported_compressions = &v1_supported_compressions;
-    api->get_compression = &v1_get_compression;
-    api->set_compression = &v1_set_compression;
-    api->shared_cache_size = &v1_shared_cache_size;
-    api->local_cache_size = &v1_local_cache_size;
-    api->get_shared_cache_size = &v1_get_shared_cache_size;
-    api->get_local_cache_size = &v1_get_local_cache_size;
+    supported_compressions (&v1_supported_compressions),
+    get_compression (&v1_get_compression),
+    set_compression (&v1_set_compression),
+    shared_cache_size (&v1_shared_cache_size),
+    local_cache_size (&v1_local_cache_size),
+    get_shared_cache_size (&v1_get_shared_cache_size),
+    get_local_cache_size (&v1_get_local_cache_size),
 
     // constructors
-    api->Encoder = &v1_Encoder;
-    api->Decoder = &v1_Decoder;
-    api->initialized = &v1_initialized;
+    Encoder (&v1_Encoder),
+    Decoder (&v1_Decoder),
+    initialized (&v1_initialized),
 
     // common functions
-    api->symbols = &v1_symbols;
-    api->symbol_size = &v1_symbol_size;
-    api->stop = &v1_stop;
-    api->future_state = &v1_future_state;
-    api->future_wait_for = &v1_future_wait_for;
-    api->future_wait = &v1_future_wait;
-    api->future_free = &v1_future_free;
-    api->free = &v1_free;
+    symbols (&v1_symbols),
+    symbol_size (&v1_symbol_size),
+    stop (&v1_stop),
+    future_state (&v1_future_state),
+    future_wait_for (&v1_future_wait_for),
+    future_wait (&v1_future_wait),
+    future_free (&v1_future_free),
+    free (&v1_free),
 
     // encoder-specific functions
-    api->max_repair = &v1_max_repair;
-    api->set_data = &v1_set_data;
-    api->has_data = &v1_has_data;
-    api->clear_data = &v1_clear_data;
-    api->precompute_sync = &v1_precompute_sync;
-    api->compute_sync = &v1_compute_sync;
-    api->precompute = &v1_precompute;
-    api->compute = &v1_compute;
-    api->enc_future_get = &v1_enc_future_get;
-    api->encode = &v1_encode;
+    max_repair (&v1_max_repair),
+    set_data (&v1_set_data),
+    has_data (&v1_has_data),
+    clear_data (&v1_clear_data),
+    precompute_sync (&v1_precompute_sync),
+    compute_sync (&v1_compute_sync),
+    precompute (&v1_precompute),
+    compute (&v1_compute),
+    enc_future_get (&v1_enc_future_get),
+    encode (&v1_encode),
 
     // decoder-specific functions
-    api->add_symbol = &v1_add_symbol;
-    api->can_decode = &v1_can_decode;
-    api->needed_symbols = &v1_needed_symbols;
-    api->poll = &v1_poll;
-    api->wait_sync = &v1_wait_sync;
-    api->wait = &v1_wait;
-    api->dec_future_get = &v1_dec_future_get;
-
-    return reinterpret_cast<RaptorQ_base_api *> (api);
-}
+    add_symbol (&v1_add_symbol),
+    can_decode (&v1_can_decode),
+    needed_symbols (&v1_needed_symbols),
+    poll (&v1_poll),
+    wait_sync (&v1_wait_sync),
+    wait (&v1_wait),
+    dec_future_get (&v1_dec_future_get)
+{}
 
 ///////////////////////////
 // Precomputation caching
@@ -230,29 +235,28 @@ static struct RaptorQ_ptr* v1_Encoder (RaptorQ_type type,
                                             const RaptorQ_Block_Size symbols,
                                             const size_t symbol_size)
 {
-    std::unique_ptr<RaptorQ_ptr> ret (new RaptorQ_ptr (type));
-
+    void *raw_ptr = nullptr;
     switch (type) {
     case RaptorQ_type::RQ_ENC_8:
-        ret->ptr = reinterpret_cast<void *> (
+        raw_ptr = reinterpret_cast<void *> (
                     new RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*> (
                                 static_cast<RaptorQ__v1::Block_Size>(symbols),
                                                                 symbol_size));
         break;
     case RaptorQ_type::RQ_ENC_16:
-        ret->ptr = reinterpret_cast<void *> (
+        raw_ptr = reinterpret_cast<void *> (
                     new RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*> (
                                 static_cast<RaptorQ__v1::Block_Size>(symbols),
                                                                 symbol_size));
         break;
     case RaptorQ_type::RQ_ENC_32:
-        ret->ptr = reinterpret_cast<void *> (
+        raw_ptr = reinterpret_cast<void *> (
                     new RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*> (
                                 static_cast<RaptorQ__v1::Block_Size>(symbols),
                                                                 symbol_size));
         break;
     case RaptorQ_type::RQ_ENC_64:
-        ret->ptr = reinterpret_cast<void *> (
+        raw_ptr = reinterpret_cast<void *> (
                     new RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*> (
                                 static_cast<RaptorQ__v1::Block_Size>(symbols),
                                                                 symbol_size));
@@ -262,11 +266,11 @@ static struct RaptorQ_ptr* v1_Encoder (RaptorQ_type type,
     case RaptorQ_type::RQ_DEC_32:
     case RaptorQ_type::RQ_DEC_64:
     case RaptorQ_type::RQ_NONE:
-        return new RaptorQ_ptr (RaptorQ_type::RQ_NONE);
-    }
-    if (ret->ptr == nullptr)
         return nullptr;
-    return ret.release();
+    }
+    if (raw_ptr == nullptr)
+        return nullptr;
+    return new RaptorQ_ptr (type, raw_ptr);
 }
 
 static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
@@ -279,12 +283,12 @@ static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
         report != RQ_COMPUTE_COMPLETE) {
         return nullptr;
     }
-    std::unique_ptr<RaptorQ_ptr> ret (new RaptorQ_ptr (type));
 
+    void *raw_ptr = nullptr;
     namespace RQ = RaptorQ__v1::Impl;
     switch (type) {
     case RaptorQ_type::RQ_DEC_8:
-        ret->ptr = reinterpret_cast<void *> (
+        raw_ptr = reinterpret_cast<void *> (
                     new RQ::Decoder<uint8_t*, uint8_t*> (
                         static_cast<RaptorQ__v1::Block_Size>(symbols),
                         symbol_size,
@@ -292,7 +296,7 @@ static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
                                                                     (report)));
         break;
     case RaptorQ_type::RQ_DEC_16:
-        ret->ptr = reinterpret_cast<void *> (
+        raw_ptr = reinterpret_cast<void *> (
                     new RQ::Decoder<uint16_t*, uint16_t*> (
                         static_cast<RaptorQ__v1::Block_Size>(symbols),
                         symbol_size,
@@ -300,7 +304,7 @@ static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
                                                                     (report)));
         break;
     case RaptorQ_type::RQ_DEC_32:
-        ret->ptr = reinterpret_cast<void *> (
+        raw_ptr = reinterpret_cast<void *> (
                     new RQ::Decoder<uint32_t*, uint32_t*> (
                         static_cast<RaptorQ__v1::Block_Size>(symbols),
                         symbol_size,
@@ -308,7 +312,7 @@ static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
                                                                     (report)));
         break;
     case RaptorQ_type::RQ_DEC_64:
-        ret->ptr = reinterpret_cast<void *> (
+        raw_ptr = reinterpret_cast<void *> (
                     new RQ::Decoder<uint64_t*, uint64_t*> (
                         static_cast<RaptorQ__v1::Block_Size>(symbols),
                         symbol_size,
@@ -320,11 +324,11 @@ static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
     case RaptorQ_type::RQ_ENC_32:
     case RaptorQ_type::RQ_ENC_64:
     case RaptorQ_type::RQ_NONE:
-        return new RaptorQ_ptr (RaptorQ_type::RQ_NONE);
-    }
-    if (ret->ptr == nullptr)
         return nullptr;
-    return ret.release();
+    }
+    if (raw_ptr == nullptr)
+        return nullptr;
+    return new RaptorQ_ptr (type, raw_ptr);
 }
 
 static bool v1_initialized (const RaptorQ_ptr *ptr)
@@ -333,35 +337,35 @@ static bool v1_initialized (const RaptorQ_ptr *ptr)
         return false;
     switch (ptr->type) {
     case RaptorQ_type::RQ_ENC_8:
-        return (*reinterpret_cast<
+        return (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_ENC_16:
-        return (*reinterpret_cast<
+        return (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_ENC_32:
-        return (*reinterpret_cast<
+        return (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_ENC_64:
-        return (*reinterpret_cast<
+        return (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_DEC_8:
-        return (*reinterpret_cast<
+        return (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_DEC_16:
-        return (*reinterpret_cast<
+        return (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_DEC_32:
-        return (*reinterpret_cast<
+        return (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_DEC_64:
-        return (*reinterpret_cast<
+        return (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_NONE:
@@ -382,35 +386,35 @@ static uint16_t v1_symbols (const RaptorQ_ptr *ptr)
         return 0;
     switch (ptr->type) {
     case RaptorQ_type::RQ_ENC_8:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
                                                         ptr->ptr))->symbols();
     case RaptorQ_type::RQ_ENC_16:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
                                                         ptr->ptr))->symbols();
     case RaptorQ_type::RQ_ENC_32:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
                                                         ptr->ptr))->symbols();
     case RaptorQ_type::RQ_ENC_64:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
                                                         ptr->ptr))->symbols();
     case RaptorQ_type::RQ_DEC_8:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
                                                         ptr->ptr))->symbols();
     case RaptorQ_type::RQ_DEC_16:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
                                                         ptr->ptr))->symbols();
     case RaptorQ_type::RQ_DEC_32:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
                                                         ptr->ptr))->symbols();
     case RaptorQ_type::RQ_DEC_64:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
                                                         ptr->ptr))->symbols();
     case RaptorQ_type::RQ_NONE:
@@ -425,35 +429,35 @@ static size_t v1_symbol_size (const RaptorQ_ptr *ptr)
         return 0;
     switch (ptr->type) {
     case RaptorQ_type::RQ_ENC_8:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
                                                     ptr->ptr))->symbol_size();
     case RaptorQ_type::RQ_ENC_16:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
                                                     ptr->ptr))->symbol_size();
     case RaptorQ_type::RQ_ENC_32:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
                                                     ptr->ptr))->symbol_size();
     case RaptorQ_type::RQ_ENC_64:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
                                                     ptr->ptr))->symbol_size();
     case RaptorQ_type::RQ_DEC_8:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
                                                     ptr->ptr))->symbol_size();
     case RaptorQ_type::RQ_DEC_16:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
                                                     ptr->ptr))->symbol_size();
     case RaptorQ_type::RQ_DEC_32:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
                                                     ptr->ptr))->symbol_size();
     case RaptorQ_type::RQ_DEC_64:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
                                                     ptr->ptr))->symbol_size();
     case RaptorQ_type::RQ_NONE:
@@ -504,24 +508,24 @@ static void v1_stop (const RaptorQ_ptr *ptr)
     }
 }
 
-static RaptorQ_Error v1_future_state (struct RaptorQ_future *f)
+static RaptorQ_Error v1_future_state (struct RaptorQ_future *const f)
 {
     if (f == nullptr)
         return RaptorQ_Error::RQ_ERR_WRONG_INPUT;
     switch (f->type)
     {
     case RaptorQ_Future_Type::RQ_FUTURE_ENCODER:
-        if (reinterpret_cast<RaptorQ_future_enc*> (f)->f.valid())
+        if (reinterpret_cast<const RaptorQ_future_enc*> (f)->f.valid())
             return RaptorQ_Error::RQ_ERR_WORKING;
         break;
     case RaptorQ_Future_Type::RQ_FUTURE_DECODER:
-        if (reinterpret_cast<RaptorQ_future_dec*> (f)->f.valid())
+        if (reinterpret_cast<const RaptorQ_future_dec*> (f)->f.valid())
             return RaptorQ_Error::RQ_ERR_WORKING;
     }
     return RaptorQ_Error::RQ_ERR_NOT_NEEDED;
 }
 
-static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *f,
+static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *const f,
                                                 const uint64_t time,
                                                 const RaptorQ_Unit_Time unit)
 {
@@ -533,11 +537,11 @@ static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *f,
         switch (f->type)
         {
         case RaptorQ_Future_Type::RQ_FUTURE_ENCODER:
-            status = reinterpret_cast<RaptorQ_future_enc*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_enc*>(f)->f.wait_for (
                                             std::chrono::nanoseconds (time));
             break;
         case RaptorQ_Future_Type::RQ_FUTURE_DECODER:
-            status = reinterpret_cast<RaptorQ_future_dec*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_dec*>(f)->f.wait_for (
                                             std::chrono::nanoseconds (time));
         }
         break;
@@ -545,11 +549,11 @@ static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *f,
         switch (f->type)
         {
         case RaptorQ_Future_Type::RQ_FUTURE_ENCODER:
-            status = reinterpret_cast<RaptorQ_future_enc*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_enc*>(f)->f.wait_for (
                                             std::chrono::microseconds (time));
             break;
         case RaptorQ_Future_Type::RQ_FUTURE_DECODER:
-            status = reinterpret_cast<RaptorQ_future_dec*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_dec*>(f)->f.wait_for (
                                             std::chrono::microseconds (time));
         }
         break;
@@ -557,11 +561,11 @@ static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *f,
         switch (f->type)
         {
         case RaptorQ_Future_Type::RQ_FUTURE_ENCODER:
-            status = reinterpret_cast<RaptorQ_future_enc*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_enc*>(f)->f.wait_for (
                                             std::chrono::milliseconds (time));
             break;
         case RaptorQ_Future_Type::RQ_FUTURE_DECODER:
-            status = reinterpret_cast<RaptorQ_future_dec*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_dec*>(f)->f.wait_for (
                                             std::chrono::milliseconds (time));
         }
         break;
@@ -569,11 +573,11 @@ static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *f,
         switch (f->type)
         {
         case RaptorQ_Future_Type::RQ_FUTURE_ENCODER:
-            status = reinterpret_cast<RaptorQ_future_enc*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_enc*>(f)->f.wait_for (
                                                 std::chrono::seconds (time));
             break;
         case RaptorQ_Future_Type::RQ_FUTURE_DECODER:
-            status = reinterpret_cast<RaptorQ_future_dec*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_dec*>(f)->f.wait_for (
                                                 std::chrono::seconds (time));
         }
         break;
@@ -581,11 +585,11 @@ static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *f,
         switch (f->type)
         {
         case RaptorQ_Future_Type::RQ_FUTURE_ENCODER:
-            status = reinterpret_cast<RaptorQ_future_enc*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_enc*>(f)->f.wait_for (
                                                 std::chrono::minutes (time));
             break;
         case RaptorQ_Future_Type::RQ_FUTURE_DECODER:
-            status = reinterpret_cast<RaptorQ_future_dec*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_dec*>(f)->f.wait_for (
                                                 std::chrono::minutes (time));
         }
         break;
@@ -593,11 +597,11 @@ static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *f,
         switch (f->type)
         {
         case RaptorQ_Future_Type::RQ_FUTURE_ENCODER:
-            status = reinterpret_cast<RaptorQ_future_enc*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_enc*>(f)->f.wait_for (
                                                     std::chrono::hours (time));
             break;
         case RaptorQ_Future_Type::RQ_FUTURE_DECODER:
-            status = reinterpret_cast<RaptorQ_future_dec*>(f)->f.wait_for (
+            status = reinterpret_cast<const RaptorQ_future_dec*>(f)->f.wait_for (
                                                     std::chrono::hours (time));
         }
         break;
@@ -607,17 +611,17 @@ static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *f,
     return RaptorQ_Error::RQ_ERR_WORKING;
 }
 
-static void v1_future_wait (struct RaptorQ_future *f)
+static void v1_future_wait (struct RaptorQ_future *const f)
 {
     if (f == nullptr)
         return;
     switch (f->type)
     {
     case RaptorQ_Future_Type::RQ_FUTURE_ENCODER:
-        reinterpret_cast<RaptorQ_future_enc*>(f)->f.wait();
+        reinterpret_cast<const RaptorQ_future_enc*>(f)->f.wait();
         break;
     case RaptorQ_Future_Type::RQ_FUTURE_DECODER:
-        reinterpret_cast<RaptorQ_future_dec*>(f)->f.wait();
+        reinterpret_cast<const RaptorQ_future_dec*>(f)->f.wait();
     }
 }
 
@@ -691,19 +695,19 @@ static uint32_t v1_max_repair  (const RaptorQ_ptr *enc)
         return 0;
     switch (enc->type) {
     case RaptorQ_type::RQ_ENC_8:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
                                                     enc->ptr))->max_repair();
     case RaptorQ_type::RQ_ENC_16:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
                                                     enc->ptr))->max_repair();
     case RaptorQ_type::RQ_ENC_32:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
                                                     enc->ptr))->max_repair();
     case RaptorQ_type::RQ_ENC_64:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
                                                     enc->ptr))->max_repair();
     case RaptorQ_type::RQ_DEC_8:
@@ -716,10 +720,13 @@ static uint32_t v1_max_repair  (const RaptorQ_ptr *enc)
     return 0;
 }
 
-static size_t v1_set_data (const RaptorQ_ptr *enc, void *from, const void *to)
+static size_t v1_set_data (const RaptorQ_ptr *enc, void **from,
+                                                            const size_t size)
 {
-    if (enc == nullptr || enc->ptr == nullptr)
+    if (enc == nullptr || enc->ptr == nullptr ||
+                                        from == nullptr || *from == nullptr) {
         return 0;
+    }
     uint8_t *f_8 = reinterpret_cast<uint8_t*> (from);
     uint16_t *f_16 = reinterpret_cast<uint16_t*> (from);
     uint32_t *f_32 = reinterpret_cast<uint32_t*> (from);
@@ -730,33 +737,29 @@ static size_t v1_set_data (const RaptorQ_ptr *enc, void *from, const void *to)
         ret = reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
                                                 enc->ptr)->set_data (f_8,
-                                                    reinterpret_cast<uint8_t*> (
-                                                        const_cast<void*>(to)));
-        from = reinterpret_cast<void*> (f_8);
+                                                                f_8 + size);
+        *from = reinterpret_cast<void*> (f_8);
         return ret;
     case RaptorQ_type::RQ_ENC_16:
         ret = reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
                                                 enc->ptr)->set_data (f_16,
-                                                    reinterpret_cast<uint16_t*>(
-                                                        const_cast<void*>(to)));
-        from = reinterpret_cast<void*> (f_16);
+                                                                f_16 + size);
+        *from = reinterpret_cast<void*> (f_16);
         return ret;
     case RaptorQ_type::RQ_ENC_32:
         ret = reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
                                                 enc->ptr)->set_data (f_32,
-                                                    reinterpret_cast<uint32_t*>(
-                                                        const_cast<void*>(to)));
-        from = reinterpret_cast<void*> (f_32);
+                                                                f_32 + size);
+        *from = reinterpret_cast<void*> (f_32);
         return ret;
     case RaptorQ_type::RQ_ENC_64:
         ret = reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
                                                 enc->ptr)->set_data (f_64,
-                                                    reinterpret_cast<uint64_t*>(
-                                                        const_cast<void*>(to)));
-        from = reinterpret_cast<void*> (f_64);
+                                                                f_64 + size);
+        *from = reinterpret_cast<void*> (f_64);
         return ret;
     case RaptorQ_type::RQ_DEC_8:
     case RaptorQ_type::RQ_DEC_16:
@@ -774,19 +777,19 @@ static bool v1_has_data (const RaptorQ_ptr *enc)
         return false;
     switch (enc->type) {
     case RaptorQ_type::RQ_ENC_8:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
                                                         enc->ptr))->has_data();
     case RaptorQ_type::RQ_ENC_16:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
                                                         enc->ptr))->has_data();
     case RaptorQ_type::RQ_ENC_32:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
                                                         enc->ptr))->has_data();
     case RaptorQ_type::RQ_ENC_64:
-        return (reinterpret_cast<
+        return (reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
                                                         enc->ptr))->has_data();
     case RaptorQ_type::RQ_DEC_8:
@@ -972,48 +975,50 @@ static RaptorQ_Error v1_enc_future_get (struct RaptorQ_future_enc *f)
     return RaptorQ_Error::RQ_ERR_WORKING;
 }
 
-static size_t v1_encode (const RaptorQ_ptr *enc, void *from, const void *to,
+static size_t v1_encode (const RaptorQ_ptr *enc, void **from, const size_t size,
                                                             const uint32_t id)
 {
-    if (enc == nullptr || enc->ptr == nullptr)
+    if (enc == nullptr || enc->ptr == nullptr ||
+                                        from == nullptr || *from == nullptr) {
         return 0;
-    uint8_t *f_8 = reinterpret_cast<uint8_t*> (from);
-    uint16_t *f_16 = reinterpret_cast<uint16_t*> (from);
-    uint32_t *f_32 = reinterpret_cast<uint32_t*> (from);
-    uint64_t *f_64= reinterpret_cast<uint64_t*> (from);
+    }
+    uint8_t *f_8;
+    uint16_t *f_16;
+    uint32_t *f_32;
+    uint64_t *f_64;
     size_t ret;
     switch (enc->type) {
     case RaptorQ_type::RQ_ENC_8:
+        f_8 = reinterpret_cast<uint8_t*> (from);
         ret = reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
                                                 enc->ptr)->encode (f_8,
-                                                    reinterpret_cast<uint8_t*> (
-                                                    const_cast<void*>(to)), id);
-        from = reinterpret_cast<void*> (f_8);
+                                                            f_8 + size, id);
+        *from = reinterpret_cast<void*> (f_8);
         return ret;
     case RaptorQ_type::RQ_ENC_16:
+        f_16 = reinterpret_cast<uint16_t*> (from);
         ret = reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
                                                 enc->ptr)->encode (f_16,
-                                                    reinterpret_cast<uint16_t*>(
-                                                    const_cast<void*>(to)), id);
-        from = reinterpret_cast<void*> (f_16);
+                                                            f_16 + size, id);
+        *from = reinterpret_cast<void*> (f_16);
         return ret;
     case RaptorQ_type::RQ_ENC_32:
+        f_32 = reinterpret_cast<uint32_t*> (from);
         ret = reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
                                                 enc->ptr)->encode (f_32,
-                                                    reinterpret_cast<uint32_t*>(
-                                                    const_cast<void*>(to)), id);
-        from = reinterpret_cast<void*> (f_32);
+                                                            f_32 + size, id);
+        *from = reinterpret_cast<void*> (f_32);
         return ret;
     case RaptorQ_type::RQ_ENC_64:
+        f_64 = reinterpret_cast<uint64_t*> (from);
         ret = reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
                                                 enc->ptr)->encode (f_64,
-                                                    reinterpret_cast<uint64_t*>(
-                                                    const_cast<void*>(to)), id);
-        from = reinterpret_cast<void*> (f_64);
+                                                            f_64 + size, id);
+        *from = reinterpret_cast<void*> (f_64);
         return ret;
     case RaptorQ_type::RQ_DEC_8:
     case RaptorQ_type::RQ_DEC_16:
@@ -1030,41 +1035,50 @@ static size_t v1_encode (const RaptorQ_ptr *enc, void *from, const void *to,
 // Decoder-specific functions
 //////////////////////////////
 
-static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec, void *from,
-                                                    const void *to,
+static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec, void **from,
+                                                    const size_t size,
                                                     const uint32_t esi)
 {
     if (dec == nullptr || dec->ptr == nullptr)
         return RaptorQ_Error::RQ_ERR_WRONG_INPUT;
-    uint8_t *f_8 = reinterpret_cast<uint8_t*> (from);
-    uint16_t *f_16 = reinterpret_cast<uint16_t*> (from);
-    uint32_t *f_32 = reinterpret_cast<uint32_t*> (from);
-    uint64_t *f_64= reinterpret_cast<uint64_t*> (from);
+    uint8_t *f_8;
+    uint16_t *f_16;
+    uint32_t *f_32;
+    uint64_t *f_64;
+    RaptorQ_Error err = RaptorQ_Error::RQ_ERR_NONE;
     switch (dec->type) {
     case RaptorQ_type::RQ_DEC_8:
-        return static_cast<RaptorQ_Error> (reinterpret_cast<
+        f_8 = reinterpret_cast<uint8_t*> (from);
+        err = static_cast<RaptorQ_Error> (reinterpret_cast<
                             RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
                                             dec->ptr)->add_symbol (f_8,
-                                                reinterpret_cast<uint8_t*> (
-                                                const_cast<void*>(to)), esi));
+                                                            f_8 + size, esi));
+        *from = f_8;
+        return err;
     case RaptorQ_type::RQ_DEC_16:
-        return static_cast<RaptorQ_Error> (reinterpret_cast<
+        f_16 = reinterpret_cast<uint16_t*> (from);
+        err = static_cast<RaptorQ_Error> (reinterpret_cast<
                             RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
                                             dec->ptr)->add_symbol (f_16,
-                                                reinterpret_cast<uint16_t*>(
-                                                const_cast<void*>(to)), esi));
+                                                            f_16 + size, esi));
+        *from = f_16;
+        return err;
     case RaptorQ_type::RQ_DEC_32:
-        return static_cast<RaptorQ_Error> (reinterpret_cast<
+        f_32 = reinterpret_cast<uint32_t*> (from);
+        err = static_cast<RaptorQ_Error> (reinterpret_cast<
                             RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
                                             dec->ptr)->add_symbol (f_32,
-                                                reinterpret_cast<uint32_t*>(
-                                                const_cast<void*>(to)), esi));
+                                                            f_32 + size, esi));
+        *from = f_32;
+        return err;
     case RaptorQ_type::RQ_DEC_64:
-        return static_cast<RaptorQ_Error> (reinterpret_cast<
+        f_64 = reinterpret_cast<uint64_t*> (from);
+        err = static_cast<RaptorQ_Error> (reinterpret_cast<
                             RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
                                             dec->ptr)->add_symbol (f_64,
-                                                reinterpret_cast<uint64_t*>(
-                                                const_cast<void*>(to)), esi));
+                                                            f_64 + size, esi));
+        *from = f_64;
+        return err;
     case RaptorQ_type::RQ_ENC_8:
     case RaptorQ_type::RQ_ENC_16:
     case RaptorQ_type::RQ_ENC_32:
@@ -1081,19 +1095,19 @@ static bool v1_can_decode (const RaptorQ_ptr *dec)
         return false;
     switch (dec->type) {
     case RaptorQ_type::RQ_DEC_8:
-        return reinterpret_cast<
+        return reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
                                                         dec->ptr)->can_decode();
     case RaptorQ_type::RQ_DEC_16:
-        return reinterpret_cast<
+        return reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
                                                         dec->ptr)->can_decode();
     case RaptorQ_type::RQ_DEC_32:
-        return reinterpret_cast<
+        return reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
                                                         dec->ptr)->can_decode();
     case RaptorQ_type::RQ_DEC_64:
-        return reinterpret_cast<
+        return reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
                                                         dec->ptr)->can_decode();
     case RaptorQ_type::RQ_ENC_8:
@@ -1112,19 +1126,19 @@ static uint16_t v1_needed_symbols (const RaptorQ_ptr *dec)
         return false;
     switch (dec->type) {
     case RaptorQ_type::RQ_DEC_8:
-        return reinterpret_cast<
+        return reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
                                                     dec->ptr)->needed_symbols();
     case RaptorQ_type::RQ_DEC_16:
-        return reinterpret_cast<
+        return reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
                                                     dec->ptr)->needed_symbols();
     case RaptorQ_type::RQ_DEC_32:
-        return reinterpret_cast<
+        return reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
                                                     dec->ptr)->needed_symbols();
     case RaptorQ_type::RQ_DEC_64:
-        return reinterpret_cast<
+        return reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
                                                     dec->ptr)->needed_symbols();
     case RaptorQ_type::RQ_ENC_8:
@@ -1139,11 +1153,9 @@ static uint16_t v1_needed_symbols (const RaptorQ_ptr *dec)
 
 static RaptorQ_dec_result v1_poll (const RaptorQ_ptr *dec)
 {
-    RaptorQ_dec_result res;
-    res.err = RaptorQ_Error::RQ_ERR_WRONG_INPUT;
-    res.esi = 0;
+
     if (dec == nullptr || dec->ptr == nullptr)
-        return res;
+        return RaptorQ_dec_result {RaptorQ_Error::RQ_ERR_WRONG_INPUT, 0};
     std::pair<RaptorQ__v1::Error, uint16_t> cpp_res = {
                                             RaptorQ__v1::Error::WRONG_INPUT, 0};
     switch (dec->type) {
@@ -1174,18 +1186,14 @@ static RaptorQ_dec_result v1_poll (const RaptorQ_ptr *dec)
     case RaptorQ_type::RQ_NONE:
         break;
     }
-    res.err = static_cast<RaptorQ_Error> (cpp_res.first);
-    res.esi = cpp_res.second;
-    return res;
+    return RaptorQ_dec_result {static_cast<RaptorQ_Error> (cpp_res.first),
+                                                                cpp_res.second};
 }
 
 static RaptorQ_dec_result v1_wait_sync (const RaptorQ_ptr *dec)
 {
-    RaptorQ_dec_result res;
-    res.err = RaptorQ_Error::RQ_ERR_WRONG_INPUT;
-    res.esi = 0;
     if (dec == nullptr || dec->ptr == nullptr)
-        return res;
+        return RaptorQ_dec_result {RaptorQ_Error::RQ_ERR_WRONG_INPUT, 0};
     std::pair<RaptorQ__v1::Error, uint16_t> cpp_res = {
                                             RaptorQ__v1::Error::WRONG_INPUT, 0};
     switch (dec->type) {
@@ -1216,9 +1224,8 @@ static RaptorQ_dec_result v1_wait_sync (const RaptorQ_ptr *dec)
     case RaptorQ_type::RQ_NONE:
         break;
     }
-    res.err = static_cast<RaptorQ_Error> (cpp_res.first);
-    res.esi = cpp_res.second;
-    return res;
+    return RaptorQ_dec_result {static_cast<RaptorQ_Error> (cpp_res.first),
+                                                                cpp_res.second};
 }
 
 static RaptorQ_future_dec* v1_wait (const RaptorQ_ptr *dec)
@@ -1259,17 +1266,14 @@ static RaptorQ_future_dec* v1_wait (const RaptorQ_ptr *dec)
 
 static RaptorQ_dec_result v1_dec_future_get (struct RaptorQ_future_dec *f)
 {
-    RaptorQ_dec_result res;
-    res.err = RaptorQ_Error::RQ_ERR_WRONG_INPUT;
-    res.esi = 0;
+     std::pair<RaptorQ__v1::Error, uint16_t> cpp_res;
     if (f == nullptr)
-        return res;
+        return RaptorQ_dec_result {RaptorQ_Error::RQ_ERR_WRONG_INPUT, 0};
     if (f->f.valid()) {
-        const auto cpp_res = f->f.get();
-        res.err = static_cast<RaptorQ_Error> (cpp_res.first);
-        res.esi = cpp_res.second;
+        cpp_res = f->f.get();
+        return RaptorQ_dec_result {static_cast<RaptorQ_Error> (cpp_res.first),
+                                                                cpp_res.second};
     } else {
-        res.err = RaptorQ_Error::RQ_ERR_WORKING;
+        return RaptorQ_dec_result {RaptorQ_Error::RQ_ERR_WORKING, 0};
     }
-    return res;
 }
