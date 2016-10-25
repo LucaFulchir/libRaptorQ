@@ -73,13 +73,13 @@ public:
     }
 
     operator bool() const { return rfc_encoder != nullptr && (*rfc_encoder); }
-    RQ_OTI_Common_Data OTI_Common() const
+    RFC6330_OTI_Common_Data OTI_Common() const
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->OTI_Common();
         return 0;
     }
-    RQ_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const
+    RFC6330_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const
     {
         if (rfc_encoder != nullptr)
             return rfc_encoder->OTI_Scheme_Specific();
@@ -185,8 +185,8 @@ public:
     //      uint8_t alignment;
     //  };
     //};
-    Decoder (const RQ_OTI_Common_Data common,
-                            const RQ_OTI_Scheme_Specific_Data scheme)
+    Decoder (const RFC6330_OTI_Common_Data common,
+                            const RFC6330_OTI_Scheme_Specific_Data scheme)
     {
         rfc_decoder = std::unique_ptr<Impl::Decoder<In_It, Fwd_It>> (
                                     new Impl::Decoder<In_It, Fwd_It> (
@@ -202,6 +202,12 @@ public:
                                 new Impl::Decoder<In_It, Fwd_It> (
                                                 size, symbol_size, sub_blocks,
                                                 blocks, alignment));
+    }
+    operator bool() const
+    {
+        if (rfc_decoder != nullptr)
+            return false;
+        return *rfc_decoder;
     }
 
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags)

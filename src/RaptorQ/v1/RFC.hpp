@@ -50,9 +50,6 @@
 
 namespace RFC6330__v1 {
 
-typedef uint64_t RQ_OTI_Common_Data;
-typedef uint32_t RQ_OTI_Scheme_Specific_Data;
-
 namespace Impl {
 
 static const uint64_t max_data = 946270874880;  // ~881 GB
@@ -121,8 +118,8 @@ public:
     }
 
     operator bool() const { return interleave; }
-    RQ_OTI_Common_Data OTI_Common() const;
-    RQ_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
+    RFC6330_OTI_Common_Data OTI_Common() const;
+    RFC6330_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
     // TODO: introduce memory limits on threading ?
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
@@ -134,7 +131,7 @@ public:
     size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
     void free (const uint8_t sbn);
     uint8_t blocks() const;
-    uint32_t block_size (const uint8_t sbn) const;
+    uint32_t block_size (const uint8_t sbn) const; // TODO: eliminate
     uint16_t symbol_size() const;
     uint16_t symbols (const uint8_t sbn) const;
     uint32_t max_repair (const uint8_t sbn) const;
@@ -215,8 +212,8 @@ public:
     //  };
     //};
     ~Decoder();
-    Decoder (const RQ_OTI_Common_Data common,
-                            const RQ_OTI_Scheme_Specific_Data scheme)
+    Decoder (const RFC6330_OTI_Common_Data common,
+                            const RFC6330_OTI_Scheme_Specific_Data scheme)
     {
         IS_INPUT(In_It, "RaptorQ__v1::Decoder");
         IS_FORWARD(Fwd_It, "RaptorQ__v1::Decoder");
@@ -266,6 +263,8 @@ public:
         use_pool = true;
         exiting = false;
     }
+    operator bool() const
+        { return true; }    // FIXME FIXME FIXME FIXME FIXME FIXME FIXME FIXME
 
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     // if you can tell there is no more input, we can avoid locking
@@ -280,6 +279,7 @@ public:
                                                             const uint8_t sbn);
     // result in ITERATORS
     // last *might* be half written depending on data alignments
+    // FIXME: <uint64_t, uint16_t> ? why only _8?
     std::pair<uint64_t, uint8_t> decode_aligned (Fwd_It &start,const Fwd_It end,
                                                             const uint8_t skip);
     std::pair<size_t, uint8_t> decode_block_aligned (Fwd_It &start,
@@ -369,11 +369,11 @@ Encoder<Rnd_It, Fwd_It>::~Encoder()
 }
 
 template <typename Rnd_It, typename Fwd_It>
-RQ_OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
+RFC6330_OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
 {
     if (!interleave)
         return 0;
-    RQ_OTI_Common_Data ret;
+    RFC6330_OTI_Common_Data ret;
     // first 40 bits: data length.
     ret = (static_cast<uint64_t> (_data_to - _data_from) *
             sizeof(typename std::iterator_traits<Rnd_It>::value_type)) << 24;
@@ -385,11 +385,11 @@ RQ_OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
 }
 
 template <typename Rnd_It, typename Fwd_It>
-RQ_OTI_Scheme_Specific_Data Encoder<Rnd_It, Fwd_It>::OTI_Scheme_Specific() const
+RFC6330_OTI_Scheme_Specific_Data Encoder<Rnd_It, Fwd_It>::OTI_Scheme_Specific() const
 {
     if (!interleave)
         return 0;
-    RQ_OTI_Scheme_Specific_Data ret;
+    RFC6330_OTI_Scheme_Specific_Data ret;
     // 8 bit: source blocks
     ret = static_cast<uint32_t> (interleave.blocks()) << 24;
     // 16 bit: sub-blocks number (N)

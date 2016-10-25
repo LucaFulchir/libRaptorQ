@@ -34,8 +34,10 @@
 
 // Encode / decode "mysize" uint32_t
 // for a more elaborate examlpe with different alignments, see test_cpp
-bool decode (uint32_t mysize, float drop_prob, uint8_t overhead);
-bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
+bool decode (struct RFC6330_v1 *rfc, uint32_t mysize, float drop_prob,
+                                                            uint8_t overhead);
+bool decode (struct RFC6330_v1 *rfc, uint32_t mysize, float drop_prob,
+                                                            uint8_t overhead)
 {
     uint32_t *myvec;
 
@@ -64,7 +66,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
      */
 
     // use multiple blocks
-    struct RaptorQ_ptr *enc = RaptorQ_Enc (RQ_ENC_32, myvec, mysize, subsymbol,
+    struct RFC6330_ptr *enc = rfc->Encoder (RQ_ENC_32, myvec, mysize, subsymbol,
                                                             symbol_size, 200);
 
     if (enc == NULL) {
@@ -74,17 +76,17 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
     }
 
     // start background precomputation while we get the source symbols.
-    struct RaptorQ_future *async_enc = RaptorQ_compute(enc,RQ_COMPUTE_COMPLETE);
+    struct RFC6330_future *async_enc = rfc->compute (enc, RQ_COMPUTE_COMPLETE);
     // wait for all block to finish computing:
     if (async_enc == NULL) {
         fprintf(stderr, "Error in starting computation\n");
-        RaptorQ_free (&enc);
+        rfc->free (&enc);
         free (myvec);
         return false;
     }
-    RaptorQ_future_wait (async_enc);
-    struct RaptorQ_Result enc_stat = RaptorQ_future_get (async_enc);
-    RaptorQ_future_free (&async_enc);
+    rfc->future_wait (async_enc);
+    struct RFC6330_Result enc_stat = rfc->future_get (async_enc);
+    rfc->future_free (&async_enc);
     if (enc_stat.error != RQ_ERR_NONE) {
         printf ("ERR in getting future\n");
         return false;
@@ -102,8 +104,8 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
     // we used a lot of memory before so there will be only one block.
     // allocate memory only for that data.
     uint32_t symbols_tot = 0;
-    for (uint8_t b = 0; b < RaptorQ_blocks (enc); ++b) {
-        uint16_t sym = RaptorQ_symbols (enc, b);
+    for (uint8_t b = 0; b < rfc->blocks (enc); ++b) {
+        uint16_t sym = rfc->symbols (enc, b);
         symbols_tot += (sym + overhead);
     }
 
@@ -113,10 +115,10 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
 
     uint32_t next_encoded = 0;
 
-    uint32_t blocks = RaptorQ_blocks (enc);
+    uint32_t blocks = rfc->blocks (enc);
     for (uint8_t block = 0; block < blocks; ++block) {
         printf("Block: %i\n", block);
-        uint32_t sym_for_blk = RaptorQ_symbols (enc, block);
+        uint32_t sym_for_blk = rfc->symbols (enc, block);
         // some source packets will be lost. Be sure we will have
         // exactly (overhead + dropped_source) repair symbols.
         // and "sym_for_blk + overhead" total symbols
@@ -129,11 +131,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
                 continue;
             }
             // successfully transmitted source symbol. Add it to "encoded";
-            encoded[next_encoded].id = RaptorQ_id (source, block);
+            encoded[next_encoded].id = rfc->id (source, block);
             uint32_t data_size = symbol_size / sizeof(uint32_t);
             encoded[next_encoded].symbol = (uint32_t *) malloc (symbol_size);
             uint32_t *data = encoded[next_encoded].symbol;
-            uint64_t written = RaptorQ_encode (enc, (void **)&data, data_size,
+            uint64_t written = rfc->encode (enc, (void **)&data, data_size,
                                                     source, (uint8_t)block);
             // "data" now points to "encoded[next_encoded].symbol + written"
             // you can use this for some tricks if you *really* need it.
@@ -143,7 +145,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
                 for (uint32_t k = 0; k <= next_encoded; ++k)
                     free (encoded[k].symbol);
                 free (encoded);
-                RaptorQ_free (&enc);
+                rfc->free (&enc);
                 return false;
             }
             ++next_encoded;
@@ -154,7 +156,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
         // and "sym_for_blk + overhead" total symbols
         uint32_t sym_rep;
         for (sym_rep = sym_for_blk; repair > 0 &&
-                        sym_rep < RaptorQ_max_repair (enc, block); ++sym_rep) {
+                        sym_rep < rfc->max_repair (enc, block); ++sym_rep) {
             // repair symbols can be dropped, too!
             float dropped = ((float)(rand()) / (float) RAND_MAX) * (float)100.0;
             if (dropped < drop_prob) {
@@ -163,11 +165,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
             }
             --repair;
             // successfully transmitted repair symbol. Add it to "encoded";
-            encoded[next_encoded].id = RaptorQ_id (sym_rep, block);
+            encoded[next_encoded].id = rfc->id (sym_rep, block);
             uint32_t data_size = symbol_size / sizeof(uint32_t);
             encoded[next_encoded].symbol = (uint32_t *) malloc (symbol_size);
             uint32_t *data = encoded[next_encoded].symbol;
-            uint64_t written = RaptorQ_encode (enc, (void **)&data, data_size,
+            uint64_t written = rfc->encode (enc, (void **)&data, data_size,
                                                     sym_rep, (uint8_t)block);
             // "*data" now points to "encoded[next_encoded].symbol + written"
             // you can use this for some tricks if you *really* need it.
@@ -177,31 +179,31 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
                 for (uint32_t k = 0; k <= next_encoded; ++k)
                     free (encoded[k].symbol);
                 free (encoded);
-                RaptorQ_free (&enc);
+                rfc->free (&enc);
                 return false;
             }
             ++next_encoded;
         }
-        if (sym_rep == RaptorQ_max_repair (enc, block)) {
+        if (sym_rep == rfc->max_repair (enc, block)) {
             fprintf(stderr, "Maybe losing %f%% symbols is too much?\n",
                                                             (double)drop_prob);
             free (myvec);
             for (uint32_t k = 0; k < next_encoded; ++k)
                 free (encoded[k].symbol);
             free (encoded);
-            RaptorQ_free (&enc);
+            rfc->free (&enc);
             return false;
         }
     }
 
-    uint32_t oti_scheme = RaptorQ_OTI_Scheme (enc);
-    uint64_t oti_common = RaptorQ_OTI_Common (enc);
+    uint32_t oti_scheme = rfc->OTI_Scheme_Specific (enc);
+    uint64_t oti_common = rfc->OTI_Common (enc);
 
     // optionally: free the memory just of block 0
     // this is done by the RaptorQ_free call anyway
     // RaptorQ_free_block (&enc, 0);
     // free the whole encoder memory:
-    RaptorQ_free (&enc);
+    rfc->free (&enc);
     // enc == NULL now
 
 
@@ -209,7 +211,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
      * Now start decoding things
      */
 
-    struct RaptorQ_ptr *dec = RaptorQ_Dec (RQ_DEC_32, oti_common, oti_scheme);
+    struct RFC6330_ptr *dec = rfc->Decoder (RQ_DEC_32, oti_common, oti_scheme);
 
     if (dec == NULL) {
         fprintf(stderr, "Could not initialize decoder!\n");
@@ -220,11 +222,11 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
         return false;
     }
     // start background precomputation while we get the source symbols.
-    struct RaptorQ_future *async_dec =RaptorQ_compute (dec,RQ_COMPUTE_COMPLETE);
+    struct RFC6330_future *async_dec =rfc->compute (dec,RQ_COMPUTE_COMPLETE);
     // wait for all block to finish computing:
     if (async_dec == NULL) {
         fprintf(stderr, "Error in starting computation\n");
-        RaptorQ_free (&dec);
+        rfc->free (&dec);
         free (myvec);
         return false;
     }
@@ -235,8 +237,8 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
     // there are.
     for (size_t i = 0; i < next_encoded; ++i) {
         uint32_t *data = encoded[i].symbol;
-        uint32_t data_size = RaptorQ_symbol_size (dec) / sizeof(uint32_t);
-        RaptorQ_Error err = RaptorQ_add_symbol_id (dec, (void **)&data,
+        uint32_t data_size = rfc->symbol_size (dec) / sizeof(uint32_t);
+        RFC6330_Error err = rfc->add_symbol_id (dec, (void **)&data,
                                                     data_size, encoded[i].id);
         if (err != RQ_ERR_NONE && err != RQ_ERR_NOT_NEEDED) {
             // this can happen if we receive the same symbol twice
@@ -248,8 +250,8 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
             for (uint32_t k = 0; k < next_encoded; ++k)
                 free (encoded[k].symbol);
             free (encoded);
-            RaptorQ_future_free (&async_dec);
-            RaptorQ_free (&dec);
+            rfc->future_free (&async_dec);
+            rfc->free (&dec);
             return false;
         }
         // "data" now points to encoded[i].symbol +
@@ -257,24 +259,24 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
     }
     // tell the decoder not to wait indefinitely
     // and exit if it does not have enough data.
-    RaptorQ_end_of_input (dec);
+    rfc->end_of_input (dec);
 
     // make sure that there's enough place in "received" to get the
     // whole decoded data.
     // note: the length of the decoded data is in bytes and might not fit
     // a whole uint32_t.
-    size_t decoded_size =(size_t) (RaptorQ_bytes (dec) / sizeof(uint32_t));
+    size_t decoded_size =(size_t) (rfc->bytes (dec) / sizeof(uint32_t));
     // this is not necessary in this example, but remember that integer
     // division acts as a floor()
-    decoded_size += RaptorQ_bytes (dec) % sizeof(uint32_t);
+    decoded_size += rfc->bytes (dec) % sizeof(uint32_t);
     uint32_t *received = (uint32_t *) malloc (decoded_size * sizeof(uint32_t));
 
     uint32_t *rec = received;
 
     // wait for the whole data to be decoded
-    RaptorQ_future_wait (async_dec);
-    struct RaptorQ_Result dec_stat = RaptorQ_future_get (async_dec);
-    RaptorQ_future_free (&async_dec);
+    rfc->future_wait (async_dec);
+    struct RFC6330_Result dec_stat = rfc->future_get (async_dec);
+    rfc->future_free (&async_dec);
     if (dec_stat.error != RQ_ERR_NONE) {
         if (dec_stat.error == RQ_ERR_NEED_DATA) {
             printf ("Decoding failed. try again?\n");
@@ -285,7 +287,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
         }
     }
 
-    uint64_t written = RaptorQ_decode_bytes(dec, (void **)&rec, decoded_size,0);
+    uint64_t written = rfc->decode_bytes (dec, (void **)&rec, decoded_size,0);
     // we are assuming no errors, all blocks decoded.
     // "rec" now points to "received + written"
     // This might help you to call RaptorQ_decode_sbn multiple time
@@ -299,7 +301,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
         for (uint32_t k = 0; k < next_encoded; ++k)
             free (encoded[k].symbol);
         free (encoded);
-        RaptorQ_free(&dec);
+        rfc->free(&dec);
         return false;
     } else {
         printf("Decoded: %i\n", mysize);
@@ -316,7 +318,7 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
             for (uint32_t k = 0; k < next_encoded; ++k)
                 free (encoded[k].symbol);
             free (encoded);
-            RaptorQ_free (&dec);
+            rfc->free (&dec);
             return false;
         }
     }
@@ -330,23 +332,33 @@ bool decode (uint32_t mysize, float drop_prob, uint8_t overhead)
     for (uint32_t k = 0; k < next_encoded; ++k)
         free (encoded[k].symbol);
     free (encoded);
-    RaptorQ_free(&dec);
+    rfc->free(&dec);
     // dec == NULL now
     return true;
 }
 
 int main (void)
 {
+
+    // get the api function pointers
+    struct RFC6330_v1 *rfc = (struct RFC6330_v1*) RFC6330_api (1);
+    if (rfc == NULL) {
+        fprintf(stderr, "ERR: could not get RFC6330 API\n");
+        return 1;
+    }
+
     // set local cache size to 100MB
 #ifdef RQ_USE_LZ4
-    RaptorQ_set_compression (RQ_COMPRESS_LZ4);
+    rfc->set_compression (RQ_COMPRESS_LZ4);
 #else
     RaptorQ_set_compression (RQ_COMPRESS_NONE);
 #endif
-    RaptorQ_local_cache_size (100*1024*1024);
-    RaptorQ_set_thread_pool (2, 2, RQ_WORK_ABORT_COMPUTATION);
+    rfc->local_cache_size (100*1024*1024);
+    rfc->set_thread_pool (2, 2, RQ_WORK_ABORT_COMPUTATION);
     // encode and decode
-    bool ret = decode (501, 20.0, 4);
+    bool ret = decode (rfc, 501, 20.0, 4);
+
+    RFC6330_free_api ((struct RFC6330_base_api**)&rfc);
 
     return (ret == true ? 0 : -1);
 }

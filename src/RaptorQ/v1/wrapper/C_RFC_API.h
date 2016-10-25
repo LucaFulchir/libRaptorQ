@@ -29,148 +29,144 @@
 extern "C"
 {
 #endif
-    typedef uint64_t RaptorQ_OTI_Common_Data;
-    typedef uint32_t RaptorQ_OTI_Scheme_Specific_Data;
+    struct RAPTORQ_LOCAL RFC6330_ptr;
+    struct RAPTORQ_LOCAL RFC6330_future;
 
-    struct RAPTORQ_LOCAL RaptorQ_ptr;
+    struct RFC6330_Result {
+        const RFC6330_Error error;
+        const uint8_t sbn;
+    };
+    struct RFC6330_Dec_Result {
+        const uint64_t written;
+        const uint8_t skip;
+    };
 
-    RAPTORQ_API struct RaptorQ_ptr* RaptorQ_Enc (const RaptorQ_type type,
-                                            void *data,
-                                            const uint64_t size,
+
+    RAPTORQ_API struct RFC6330_base_api* RFC6330_api (uint32_t version);
+    RAPTORQ_API void RFC6330_free_api (struct RFC6330_base_api **api);
+
+    struct RFC6330_base_api
+    {
+        const size_t version;
+        #ifdef __cplusplus
+        RFC6330_base_api (size_t ver) : version (ver) {}
+        #endif
+    };
+
+    struct RFC6330_v1
+    {
+        const struct RFC6330_base_api base;
+        #ifdef __cplusplus
+        RFC6330_v1();
+        #endif
+
+        // precomputation caching
+        RFC6330_Compress (*const supported_compressions)();
+        RFC6330_Compress (*const get_compression)();
+        bool (*const set_compression) (const RFC6330_Compress);
+        size_t (*const shared_cache_size) (const size_t);
+        size_t  (*const local_cache_size) (const size_t);
+        size_t (*const get_shared_cache_size)();
+        size_t  (*const get_local_cache_size)();
+
+
+        // constructos
+        struct RFC6330_ptr* (*const Encoder) (RFC6330_type type,
+                                            const void *data_from,
+                                            const size_t size,
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
                                             const size_t max_memory);
-    RAPTORQ_API struct RaptorQ_ptr* RaptorQ_Dec (const RaptorQ_type type,
-                                const RaptorQ_OTI_Common_Data common,
-                                const RaptorQ_OTI_Scheme_Specific_Data scheme);
+        struct RFC6330_ptr* (*const Decoder) (RFC6330_type type,
+                                const RFC6330_OTI_Common_Data common,
+                                const RFC6330_OTI_Scheme_Specific_Data scheme);
+        struct RFC6330_ptr* (*const Decoder_raw) (RFC6330_type type,
+                                                    const uint64_t size,
+                                                    const uint16_t symbol_size,
+                                                    const uint16_t sub_blocks,
+                                                    const uint8_t blocks,
+                                                    const uint8_t alignment);
+        bool (*const initialized) (const struct RFC6330_ptr *ptr);
 
-    ///////////////////////////
-    // Precomputation caching
-    ///////////////////////////
-    RaptorQ_Compress RAPTORQ_API RaptorQ_supported_compressions();
-    RaptorQ_Compress RAPTORQ_API RaptorQ_get_compression();
-    bool RAPTORQ_API RaptorQ_set_compression (
-                                            const RaptorQ_Compress compression);
 
-    size_t RAPTORQ_API RaptorQ_shared_cache_size (const size_t shared_cache);
-    RaptorQ_Error RAPTORQ_API RaptorQ_local_cache_size (
-                                                    const size_t local_cache);
-    size_t RAPTORQ_API RaptorQ_get_shared_cache_size ();
-    size_t RAPTORQ_API RaptorQ_get_local_cache_size ();
-
-    /////////////////////
-    // Common functions
-    /////////////////////
-
-    // C++11 async API into C pointers
-    struct RaptorQ_Result {
-        RaptorQ_Error error;
-        uint8_t sbn;
-    };
-    struct RAPTORQ_LOCAL RaptorQ_future;
-
-    RaptorQ_Error RAPTORQ_API RaptorQ_future_valid (
-                                                struct RaptorQ_future *future);
-    RaptorQ_Error RAPTORQ_API RaptorQ_future_wait_for (
-                                                struct RaptorQ_future *future,
+        // common functions
+        uint8_t (*const blocks) (const struct RFC6330_ptr *ptr);
+        uint16_t (*const symbols)     (const struct RFC6330_ptr *ptr,
+                                                            const uint8_t sbn);
+        size_t   (*const symbol_size) (const struct RFC6330_ptr *ptr);
+        RaptorQ_Error (*const future_state) (const struct RFC6330_future *f);
+        RaptorQ_Error (*const future_wait_for) (const struct RFC6330_future *f,
                                                 const uint64_t time,
-                                                const RaptorQ_Unit_Time unit);
-    void RAPTORQ_API RaptorQ_future_wait (struct RaptorQ_future *future);
-    void RAPTORQ_API RaptorQ_future_free (struct RaptorQ_future **future);
-    struct RaptorQ_Result RAPTORQ_API RaptorQ_future_get (
-                                                struct RaptorQ_future *future);
-
-
-    bool RAPTORQ_API RaptorQ_set_thread_pool (const size_t threads,
+                                                const RFC6330_Unit_Time unit);
+        void (*const future_wait) (const struct RFC6330_future *f);
+        void (*const future_free) (struct RFC6330_future **f);
+        struct RFC6330_Result (*const future_get) (
+                                                struct RFC6330_future *future);
+        bool (*const set_thread_pool) (const size_t threads,
                                         const uint16_t max_block_concurrency,
-                                        const RaptorQ_Work exit_type);
-
-    RAPTORQ_API struct RaptorQ_future* RaptorQ_compute (struct RaptorQ_ptr *ptr,
-                                                const RaptorQ_Compute flags);
-
-    ///////////
-    // Encoding
-    ///////////
-
-    RaptorQ_OTI_Common_Data RAPTORQ_API RaptorQ_OTI_Common (
-                                                    struct RaptorQ_ptr *enc);
-    RaptorQ_OTI_Scheme_Specific_Data RAPTORQ_API RaptorQ_OTI_Scheme (
-                                                    struct RaptorQ_ptr *enc);
-
-    uint16_t RAPTORQ_API RaptorQ_symbol_size (struct RaptorQ_ptr *ptr);
-    uint8_t RAPTORQ_API RaptorQ_blocks (struct RaptorQ_ptr *ptr);
-    uint32_t RAPTORQ_API RaptorQ_block_size (struct RaptorQ_ptr *ptr,
+                                        const RFC6330_Work exit_type);
+        struct RFC6330_future* (*const compute) (const struct RFC6330_ptr *ptr,
+                                                const RFC6330_Compute flags);
+        void (*const free) (struct RFC6330_ptr **ptr);
+        void (*const free_block) (const struct RFC6330_ptr *ptr,
                                                             const uint8_t sbn);
-    uint16_t RAPTORQ_API RaptorQ_symbols (struct RaptorQ_ptr *ptr,
-                                                            const uint8_t sbn);
-    uint32_t RAPTORQ_API RaptorQ_max_repair (struct RaptorQ_ptr *enc,
-                                                            const uint8_t sbn);
-    size_t RAPTORQ_API RaptorQ_precompute_max_memory (struct RaptorQ_ptr *enc);
 
-    size_t RAPTORQ_API RaptorQ_encode_id (struct RaptorQ_ptr *enc,
-                                                            void **data,
+
+        // encoder-specific
+        RFC6330_OTI_Common_Data (*const OTI_Common) (
+                                                const struct RFC6330_ptr *enc);
+        RFC6330_OTI_Scheme_Specific_Data (*const OTI_Scheme_Specific) (
+                                                const struct RFC6330_ptr *enc);
+        uint32_t (*const max_repair) (const struct RFC6330_ptr *enc,
+                                                            const uint8_t sbn);
+        size_t (*const precompute_max_memory) (const struct RFC6330_ptr *enc);
+
+        size_t (*const encode_id) (const struct RFC6330_ptr *enc, void **data,
                                                             const size_t size,
                                                             const uint32_t id);
-    size_t RAPTORQ_API RaptorQ_encode (struct RaptorQ_ptr *enc, void **data,
+        size_t (*const encode) (const struct RFC6330_ptr *enc, void **data,
                                                             const size_t size,
                                                             const uint32_t esi,
                                                             const uint8_t sbn);
-    uint32_t RAPTORQ_API RaptorQ_id (const uint32_t esi, const uint8_t sbn);
+        uint32_t (*const id) (const uint32_t esi, const uint8_t sbn);
 
 
-    ///////////
-    // Decoding
-    ///////////
-
-    void RAPTORQ_API RaptorQ_end_of_input (struct RaptorQ_ptr *dec);
-    void RAPTORQ_API RaptorQ_end_of_block_input (struct RaptorQ_ptr *dec,
+        // decoder-specific
+        void (*const end_of_input) (const struct RFC6330_ptr *dec);
+        void (*const end_of_block_input) (const struct RFC6330_ptr *dec,
                                                         const uint8_t block);
-
-    uint64_t RAPTORQ_API RaptorQ_bytes (struct RaptorQ_ptr *dec);
-
-    struct RaptorQ_Dec_Result {
-        uint64_t written;
-        uint8_t skip;
-    };
-
-    struct RaptorQ_Dec_Result RAPTORQ_API RaptorQ_decode_aligned (
-                                                        struct RaptorQ_ptr *dec,
-                                                        void **data,
-                                                        const uint64_t size,
-                                                        const uint8_t skip);
-    struct RaptorQ_Dec_Result RAPTORQ_API RaptorQ_decode_block_aligned (
-                                                        struct RaptorQ_ptr *dec,
-                                                        void **data,
-                                                        const size_t size,
-                                                        const uint8_t skip,
-                                                        const uint8_t sbn);
-    uint64_t RAPTORQ_API RaptorQ_decode_bytes (struct RaptorQ_ptr *dec,
-                                                        void **data,
-                                                        const uint64_t size,
-                                                        const uint8_t skip);
-    size_t RAPTORQ_API RaptorQ_decode_block_bytes (struct RaptorQ_ptr *dec,
-                                                        void **data,
-                                                        const size_t size,
-                                                        const uint8_t skip,
-                                                        const uint8_t sbn);
-
-    RaptorQ_Error RAPTORQ_API RaptorQ_add_symbol_id (struct RaptorQ_ptr *dec,
-                                                        void **data,
-                                                        const uint32_t size,
-                                                        const uint32_t id);
-    RaptorQ_Error RAPTORQ_API RaptorQ_add_symbol (struct RaptorQ_ptr *dec,
+        uint64_t (*const bytes) (const struct RFC6330_ptr *dec);
+        struct RFC6330_Dec_Result (*const decode_aligned) (
+                                                const struct RFC6330_ptr *dec,
+                                                void **data,
+                                                const uint64_t size,
+                                                const uint8_t skip);
+        struct RFC6330_Dec_Result (*const decode_block_aligned) (
+                                                const struct RFC6330_ptr *dec,
+                                                void **data,
+                                                const size_t size,
+                                                const uint8_t skip,
+                                                const uint8_t sbn);
+        uint64_t (*const decode_bytes) (const struct RFC6330_ptr *dec,
+                                                            void **data,
+                                                            const uint64_t size,
+                                                            const uint8_t skip);
+        size_t (*const decode_block_bytes) (const struct RFC6330_ptr *dec,
+                                                            void **data,
+                                                            const size_t size,
+                                                            const uint8_t skip,
+                                                            const uint8_t sbn);
+        RFC6330_Error (*const add_symbol_id) (const struct RFC6330_ptr *dec,
+                                                            void **data,
+                                                            const uint32_t size,
+                                                            const uint32_t id);
+        RFC6330_Error (*const add_symbol) (const struct RFC6330_ptr *dec,
                                                             void **data,
                                                             const uint32_t size,
                                                             const uint32_t esi,
                                                             const uint8_t sbn);
+    };
 
-    ///////////////////////
-    // General: free memory
-    ///////////////////////
-
-    void RAPTORQ_API RaptorQ_free (struct RaptorQ_ptr **ptr);
-    void RAPTORQ_API RaptorQ_free_block (struct RaptorQ_ptr *ptr,
-                                                            const uint8_t sbn);
 
 #ifdef __cplusplus
 }   // extern "C"

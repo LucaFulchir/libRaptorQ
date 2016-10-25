@@ -76,6 +76,8 @@ typedef enum {  RQ_TIME_NANOSEC     = 0,
                 RQ_TIME_MIN         = 4,
                 RQ_TIME_HOUR        = 5
             } RaptorQ_Unit_Time;
+typedef RaptorQ_Unit_Time RFC6330_Unit_Time;
+
 
 typedef enum {  RQ_ERR_NONE = 0,
                 RQ_ERR_NOT_NEEDED = 1,
@@ -85,6 +87,8 @@ typedef enum {  RQ_ERR_NONE = 0,
                 RQ_ERR_INITIALIZATION = 5,
                 RQ_ERR_EXITING = 6
             } RaptorQ_Error;
+typedef RaptorQ_Error RFC6330_Error;
+
 typedef enum {
     RQ_COMPUTE_NONE = 0x00,                 // do nothing => get error
                                             // warn when;
@@ -96,17 +100,19 @@ typedef enum {
     RQ_COMPUTE_NO_RETRY = 0x20              // do not try again with different
                                             // repair symbol combination
 } RaptorQ_Compute;
+typedef RaptorQ_Compute RFC6330_Compute;
 
 typedef enum {
     RQ_WORK_KEEP_WORKING = 0,
     RQ_WORK_ABORT_COMPUTATION = 1,
 } RaptorQ_Work;
+typedef RaptorQ_Work RFC6330_Work;
 
 typedef enum {
     RQ_COMPRESS_NONE = 0x00,
     RQ_COMPRESS_LZ4 = 0x01,
 } RaptorQ_Compress;
-
+typedef RaptorQ_Compress RFC6330_Compress;
 
 
 #ifndef __cplusplus
@@ -174,7 +180,8 @@ inline Compute operator& (const Compute a, const Compute b)
 
 
 #define RQ_UNUSED(x)    ((void)x)
-
+typedef uint64_t RFC6330_OTI_Common_Data;
+typedef uint32_t RFC6330_OTI_Scheme_Specific_Data;
 
 // Now just some macros to check the iterator type
 #ifdef __cplusplus

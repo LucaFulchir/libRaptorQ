@@ -42,9 +42,10 @@ extern "C"
     };
 
     struct RaptorQ_base_api* RAPTORQ_API RaptorQ_api (uint32_t version);
+    void RAPTORQ_API RaptorQ_free_api (struct RaptorQ_base_api **api);
 
     struct RAPTORQ_API RaptorQ_base_api
-        { uint32_t version; };
+        { size_t version; };
 
     struct RAPTORQ_API RaptorQ_v1
     {
@@ -59,7 +60,7 @@ extern "C"
         size_t (*get_shared_cache_size)();
         size_t  (*get_local_cache_size)();
 
-        // contructos
+        // constructos
         struct RaptorQ_ptr* (*Encoder) (RaptorQ_type type,
                                             const RaptorQ_Block_Size symbols,
                                             const size_t symbol_size);
@@ -79,6 +80,7 @@ extern "C"
                                                 const RaptorQ_Unit_Time unit);
         void (*future_wait) (struct RaptorQ_future *f);
         void (*future_free) (struct RaptorQ_future **f);
+        void (*free) (struct RaptorQ_ptr **ptr);
 
         // encoder-specific
         uint32_t (*max_repair)  (const RaptorQ_ptr *enc);
