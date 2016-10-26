@@ -314,7 +314,11 @@ CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/API_Wrapper_C.cpp.gcda)
         ${C_COMPILER_FLAGS}
         ${PROFILE_GET}
     )
-    target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB} m ${CMAKE_THREAD_LIBS_INIT})
+    if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
+        target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB} m ${CMAKE_THREAD_LIBS_INIT})
+    else()
+        target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB}   ${CMAKE_THREAD_LIBS_INIT})
+    endif()
     set_target_properties(test_c_profiled PROPERTIES LINK_FLAGS ${PROFILE_GET})
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -462,15 +466,13 @@ target_compile_options(
     ${C_COMPILER_FLAGS}
 )
 add_dependencies(test_c RaptorQ)
-if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
     # Linux, *BSD
     target_link_libraries(test_c RaptorQ m ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 else()
     # windows: no "m" library
-    target_link_libraries(test_c RaptorQ ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+    target_link_libraries(test_c RaptorQ   ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 endif()
-
-target_link_libraries(test_c RaptorQ m ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
 # CPP interface - RFC interface
 add_executable(test_cpp_rfc EXCLUDE_FROM_ALL test/test_cpp_rfc.cpp)
