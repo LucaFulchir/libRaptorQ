@@ -34,6 +34,7 @@ class RAPTORQ_API Encoder
 public:
     // used for precomputation
     Encoder (const Block_Size symbols, const size_t symbol_size);
+    explicit operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;
@@ -48,6 +49,7 @@ public:
     bool has_data() const;
     size_t set_data (const Rnd_It &from, const Rnd_It &to);
     void clear_data();
+    void stop();
 
     bool precompute_sync();
     bool compute_sync();
@@ -68,6 +70,7 @@ public:
 
     Decoder (const Block_Size symbols, const size_t symbol_size,
                                                             const Report type);
+    explicit operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;
@@ -77,6 +80,7 @@ public:
 
     Error add_symbol (In_It &from, const In_It to, const uint32_t esi);
     void end_of_input();
+
     bool can_decode() const;
     void stop();
     uint16_t needed_symbols() const;
@@ -113,6 +117,14 @@ Encoder<Rnd_It, Fwd_It>::Encoder (const Block_Size symbols,
     IS_FORWARD(Fwd_It, "RaptorQ__v1::Encoder");
     encoder = std::unique_ptr<Impl::Encoder<Rnd_It, Fwd_It>> (
                     new Impl::Encoder<Rnd_It, Fwd_It> (symbols, symbol_size));
+}
+
+template <typename Rnd_It, typename Fwd_It>
+Encoder<Rnd_It, Fwd_It>::operator bool() const
+{
+    if (encoder == nullptr)
+        return 0;
+    return (*encoder);
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -204,6 +216,14 @@ void Encoder<Rnd_It, Fwd_It>::clear_data()
 }
 
 template <typename Rnd_It, typename Fwd_It>
+void Encoder<Rnd_It, Fwd_It>::stop()
+{
+    if (encoder == nullptr)
+        return;
+    encoder->stop();
+}
+
+template <typename Rnd_It, typename Fwd_It>
 bool Encoder<Rnd_It, Fwd_It>::precompute_sync()
 {
     if (encoder == nullptr)
@@ -264,6 +284,14 @@ Decoder<In_It, Fwd_It>::Decoder (const Block_Size symbols,
 
     decoder = std::unique_ptr<Impl::Decoder<In_It, Fwd_It>> (
                 new Impl::Decoder<In_It, Fwd_It> (symbols, symbol_size, type));
+}
+
+template <typename Rnd_It, typename Fwd_It>
+Decoder<Rnd_It, Fwd_It>::operator bool() const
+{
+    if (decoder == nullptr)
+        return 0;
+    return (*decoder);
 }
 
 template <typename In_It, typename Fwd_It>

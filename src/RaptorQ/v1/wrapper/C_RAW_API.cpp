@@ -337,35 +337,35 @@ static bool v1_initialized (const RaptorQ_ptr *ptr)
         return false;
     switch (ptr->type) {
     case RaptorQ_type::RQ_ENC_8:
-        return (*reinterpret_cast<const
+        return static_cast<bool> (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_ENC_16:
-        return (*reinterpret_cast<const
+        return static_cast<bool> (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_ENC_32:
-        return (*reinterpret_cast<const
+        return static_cast<bool> (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_ENC_64:
-        return (*reinterpret_cast<const
+        return static_cast<bool> (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_DEC_8:
-        return (*reinterpret_cast<const
+        return static_cast<bool> (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_DEC_16:
-        return (*reinterpret_cast<const
+        return static_cast<bool> (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_DEC_32:
-        return (*reinterpret_cast<const
+        return static_cast<bool> (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_DEC_64:
-        return (*reinterpret_cast<const
+        return static_cast<bool> (*reinterpret_cast<const
                             RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
                                                                     ptr->ptr));
     case RaptorQ_type::RQ_NONE:

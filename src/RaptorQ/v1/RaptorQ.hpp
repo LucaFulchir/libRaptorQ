@@ -50,7 +50,7 @@ public:
     ~Encoder();
     // used for precomputation
     Encoder (const Block_Size symbols, const size_t symbol_size);
-    operator bool() const;
+    explicit operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const; //FIXME: max smbol size is same as signed size_t
@@ -108,7 +108,7 @@ public:
     ~Decoder();
     Decoder (const Block_Size symbols, const size_t symbol_size,
                                                             const Report type);
-    operator bool() const;
+    explicit operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;

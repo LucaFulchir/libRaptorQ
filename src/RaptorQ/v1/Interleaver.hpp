@@ -67,26 +67,29 @@ public:
     {
         assert(part_number < 2 && "partition: only two partitions exists");
         if (part_number == 0)
-            return std::get<1>(_part1);
-        return std::get<1>(_part2);
+            return std::get<Part_t::Size>(_part1);
+        return std::get<Part_t::Size>(_part2);
     }
     uint16_t num (const uint8_t part_number) const
     {
         assert(part_number < 2 && "partition: only two partitions exists");
         if (part_number == 0)
-            return std::get<0>(_part1);
-        return std::get<0>(_part2);
+            return std::get<Part_t::Amount>(_part1);
+        return std::get<Part_t::Amount>(_part2);
     }
     uint16_t tot (const uint8_t part_number) const
     {
         assert(part_number < 2 && "partition: only two partitions exists");
         // num * size
         if (part_number == 0)
-            return std::get<0>(_part1) * std::get<1>(_part1);
-        return std::get<0>(_part2) * std::get<1>(_part2);
+            return std::get<Part_t::Amount>(_part1) *
+                                                std::get<Part_t::Size>(_part1);
+        return std::get<Part_t::Amount>(_part2) *
+                                                std::get<Part_t::Size>(_part2);
     }
 private:
     // PAIR: amount, size
+    enum Part_t { Amount = 0, Size = 1 };
     std::pair<uint16_t, uint16_t> _part1, _part2;
 };
 

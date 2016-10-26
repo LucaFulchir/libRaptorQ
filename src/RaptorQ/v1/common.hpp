@@ -190,10 +190,20 @@ inline Compute operator& (const Compute a, const Compute b)
                                                     static_cast<uint8_t> (b));
 }
 } // namespace RFC6330__v1
+
+// Bring back make_unique from C++14
+#include <memory>
+#include <utility>
+template<typename T, typename... Ts>
+std::unique_ptr<T> make_unique (Ts&&... params)
+    { return std::unique_ptr<T> (new T(std::forward<Ts> (params)...)); }
+
 #endif
 
 
 #define RQ_UNUSED(x)    ((void)x)
+
+static const uint64_t RFC6330_max_data = 946270874880;  // ~881 GB
 typedef uint64_t RFC6330_OTI_Common_Data;
 typedef uint32_t RFC6330_OTI_Scheme_Specific_Data;
 

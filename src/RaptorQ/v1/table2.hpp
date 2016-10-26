@@ -29,6 +29,8 @@
 namespace RaptorQ__v1 {
 namespace Impl {
 
+constexpr uint16_t table_size = 477;
+
 #ifdef USING_CLANG
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-braces"
@@ -36,7 +38,7 @@ namespace Impl {
 #pragma clang diagnostic ignored "-Wexit-time-destructors"
 #endif  //using_clang
 
-static const std::array<uint16_t, 477> K_padded = {{
+static const std::array<uint16_t, table_size> K_padded = {{
     static_cast<uint16_t>(Block_Size::Block_10),
     static_cast<uint16_t>(Block_Size::Block_12),
     static_cast<uint16_t>(Block_Size::Block_18),
@@ -521,9 +523,9 @@ static const std::array<uint16_t, 477> K_padded = {{
 
 using rq_tuple16 = std::tuple<uint16_t, uint16_t, uint16_t>;
 
-static const uint16_t K_max = K_padded[476];
+static const uint16_t K_max = K_padded[table_size - 1];
 
-static const std::array<uint16_t, 477> J_K_padded = {
+static const std::array<uint16_t, table_size> J_K_padded = {
     254, 630, 682, 293,  80, 566, 860, 267, 822, 506, 589,  87, 520, 159, 235,
     157, 502, 334, 583,  66, 352, 365, 562,   5, 603, 721,  28, 660, 829, 900,
     930, 814, 661, 693, 780, 605, 551, 777, 491, 396, 764, 843, 646, 557, 608,
@@ -557,7 +559,7 @@ static const std::array<uint16_t, 477> J_K_padded = {
     379,  73, 387, 457, 761, 855, 370, 261, 299, 920, 269, 862, 349, 103, 115,
      93, 982, 432, 340, 173, 421, 330, 624, 233, 362, 963, 471};
 
-static const std::array<rq_tuple16, 477> S_H_W = {
+static const std::array<rq_tuple16, table_size> S_H_W = {
     rq_tuple16(7, 10, 17), rq_tuple16(7, 10, 19), rq_tuple16(11, 10, 29),
     rq_tuple16(11, 10, 31), rq_tuple16(11, 10, 37), rq_tuple16(11, 10, 41),
     rq_tuple16(11, 10, 43), rq_tuple16(11, 10, 47), rq_tuple16(11, 10, 53),
@@ -727,7 +729,8 @@ static const std::array<rq_tuple16, 477> S_H_W = {
 // expose for API
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
-static const std::array<Block_Size, 477> *blocks =
-        reinterpret_cast<const std::array<Block_Size, 477> *> (&Impl::K_padded);
+static const std::array<Block_Size, Impl::table_size> *blocks =
+            reinterpret_cast<const std::array<Block_Size, Impl::table_size> *> (
+                                                            &Impl::K_padded);
 #pragma GCC diagnostic pop
 }   // namespace RaptorQ

@@ -51,7 +51,7 @@
 
 namespace RFC6330__v1 {
 
-static const uint64_t max_data = 946270874880;  // ~881 GB
+constexpr uint64_t max_data = RFC6330_max_data;  // ~881 GB
 
 namespace Impl {
 
@@ -432,10 +432,11 @@ size_t Encoder<Rnd_It, Fwd_It>::precompute_max_memory ()
     if (K_idx == RaptorQ__v1::Impl::K_padded.size())
         return 0;
 
-    auto S_H = RaptorQ__v1::Impl::S_H_W[K_idx];
+    auto S_H_W = RaptorQ__v1::Impl::S_H_W[K_idx];
+    enum Tup { S = 0, H = 1, W = 2 };
     uint16_t matrix_cols = RaptorQ__v1::Impl::K_padded[K_idx] +
-                                                            std::get<0> (S_H) +
-                                                            std::get<1> (S_H);
+                                                    std::get<Tup::S> (S_H_W) +
+                                                    std::get<Tup::H> (S_H_W);
 
     // Rough memory estimate: Matrix A, matrix X (=> *2) and matrix D.
     return matrix_cols * matrix_cols * 2 + _symbol_size * matrix_cols;

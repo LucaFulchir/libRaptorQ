@@ -49,7 +49,7 @@ extern "C"
     {
         const size_t version;
         #ifdef __cplusplus
-        RFC6330_base_api (size_t ver) : version (ver) {}
+        RFC6330_base_api (const size_t ver) : version (ver) {}
         #endif
     };
 
