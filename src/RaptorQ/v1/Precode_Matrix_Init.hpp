@@ -128,16 +128,15 @@ template<Save_Computation IS_OFFLINE>
 DenseMtx Precode_Matrix<IS_OFFLINE>::make_MT() const
 {
     // rfc 6330, pg 24
-    Rand rnd;
 
     DenseMtx MT = DenseMtx (_params.H, _params.K_padded + _params.S);
 
     for (uint16_t row = 0; row < MT.rows(); ++row) {
         uint16_t col;
         for (col = 0; col < MT.cols() - 1; ++col) {
-            auto tmp = rnd.get (col + 1, 6, _params.H);
+            auto tmp = rnd_get (col + 1, 6, _params.H);
             if ((row == tmp) || (row ==
-                                (tmp + rnd.get (col + 1, 7, _params.H - 1) + 1)
+                                (tmp + rnd_get (col + 1, 7, _params.H - 1) + 1)
                                                                 % _params.H)) {
                 MT (row, col) = 1;
             } else {

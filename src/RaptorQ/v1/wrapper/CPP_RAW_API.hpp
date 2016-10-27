@@ -32,7 +32,6 @@ template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder
 {
 public:
-    // used for precomputation
     Encoder (const Block_Size symbols, const size_t symbol_size);
     explicit operator bool() const;
 

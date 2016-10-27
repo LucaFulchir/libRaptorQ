@@ -30,7 +30,6 @@
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
 #include "RaptorQ/v1/Thread_Pool.hpp"
 #include <Eigen/Dense>
-#include <Eigen/SparseLU>
 #include <memory>
 #include <type_traits>
 #include <utility>

@@ -80,7 +80,6 @@ uint16_t RaptorQ__v1::Impl::Parameters::Deg (const uint32_t v) const
 RaptorQ__v1::Impl::Tuple RaptorQ__v1::Impl::Parameters::tuple (
                                                     const uint32_t ISI) const
 {
-    RaptorQ__v1::Impl::Rand rnd;
     RaptorQ__v1::Impl::Tuple ret;
 
     // taken straight from RFC6330, pg 30
@@ -94,17 +93,17 @@ RaptorQ__v1::Impl::Tuple RaptorQ__v1::Impl::Parameters::tuple (
         ++A;
     size_t B1 = 10267 * (J + 1);
     uint32_t y = static_cast<uint32_t> (B1 + ISI * A);
-    uint32_t v = rnd.get (y, 0, static_cast<uint32_t> (std::pow(2, 20)));
+    uint32_t v = rnd_get (y, 0, static_cast<uint32_t> (std::pow(2, 20)));
     ret.d = Deg (v);
-    ret.a = 1 + static_cast<uint16_t> (rnd.get (y, 1, W - 1));
-    ret.b = static_cast<uint16_t> (rnd.get (y, 2, W));
+    ret.a = 1 + static_cast<uint16_t> (rnd_get (y, 1, W - 1));
+    ret.b = static_cast<uint16_t> (rnd_get (y, 2, W));
     if (ret.d < 4) {
-        ret.d1 = 2 + static_cast<uint16_t> (rnd.get (ISI, 3, 2));
+        ret.d1 = 2 + static_cast<uint16_t> (rnd_get (ISI, 3, 2));
     } else {
         ret.d1 = 2;
     }
-    ret.a1 = 1 + static_cast<uint16_t> (rnd.get (ISI, 4, P1 - 1));
-    ret.b1 = static_cast<uint16_t> (rnd.get (ISI, 5, P1));
+    ret.a1 = 1 + static_cast<uint16_t> (rnd_get (ISI, 4, P1 - 1));
+    ret.b1 = static_cast<uint16_t> (rnd_get (ISI, 5, P1));
 
     return ret;
 }
