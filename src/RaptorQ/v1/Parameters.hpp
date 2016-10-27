@@ -60,7 +60,11 @@ class RAPTORQ_LOCAL Octet
 {
 public:
     Octet () {}
-    Octet (const uint8_t val) : data(val) {}
+    Octet (const uint8_t val) noexcept : data(val) {}
+    Octet (const Octet&) noexcept = default;
+    Octet& operator= (const Octet&) noexcept = default;
+    Octet (Octet&&) noexcept = default;
+    Octet& operator= (Octet&&) noexcept = default;
 
     explicit operator uint8_t() const { return data; }
 
