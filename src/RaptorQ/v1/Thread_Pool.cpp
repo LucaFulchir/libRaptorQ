@@ -51,15 +51,10 @@ Thread_Pool& Thread_Pool::get()
 }
 
 Thread_Pool::Thread_Pool()
-{
-    resize_pool (std::thread::hardware_concurrency(),
-                                    RaptorQ__v1::Work_State::ABORT_COMPUTATION);
-}
+    {}
 
 size_t Thread_Pool::size()
-{
-    return _pool.size();
-}
+    { return _pool.size(); }
 
 Thread_Pool::~Thread_Pool()
 {
@@ -145,7 +140,7 @@ bool Thread_Pool::add_work (std::unique_ptr<Pool_Work> work)
 {
     std::unique_lock<std::mutex> _lock_data (_data_mtx);
     if (_pool.size() == 0)
-        return false;
+        resize_pool (1, RaptorQ__v1::Work_State::KEEP_WORKING);
 
     _queue.emplace_back (std::move(work));
     _lock_data.unlock();
