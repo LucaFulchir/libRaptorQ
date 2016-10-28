@@ -30,13 +30,6 @@ uint64_t RaptorQ__v1::Impl::Operation_Swap::size () const
     return sizeof(uint8_t) + 2 * sizeof(uint16_t);
 }
 
-std::ostream &RaptorQ__v1::Impl::Operation_Swap::print (std::ostream &os) const
-{
-    os << static_cast<uint8_t> (Operation_type::SWAP);
-    os << _row_1 << _row_2;
-    return os;
-}
-
 void RaptorQ__v1::Impl::Operation_Swap::build_mtx (
                                         RaptorQ__v1::Impl::DenseMtx &mtx) const
 {
@@ -50,14 +43,6 @@ void RaptorQ__v1::Impl::Operation_Swap::build_mtx (
 uint64_t RaptorQ__v1::Impl::Operation_Add_Mul::size () const
 {
     return sizeof(uint8_t) + 2 * sizeof(uint16_t) + sizeof(uint8_t);
-}
-
-std::ostream &RaptorQ__v1::Impl::Operation_Add_Mul::print (std::ostream &os)
-                                                                        const
-{
-    os << static_cast<uint8_t> (Operation_type::ADD_MUL);
-    os << _row_1 << _row_2 << static_cast<uint8_t> (_scalar);
-    return os;
 }
 
 void RaptorQ__v1::Impl::Operation_Add_Mul::build_mtx (
@@ -75,14 +60,6 @@ uint64_t RaptorQ__v1::Impl::Operation_Div::size () const
     return sizeof(uint8_t) + sizeof(uint16_t) + sizeof(uint8_t);
 }
 
-std::ostream &RaptorQ__v1::Impl::Operation_Div::print (std::ostream &os) const
-{
-    os << static_cast<uint8_t> (Operation_type::DIV);
-    os << _row_1 << static_cast<uint8_t> (_scalar);
-    return os;
-}
-
-
 void RaptorQ__v1::Impl::Operation_Div::build_mtx (
                                         RaptorQ__v1::Impl::DenseMtx &mtx) const
 {
@@ -99,18 +76,6 @@ uint64_t RaptorQ__v1::Impl::Operation_Block::size () const
                         static_cast<uint64_t> (_block.rows() * _block.cols());
 }
 
-std::ostream &RaptorQ__v1::Impl::Operation_Block::print (std::ostream &os) const
-{
-    os << static_cast<uint8_t> (Operation_type::BLOCK);
-    // X is a square matrix
-    os << static_cast<uint16_t> (_block.cols());
-    for (uint16_t row = 0; row < _block.cols(); ++row) {
-        for (uint16_t col = 0; col < _block.cols(); ++col)
-            os << _block (row, col);
-    }
-    return os;
-}
-
 void RaptorQ__v1::Impl::Operation_Block::build_mtx (
                                         RaptorQ__v1::Impl::DenseMtx &mtx) const
 {
@@ -125,16 +90,6 @@ void RaptorQ__v1::Impl::Operation_Block::build_mtx (
 uint64_t RaptorQ__v1::Impl::Operation_Reorder::size () const
 {
     return sizeof(uint8_t) + sizeof(uint16_t) * _order.size();
-}
-
-std::ostream &RaptorQ__v1::Impl::Operation_Reorder::print (std::ostream &os)
-                                                                        const
-{
-    os << static_cast<uint8_t> (Operation_type::REORDER);
-    os << static_cast<uint16_t> (_order.size());
-    for (uint16_t val : _order)
-        os << val;
-    return os;
 }
 
 void RaptorQ__v1::Impl::Operation_Reorder::build_mtx (

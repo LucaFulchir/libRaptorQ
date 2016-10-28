@@ -45,11 +45,6 @@ public:
     virtual ~Operation ();
     virtual void build_mtx (DenseMtx &mtx) const = 0;
     virtual uint64_t size() const = 0;
-    friend std::ostream &operator<< (std::ostream &os, const Operation &op) {
-        return op.print (os);
-    }
-private:
-    virtual std::ostream &print (std::ostream &os) const = 0;
 };
 
 
@@ -63,8 +58,6 @@ public:
     uint64_t size () const override;
 private:
     const uint16_t _row_1, _row_2;
-
-    std::ostream &print (std::ostream &os) const override;
 };
 
 class RAPTORQ_LOCAL Operation_Add_Mul final : public Operation
@@ -78,8 +71,6 @@ public:
 private:
     const uint16_t _row_1, _row_2;
     const Octet _scalar;
-
-    std::ostream &print (std::ostream &os) const override;
 };
 
 class RAPTORQ_LOCAL Operation_Div final : public Operation
@@ -92,9 +83,6 @@ public:
 private:
     const uint16_t _row_1;
     const Octet _scalar;
-
-private:
-    std::ostream &print (std::ostream &os) const override;
 };
 
 class RAPTORQ_LOCAL Operation_Block final : public Operation
@@ -106,9 +94,6 @@ public:
     uint64_t size () const override;
 private:
     const DenseMtx _block;
-
-private:
-    std::ostream &print (std::ostream &os) const override;
 };
 
 class RAPTORQ_LOCAL Operation_Reorder final : public Operation
@@ -120,9 +105,6 @@ public:
     uint64_t size () const override;
 private:
     const std::vector<uint16_t> _order;
-
-private:
-    std::ostream &print (std::ostream &os) const override;
 };
 
 }   // namespace Impl
