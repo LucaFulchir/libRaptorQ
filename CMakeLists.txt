@@ -198,7 +198,6 @@ endif()
 
 
 SET(SOURCES
-            src/RaptorQ/v1/Operation.cpp
             src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp
             src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp
             src/RaptorQ/v1/Thread_Pool.cpp
