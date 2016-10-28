@@ -22,6 +22,7 @@
 
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/Parameters.hpp"
+#include "RaptorQ/v1/Octet.hpp"
 #include <Eigen/Dense>
 
 namespace RaptorQ__v1 {

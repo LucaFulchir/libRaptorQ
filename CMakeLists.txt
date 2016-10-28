@@ -198,9 +198,7 @@ endif()
 
 
 SET(SOURCES
-            #src/RaptorQ/v1/caches.cpp
             src/RaptorQ/v1/Operation.cpp
-            src/RaptorQ/v1/Parameters.cpp
             src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp
             src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp
             src/RaptorQ/v1/Thread_Pool.cpp
@@ -218,6 +216,7 @@ SET(HEADERS
             src/RaptorQ/v1/Encoder.hpp
             src/RaptorQ/v1/Interleaver.hpp
             src/RaptorQ/v1/multiplication.hpp
+            src/RaptorQ/v1/Octet.hpp
             src/RaptorQ/v1/Operation.hpp
             src/RaptorQ/v1/Parameters.hpp
             src/RaptorQ/v1/Precode_Matrix.hpp

@@ -22,6 +22,7 @@
 
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/caches.hpp"
+#include "RaptorQ/v1/Octet.hpp"
 #include "RaptorQ/v1/Parameters.hpp"
 #include "RaptorQ/v1/Precode_Matrix.hpp"
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"

@@ -21,7 +21,8 @@
 #pragma once
 
 #include "RaptorQ/v1/common.hpp"
-#include "RaptorQ/v1/multiplication.hpp"
+#include "RaptorQ/v1/degree.hpp"
+#include "RaptorQ/v1/Rand.hpp"
 #include "RaptorQ/v1/table2.hpp"
 #include <cmath>
 #include <Eigen/Core>
@@ -56,109 +57,121 @@ private:
     static bool is_prime (const uint16_t n);
 };
 
-class RAPTORQ_LOCAL Octet
+
+inline Parameters::Parameters (const uint16_t symbols)
 {
-public:
-    Octet () {}
-    Octet (const uint8_t val) noexcept : data(val) {}
-    Octet (const Octet&) noexcept = default;
-    Octet& operator= (const Octet&) noexcept = default;
-    Octet (Octet&&) noexcept = default;
-    Octet& operator= (Octet&&) noexcept = default;
-
-    explicit operator uint8_t() const { return data; }
-
-    Octet& operator-= (const Octet a)
-    {
-        data ^= a.data;
-        return *this;
-    }
-    friend Octet operator- (Octet lhs, const Octet rhs)
-    {
-        lhs.data ^= rhs.data;
-        return lhs;
-    }
-    Octet& operator+= (const Octet a)
-    {
-        data ^= a.data;
-        return *this;
-    }
-    friend Octet operator+ (Octet lhs, const Octet rhs)
-    {
-        lhs.data ^= rhs.data;
-        return lhs;
-    }
-    // xor, addition, subtraction... they're the same to me...
-    Octet& operator^= (const Octet &a)
-    {
-        data ^= a.data;
-        return *this;
-    }
-    friend Octet operator^ (Octet lhs, const Octet rhs)
-    {
-        lhs.data ^= rhs.data;
-        return lhs;
-    }
-    Octet& operator*= (const Octet a)
-    {
-        if (data != 0 && a.data != 0) {
-            data = RaptorQ__v1::Impl::oct_exp[oct_log[data - 1] +
-                                            oct_log[a.data - 1]];
-        } else {
-            data = 0;
+    uint16_t idx;
+    for (idx = 0; idx < RaptorQ__v1::Impl::K_padded.size(); ++idx) {
+        if (RaptorQ__v1::Impl::K_padded[idx] >= symbols) {
+            K_padded = RaptorQ__v1::Impl::K_padded[idx];
+            break;
         }
-        return *this;
-    }
-    friend Octet operator* (Octet lhs, const Octet rhs)
-    {
-        if (lhs.data != 0 && rhs.data != 0) {
-            lhs.data = RaptorQ__v1::Impl::oct_exp[oct_log[lhs.data - 1] +
-                                                        oct_log[rhs.data - 1]];
-        } else {
-            lhs.data = 0;
-        }
-        return lhs;
-    }
-    Octet& operator/= (const Octet a)
-    {
-        if (a.data != 0 && data != 0) {
-            data = RaptorQ__v1::Impl::oct_exp[oct_log[data - 1] -
-                                                    oct_log[a.data - 1] + 255];
-        }
-        return *this;
     }
 
-    friend Octet operator/ (Octet lhs, const Octet rhs)
-    {
-        lhs /= rhs;
-        return lhs;
+    J = RaptorQ__v1::Impl::J_K_padded[idx];
+    std::tie (S, H, W) = RaptorQ__v1::Impl::S_H_W [idx];
+
+    L = K_padded + S + H;
+    P = L - W;
+    U = P - H;
+    B = W - S;
+    P1 = P + 1;         // first prime number bigger than P. turns out its
+                        // always between 1 and 14 more numbers.
+    while (!is_prime (P1))  // so this while will be really quick anyway
+        ++P1;
+}
+
+inline bool Parameters::is_prime (const uint16_t n)
+{
+    // 1 as prime, don't care. Not in our scope anyway.
+    // thank you stackexchange for the code
+    if (n <= 3)
+        return true;
+    if (n % 2 == 0 || n % 3 == 0)
+        return false;
+
+    uint32_t i = 5;
+    uint32_t w = 2;
+    while (i * i <= n) {
+        if (n % i == 0)
+            return false;
+        i += w;
+        w = 6 - w;
     }
+    return true;
+}
 
-    Octet inverse() const
-    {
-        return Octet (RaptorQ__v1::Impl::oct_exp[255 - oct_log[data - 1]]);
+
+inline uint16_t Parameters::Deg (const uint32_t v) const
+{
+    // rfc 6330, pg 27
+
+    for (uint16_t d = 0; d < RaptorQ__v1::Impl::degree_distribution.size();++d){
+        if (v < RaptorQ__v1::Impl::degree_distribution[d])
+            return (d < (W - 2)) ? d : (W - 2);
     }
+    return 0;   // never get here, but don't make the compiler complain
+}
 
-    bool operator== (const Octet a) const
-    { return data == a.data; }
-    bool operator!= (const Octet a) const
-    { return data != a.data; }
+inline Tuple RaptorQ__v1::Impl::Parameters::tuple (const uint32_t ISI) const
+{
+    RaptorQ__v1::Impl::Tuple ret;
 
-    friend std::ostream &operator<< (std::ostream &os, const Octet m) {
-        // used to print
-        os << static_cast<uint32_t> (m.data);
-        return os;
+    // taken straight from RFC6330, pg 30
+    // so thank them for the *beautiful* names
+    // also, don't get confused with "B": this one is different,
+    // and thus named "B1"
+
+    size_t A = 53591 + J * 997;
+
+    if (A % 2 == 0)
+        ++A;
+    size_t B1 = 10267 * (J + 1);
+    uint32_t y = static_cast<uint32_t> (B1 + ISI * A);
+    uint32_t v = rnd_get (y, 0, static_cast<uint32_t> (std::pow(2, 20)));
+    ret.d = Deg (v);
+    ret.a = 1 + static_cast<uint16_t> (rnd_get (y, 1, W - 1));
+    ret.b = static_cast<uint16_t> (rnd_get (y, 2, W));
+    if (ret.d < 4) {
+        ret.d1 = 2 + static_cast<uint16_t> (rnd_get (ISI, 3, 2));
+    } else {
+        ret.d1 = 2;
     }
-private:
-    uint8_t data;
-};
+    ret.a1 = 1 + static_cast<uint16_t> (rnd_get (ISI, 4, P1 - 1));
+    ret.b1 = static_cast<uint16_t> (rnd_get (ISI, 5, P1));
 
-inline uint8_t abs (Octet x) { return static_cast<uint8_t> (x); }
+    return ret;
+}
+
+inline std::vector<uint16_t> Parameters::get_idxs (const uint32_t ISI) const
+{
+    // Needed to generate G_ENC: We need the ids of the symbols we would
+    // use on a "Enc" call. So this is the "enc algorithm, but returns the
+    // indexes instead of computing the result.
+    // rfc6330, pg29
+
+    std::vector<uint16_t> ret;
+    Tuple t = tuple (ISI);
+
+    ret.reserve (t.d + t.d1);
+    ret.push_back (t.b);
+
+    for (uint16_t j = 1; j < t.d; ++j) {
+        t.b = (t.b + t.a) % W;
+        ret.push_back (t.b);
+    }
+    while (t.b1 >= P)
+        t.b1 = (t.b1 + t.a1) % P1;
+
+    ret.push_back (W + t.b1);
+    for (uint16_t j = 1; j < t.d1; ++j) {
+        t.b1 = (t.b1 + t.a1) % P1;
+        while (t.b1 >= P)
+            t.b1 = (t.b1 + t.a1) % P1;
+        ret.push_back (W + t.b1);
+    }
+    return ret;
+}
 
 }   // namespace Impl
 }   // namespace RaptorQ
-
-namespace Eigen {
-template<>
-struct NumTraits<RaptorQ__v1::Impl::Octet> : NumTraits<uint8_t> {};
-}

@@ -24,6 +24,7 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/multiplication.hpp"
 #include "RaptorQ/v1/Operation.hpp"
+#include "RaptorQ/v1/Octet.hpp"
 #include "RaptorQ/v1/Parameters.hpp"
 #include "RaptorQ/v1/Thread_Pool.hpp"
 #include <Eigen/Dense>
