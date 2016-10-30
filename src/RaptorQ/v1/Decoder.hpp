@@ -403,7 +403,7 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
     // do not lock this part, as it's the expensive part
     shared.unlock();
     bool DO_NOT_SAVE = false;
-    std::deque<std::unique_ptr<Operation>> ops;
+    std::deque<Operation> ops;
 
     Precode_Result precode_res = Precode_Result::DONE;
     DenseMtx missing;
@@ -443,8 +443,8 @@ typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
         if (missing.rows() != 0) {
             const int32_t mt_size = static_cast<int32_t>(L_rows + overhead);
             res.setIdentity (mt_size, mt_size);
-            for (auto &op : ops)
-                op->build_mtx (res);
+            for (const auto &op : ops)
+                op.build_mtx (res);
             // TODO: lots of wasted ram? how to compress things directly?
             auto raw_mtx = Mtx_to_raw (res);
             auto compressed = compress (raw_mtx);

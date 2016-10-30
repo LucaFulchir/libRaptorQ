@@ -248,7 +248,7 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed (
     D.setZero (K_S_H, 1);
 
     Precode_Result precode_res;
-    std::deque<std::unique_ptr<Operation>> ops;
+    std::deque<Operation> ops;
     DenseMtx encoded_no_symbols;
     std::tie (precode_res, encoded_no_symbols) = precode_on->intermediate (D,
                                                         ops, keep_working,
@@ -265,8 +265,8 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed (
     const auto tmp_bool = std::vector<bool>();
     const Cache_Key key (size, 0, 0, tmp_bool, tmp_bool);
     res.setIdentity (size, size);
-    for (auto &op : ops)
-        op->build_mtx (res);
+    for (const auto &op : ops)
+        op.build_mtx (res);
     if (_type == Save_Computation::ON) {
         auto raw_mtx = Mtx_to_raw (res);
         auto compressed = compress (raw_mtx);
@@ -470,7 +470,7 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::compute_intermediate (
                     DenseMtx &D, RaptorQ__v1::Work_State *thread_keep_working)
 {
     Precode_Result precode_res;
-    std::deque<std::unique_ptr<Operation>> ops;
+    std::deque<Operation> ops;
     if (_type == Save_Computation::ON) {
         const uint16_t size = precode_on->_params.L;
         const auto tmp_bool = std::vector<bool>();
@@ -499,8 +499,8 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::compute_intermediate (
         DenseMtx res;
         if (encoded_symbols.cols() != 0) {
             res.setIdentity (size, size);
-            for (auto &op : ops)
-                op->build_mtx (res);
+            for (const auto &op : ops)
+                op.build_mtx (res);
             auto raw_mtx = Mtx_to_raw (res);
             compressed = compress (raw_mtx);
             DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed.first,

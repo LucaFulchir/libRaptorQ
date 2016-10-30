@@ -50,7 +50,7 @@ enum class RAPTORQ_LOCAL Precode_Result : uint8_t {
 template<Save_Computation IS_OFFLINE>
 class RAPTORQ_API Precode_Matrix
 {
-    using Op_Vec = std::deque<std::unique_ptr<Operation>>;
+    using Op_Vec = std::deque<Operation>;
 public:
     const Parameters _params;
 

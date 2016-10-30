@@ -30,111 +30,145 @@ namespace Impl {
 
 using DenseMtx = Eigen::Matrix<Octet, Eigen::Dynamic, Eigen::Dynamic,
                                                             Eigen::RowMajor>;
-enum class Operation_type : uint8_t {
-    NONE = 0x00,
-    SWAP = 0x01,
-    ADD_MUL = 0x02,
-    DIV = 0x03,
-    BLOCK = 0x04,
-    REORDER = 0x05
-};
+
 
 class RAPTORQ_LOCAL Operation
 {
 public:
-    virtual ~Operation () {}
-    virtual void build_mtx (DenseMtx &mtx) const = 0;
-    virtual uint64_t size() const = 0;
-};
-
-
-
-class RAPTORQ_LOCAL Operation_Swap final : public Operation
-{
-public:
-    Operation_Swap (const uint16_t row_1, const uint16_t row_2)
-        : _row_1 (row_1), _row_2 (row_2) {}
-    void build_mtx (DenseMtx &mtx) const override
-        { mtx.row(_row_1).swap (mtx.row(_row_2)); }
-    uint64_t size () const override
-         { return sizeof(uint8_t) + 2 * sizeof(uint16_t); }
-private:
-    const uint16_t _row_1, _row_2;
-};
-
-class RAPTORQ_LOCAL Operation_Add_Mul final : public Operation
-{
-public:
-    Operation_Add_Mul (const uint16_t row_1, const uint16_t row_2,
+    enum class _t : uint8_t {
+        NONE = 0x00,
+        SWAP = 0x01,
+        ADD_MUL = 0x02,
+        DIV = 0x03,
+        BLOCK = 0x04,
+        REORDER = 0x05
+    };
+    Operation() = delete;
+    Operation (const _t type, const uint16_t row_1, const uint16_t row_2)
+        : _type (type), swap (row_1, row_2) { assert (type == _t::SWAP); }
+    Operation (const _t type, const uint16_t row_1, const uint16_t row_2,
                                                             const Octet scalar)
-        : _row_1 (row_1), _row_2 (row_2), _scalar (scalar) {}
-    void build_mtx (DenseMtx &mtx) const override
-    {
-        const auto row = mtx.row (_row_2) * _scalar;
-        mtx.row (_row_1) += row;
-    }
-    uint64_t size () const override
-        { return sizeof(uint8_t) + 2 * sizeof(uint16_t) + sizeof(uint8_t); }
-private:
-    const uint16_t _row_1, _row_2;
-    const Octet _scalar;
-};
+        : _type (type), add_mul (row_1, row_2, scalar)
+                                            { assert (type == _t::ADD_MUL); }
+    Operation (const _t type, const uint16_t row, const Octet scalar)
+        : _type (type), div (row, scalar) { assert (type == _t::DIV); }
+    Operation (const _t type, const DenseMtx &mtx)
+        : _type (type), block (mtx) { assert (type == _t::BLOCK); }
+    Operation (const _t type, const std::vector<uint16_t> &order)
+        : _type (type), reorder (order) { assert (type == _t::REORDER); }
 
-class RAPTORQ_LOCAL Operation_Div final : public Operation
-{
-public:
-    Operation_Div (const uint16_t row_1, const Octet scalar)
-        : _row_1 (row_1), _scalar (scalar) {}
-    void build_mtx (DenseMtx &mtx) const override
-        { mtx.row (_row_1) /= _scalar; }
-    uint64_t size () const override
-        { return sizeof(uint8_t) + sizeof(uint16_t) + sizeof(uint8_t); }
-private:
-    const uint16_t _row_1;
-    const Octet _scalar;
-};
-
-class RAPTORQ_LOCAL Operation_Block final : public Operation
-{
-public:
-    Operation_Block (const DenseMtx &block)
-        : _block (block) {}
-    void build_mtx (DenseMtx &mtx) const override
+    ~Operation ()
     {
-        const auto orig = mtx.block (0,0, _block.cols(), mtx.cols());
-        mtx.block (0, 0, _block.cols(), mtx.cols()) = _block * orig;
+        if (_type == _t::BLOCK)
+            block.clear();
+        if (_type == _t::REORDER)
+            reorder.clear();
     }
-    uint64_t size () const override
+    void build_mtx (DenseMtx &mtx) const
     {
-        return sizeof(uint8_t) + sizeof(uint16_t) +
-                        static_cast<uint64_t> (_block.rows() * _block.cols());
+        switch (_type)
+        {
+        case _t::SWAP:
+            return swap.build_mtx (mtx);
+        case _t::ADD_MUL:
+            return add_mul.build_mtx (mtx);
+        case _t::DIV:
+            return div.build_mtx (mtx);
+        case _t::BLOCK:
+            return block.build_mtx (mtx);
+        case _t::REORDER:
+            return reorder.build_mtx (mtx);
+        case _t::NONE:
+            break;
+        }
     }
 private:
-    const DenseMtx _block;
-};
-
-class RAPTORQ_LOCAL Operation_Reorder final : public Operation
-{
-public:
-    Operation_Reorder (const std::vector<uint16_t> &order)
-        : _order (order) {}
-    void build_mtx (DenseMtx &mtx) const override
+    class RAPTORQ_LOCAL Swap
     {
-        uint16_t overhead = static_cast<uint16_t> (
-                            static_cast<uint16_t> (mtx.rows()) - _order.size());
-        DenseMtx ret = DenseMtx (mtx.rows() - overhead , mtx.cols());
+    public:
+        Swap (const uint16_t row_1, const uint16_t row_2)
+            : _row_1 (row_1), _row_2 (row_2) {}
+        void build_mtx (DenseMtx &mtx) const
+            { mtx.row(_row_1).swap (mtx.row(_row_2)); }
+    private:
+        const uint16_t _row_1, _row_2;
+    };
 
-        // reorder some of the lines as requested by the _order vector
-        uint16_t row = 0;
-        for (const uint16_t pos : _order)
-            ret.row (pos) = mtx.row (row++);
-        mtx.swap (ret);
-        // other lines will not influence the computation, ignore them
-    }
-    uint64_t size () const override
-        { return sizeof(uint8_t) + sizeof(uint16_t) * _order.size(); }
-private:
-    const std::vector<uint16_t> _order;
+    class RAPTORQ_LOCAL Add_Mul
+    {
+    public:
+        Add_Mul (const uint16_t row_1, const uint16_t row_2, const Octet scalar)
+            : _row_1 (row_1), _row_2 (row_2), _scalar (scalar) {}
+        void build_mtx (DenseMtx &mtx) const
+        {
+            const auto row = mtx.row (_row_2) * _scalar;
+            mtx.row (_row_1) += row;
+        }
+    private:
+        const uint16_t _row_1, _row_2;
+        const Octet _scalar;
+    };
+
+    class RAPTORQ_LOCAL Div
+    {
+    public:
+        Div (const uint16_t row_1, const Octet scalar)
+            : _row_1 (row_1), _scalar (scalar) {}
+        void build_mtx (DenseMtx &mtx) const
+            { mtx.row (_row_1) /= _scalar; }
+    private:
+        const uint16_t _row_1;
+        const Octet _scalar;
+    };
+
+    class RAPTORQ_LOCAL Block
+    {
+    public:
+        Block (const DenseMtx &block)
+            : _block (block) {}
+        void build_mtx (DenseMtx &mtx) const
+        {
+            const auto orig = mtx.block (0,0, _block.cols(), mtx.cols());
+            mtx.block (0, 0, _block.cols(), mtx.cols()) = _block * orig;
+        }
+        void clear()
+            { _block = DenseMtx(); }
+        private:
+        DenseMtx _block;
+    };
+
+    class RAPTORQ_LOCAL Reorder
+    {
+    public:
+        Reorder (const std::vector<uint16_t> &order)
+            : _order (order) {}
+        void build_mtx (DenseMtx &mtx) const
+        {
+            uint16_t overhead = static_cast<uint16_t> (
+                                static_cast<uint16_t> (mtx.rows()) - _order.size());
+            DenseMtx ret = DenseMtx (mtx.rows() - overhead , mtx.cols());
+
+            // reorder some of the lines as requested by the _order vector
+            uint16_t row = 0;
+            for (const uint16_t pos : _order)
+                ret.row (pos) = mtx.row (row++);
+            mtx.swap (ret);
+            // other lines will not influence the computation, ignore them
+        }
+        void clear()
+            { _order = std::vector<uint16_t>(); }
+    private:
+        std::vector<uint16_t> _order;
+    };
+
+    const _t _type;
+    union {
+        const Swap swap;
+        const Add_Mul add_mul;
+        const Div div;
+        Block block;
+        Reorder reorder;
+    };
 };
 
 }   // namespace Impl

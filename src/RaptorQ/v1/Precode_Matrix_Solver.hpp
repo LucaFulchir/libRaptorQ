@@ -106,7 +106,7 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
     A = DenseMtx(); // free A memory.
 
     if (IS_OFFLINE == Save_Computation::ON)
-        ops.emplace_back (new Operation_Reorder (c));
+        ops.emplace_back (Operation::_t::REORDER, c);
 
     C = DenseMtx (_params.L, D.cols());
     for (i = 0; i < _params.L; ++i)
@@ -115,8 +115,8 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
     if (debug && ops.size() != 0) {
         DenseMtx test_off (D.rows(), D.rows());
         test_off.setIdentity (CP_D.rows(), CP_D.rows());
-        for (auto &op : ops)
-            op->build_mtx (test_off);
+        for (const auto &op : ops)
+            op.build_mtx (test_off);
         DenseMtx test_res = test_off * CP_D;
         assert (test_res == C && "RQ: I'm different!");
     }
@@ -371,7 +371,7 @@ std::tuple<bool, uint16_t, uint16_t>
             D.row (i).swap (D.row (chosen + i));
             std::swap (tracking[i], tracking[chosen + i]);
             if (IS_OFFLINE == Save_Computation::ON)
-                ops.emplace_back (new Operation_Swap (i, chosen + i));
+                ops.emplace_back (Operation::_t::SWAP, i, chosen + i);
         }
         // column swap in A. looking at the first V row,
         // the first column must be nonzero, and the other non-zero must be
@@ -414,8 +414,8 @@ std::tuple<bool, uint16_t, uint16_t>
                 A.row (row + i) += A.row (i) * multiple;
                 D.row (row + i) += D.row (i) * multiple;    //rfc6330, pg32
                 if (IS_OFFLINE == Save_Computation::ON) {
-                    ops.emplace_back (new Operation_Add_Mul (row + i, i,
-                                                                    multiple));
+                    ops.emplace_back (Operation::_t::ADD_MUL, row + i, i,
+                                                                    multiple);
                 }
             }
         }
@@ -460,7 +460,7 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
             A.row (row).swap (A.row (row_nonzero));
             D.row (row).swap (D.row (row_nonzero));
             if (IS_OFFLINE == Save_Computation::ON)
-                ops.emplace_back (new Operation_Swap (row, row_nonzero));
+                ops.emplace_back (Operation::_t::SWAP, row, row_nonzero);
         }
 
         // U_Lower (row, row) != 0. make it 1.
@@ -469,7 +469,7 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
             A.row (row) /= divisor;
             D.row (row) /= divisor;
             if (IS_OFFLINE == Save_Computation::ON)
-                ops.emplace_back (new Operation_Div (row, divisor));
+                ops.emplace_back (Operation::_t::DIV, row, divisor);
         }
 
         // make U_Lower and identity up to row
@@ -486,8 +486,8 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
                 A.row (del_row) -= A.row (row) * multiple;
                 D.row (del_row) -= D.row (row) * multiple;
                 if (IS_OFFLINE == Save_Computation::ON)
-                    ops.emplace_back (new Operation_Add_Mul (del_row, row,
-                                                                    multiple));
+                    ops.emplace_back (Operation::_t::ADD_MUL, del_row, row,
+                                                                    multiple);
             }
         }
     }
@@ -509,7 +509,7 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase3 (const DenseMtx &X, DenseMtx &D,
     //  matrix U_upper is transformed to a sparse form.
     const auto sub_X = X.block (0, 0, i, i);
     if (IS_OFFLINE == Save_Computation::ON)
-        ops.emplace_back (new Operation_Block (sub_X));
+        ops.emplace_back (Operation::_t::BLOCK, sub_X);
 
     auto sub_A = A.block (0, 0, i, A.cols());
     sub_A = sub_X * sub_A;
@@ -551,8 +551,8 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseMtx &D, const uint16_t i,
                 uint16_t row_2 = static_cast<uint16_t> (U_upper.rows()) + col;
                 D.row (row) += D.row (row_2) * multiple;
                 if (IS_OFFLINE == Save_Computation::ON) {
-                    ops.emplace_back (new Operation_Add_Mul (row, row_2,
-                                                                    multiple));
+                    ops.emplace_back (Operation::_t::ADD_MUL, row, row_2,
+                                                                    multiple);
                 }
             }
         }
@@ -574,7 +574,7 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
             A.row (j) /= multiple;
             D.row (j) /= multiple;
             if (IS_OFFLINE == Save_Computation::ON)
-                ops.emplace_back (new Operation_Div (j, multiple));
+                ops.emplace_back (Operation::_t::DIV, j, multiple);
         }
         for (uint16_t tmp = 0; tmp < j; ++tmp) {    //tmp == "l" in rfc6330
             const auto multiple = A (j, tmp);
@@ -582,7 +582,7 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
                 A.row (j) += A.row (tmp) * multiple;
                 D.row (j) += D.row (tmp) * multiple;
                 if (IS_OFFLINE == Save_Computation::ON)
-                    ops.emplace_back (new Operation_Add_Mul (j, tmp, multiple));
+                    ops.emplace_back (Operation::_t::ADD_MUL, j, tmp, multiple);
             }
         }
     }
