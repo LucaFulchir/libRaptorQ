@@ -39,17 +39,8 @@
 
 
 namespace RaptorQ__v1 {
+
 namespace Impl {
-
-//extern template class Precode_Matrix<Save_Computation::OFF>;
-//extern template class Precode_Matrix<Save_Computation::ON>;
-
-enum class RAPTORQ_LOCAL Decoder_Result : uint8_t {
-    DECODED = 0,
-    STOPPED = 1,
-    CAN_RETRY = 2,
-    NEED_DATA = 3
-};
 
 template <typename In_It>
 class RAPTORQ_LOCAL Raw_Decoder

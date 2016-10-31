@@ -117,8 +117,7 @@ public:
     uint16_t needed_symbols() const;
 
     void set_max_concurrency (const uint16_t max_threads);
-    using Decoder_Result = Impl::Decoder_Result;
-    Decoder_Result decode_once();
+    RaptorQ_Decoder_Result decode_once();
     struct wait_res
     {
         size_t written;
@@ -425,6 +424,7 @@ bool Encoder<Rnd_It, Fwd_It>::compute_sync()
     return _encoder->compute_sync();
 }
 
+#if __cplusplus >= 201103L
 template <typename Rnd_It, typename Fwd_It>
 std::future<Error> Encoder<Rnd_It, Fwd_It>::precompute()
 {
@@ -446,6 +446,7 @@ std::future<Error> Encoder<Rnd_It, Fwd_It>::compute()
     }
     return _encoder->compute();
 }
+#endif
 
 template <typename Rnd_It, typename Fwd_It>
 size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
@@ -602,11 +603,10 @@ void Decoder<In_It, Fwd_It>::set_max_concurrency (const uint16_t max_threads)
 }
 
 template <typename In_It, typename Fwd_It>
-typename Decoder<In_It, Fwd_It>::Decoder_Result
-                                        Decoder<In_It, Fwd_It>::decode_once()
+RaptorQ_Decoder_Result Decoder<In_It, Fwd_It>::decode_once()
 {
     if (_decoder == nullptr)
-        return Decoder<In_It, Fwd_It>::Decoder_Result::NEED_DATA;
+        return RaptorQ_Decoder_Result::RQ_DEC_NEED_DATA;
     return _decoder->decode_once();
 }
 
@@ -627,6 +627,7 @@ typename Decoder<In_It, Fwd_It>::wait_res Decoder<In_It, Fwd_It>::wait_sync()
     return _decoder->wait_sync();
 }
 
+#if __cplusplus >= 201103L
 template <typename In_It, typename Fwd_It>
 std::future<std::pair<Error, uint16_t>> Decoder<In_It, Fwd_It>::wait()
 {
@@ -645,6 +646,7 @@ bool Decoder<In_It, Fwd_It>::can_decode() const
         return false;
     return _decoder->can_decode();
 }
+#endif
 
 template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::stop()

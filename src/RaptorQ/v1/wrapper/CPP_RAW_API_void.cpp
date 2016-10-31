@@ -26,8 +26,7 @@ namespace Impl {
 
 
 // check that we have the right type, else keep error.
-static RaptorQ_type RAPTORQ_LOCAL init_t (const RaptorQ_type type,
-                                                        const bool is_encoder)
+static RaptorQ_type init_t (const RaptorQ_type type, const bool is_encoder)
 {
     switch (type) {
     case RaptorQ_type::RQ_ENC_8:
@@ -800,21 +799,25 @@ void Decoder_void::set_max_concurrency (const uint16_t max_threads)
     }
 }
 
-Decoder_void::Decoder_Result Decoder_void::decode_once()
+RaptorQ_Decoder_Result Decoder_void::decode_once()
 {
     switch (_type) {
     case RaptorQ_type::RQ_DEC_8:
-        return reinterpret_cast<Decoder<uint8_t*, uint8_t*>*> (_decoder)->
-                                                                decode_once();
+        return static_cast<RaptorQ_Decoder_Result> (
+                reinterpret_cast<Decoder<uint8_t*, uint8_t*>*> (_decoder)->
+                                                                decode_once());
     case RaptorQ_type::RQ_DEC_16:
-        return reinterpret_cast<Decoder<uint16_t*, uint16_t*>*> (_decoder)->
-                                                                decode_once();
+        return static_cast<RaptorQ_Decoder_Result> (
+                reinterpret_cast<Decoder<uint16_t*, uint16_t*>*> (_decoder)->
+                                                                decode_once());
     case RaptorQ_type::RQ_DEC_32:
-        return reinterpret_cast<Decoder<uint32_t*, uint32_t*>*> (_decoder)->
-                                                                decode_once();
+        return static_cast<RaptorQ_Decoder_Result> (
+                reinterpret_cast<Decoder<uint32_t*, uint32_t*>*> (_decoder)->
+                                                                decode_once());
     case RaptorQ_type::RQ_DEC_64:
-        return reinterpret_cast<Decoder<uint64_t*, uint64_t*>*> (_decoder)->
-                                                                decode_once();
+        return static_cast<RaptorQ_Decoder_Result> (
+                reinterpret_cast<Decoder<uint64_t*, uint64_t*>*> (_decoder)->
+                                                                decode_once());
     case RaptorQ_type::RQ_ENC_8:
     case RaptorQ_type::RQ_ENC_16:
     case RaptorQ_type::RQ_ENC_32:
@@ -822,7 +825,7 @@ Decoder_void::Decoder_Result Decoder_void::decode_once()
     case RaptorQ_type::RQ_NONE:
         break;
     }
-    return Decoder_void::Decoder_Result::STOPPED;
+    return RaptorQ_Decoder_Result::RQ_DEC_STOPPED;
 }
 
 Decoder_void::wait_res Decoder_void::poll()

@@ -127,8 +127,7 @@ public:
     uint16_t needed_symbols() const;
 
     void set_max_concurrency (const uint16_t max_threads);
-    using Decoder_Result = Decoder_Result;
-    Decoder_Result decode_once();
+    RaptorQ_Decoder_Result decode_once();
     struct wait_res
     {
         const Error err;

@@ -128,13 +128,29 @@ typedef enum {
 } RaptorQ_Compress;
 typedef RaptorQ_Compress RFC6330_Compress;
 
+typedef enum {
+    RQ_DEC_DECODED   = 0,
+    RQ_DEC_STOPPED   = 1,
+    RQ_DEC_CAN_RETRY = 2,
+    RQ_DEC_NEED_DATA = 3
+} RaptorQ_Decoder_Result;
+
 
 #ifndef __cplusplus
 #include <stdint.h>
-
 #else
-// C++ version. keep the enum synced
 #include <cstdint>
+#endif
+
+#define RQ_UNUSED(x)    ((void)x)
+
+static const uint64_t RFC6330_max_data = 946270874880;  // ~881 GB
+typedef uint64_t RFC6330_OTI_Common_Data;
+typedef uint32_t RFC6330_OTI_Scheme_Specific_Data;
+
+
+#if __cplusplus >= 201103L
+// C++ version. keep the enum synced
 #include <memory>
 #include <utility>
 
@@ -145,6 +161,13 @@ namespace Impl {
 template<typename T, typename... Ts>
 std::unique_ptr<T> RAPTORQ_LOCAL make_unique (Ts&&... params)
     { return std::unique_ptr<T> (new T(std::forward<Ts> (params)...)); }
+
+enum class Decoder_Result : uint8_t {
+    DECODED = RQ_DEC_DECODED,
+    STOPPED = RQ_DEC_STOPPED,
+    CAN_RETRY = RQ_DEC_CAN_RETRY,
+    NEED_DATA = RQ_DEC_NEED_DATA
+};
 } // namespace Impl
 
 enum class Compress : uint8_t { NONE = RQ_COMPRESS_NONE,
@@ -204,18 +227,6 @@ inline Compute operator& (const Compute a, const Compute b)
 }
 } // namespace RFC6330__v1
 
-#endif
-
-
-#define RQ_UNUSED(x)    ((void)x)
-
-static const uint64_t RFC6330_max_data = 946270874880;  // ~881 GB
-typedef uint64_t RFC6330_OTI_Common_Data;
-typedef uint32_t RFC6330_OTI_Scheme_Specific_Data;
-
-// Now just some macros to check the iterator type
-#ifdef __cplusplus
-
 namespace RaptorQ__v1 {
 namespace Impl {
 #ifndef RQ_DEBUG
@@ -257,4 +268,4 @@ constexpr bool debug = RQ_DEBUG;
             std::is_same<typename std::iterator_traits<IT>::iterator_category, \
                                     std::random_access_iterator_tag>::value, \
             CLASS " is supposed to get a FORWARD iterator\n");
-#endif
+#endif //__cplusplus >= 201103L

@@ -54,9 +54,9 @@ class RAPTORQ_LOCAL Decoder;
 #ifdef RQ_HEADER_ONLY
     // does this export symbols??
     template <typename Rnd_It, typename Fwd_It>
-    using Encoder = RAPTORQ_API Impl::Encoder<Rnd_It, Fwd_It>;
+    using Encoder = Impl::Encoder<Rnd_It, Fwd_It>;
     template <typename Rnd_It, typename Fwd_It>
-    using Decoder = RAPTORQ_API Impl::Decoder<Rnd_It, Fwd_It>;
+    using Decoder = Impl::Decoder<Rnd_It, Fwd_It>;
 #endif
 
 
@@ -148,7 +148,6 @@ public:
     uint16_t needed_symbols() const;
 
     void set_max_concurrency (const uint16_t max_threads);
-    using Decoder_Result = Decoder_Result;
     Decoder_Result decode_once();
     std::pair<Error, uint16_t> poll();
     std::pair<Error, uint16_t> wait_sync();
@@ -762,11 +761,10 @@ void Decoder<In_It, Fwd_It>::set_max_concurrency (const uint16_t max_threads)
 }
 
 template <typename In_It, typename Fwd_It>
-typename Decoder<In_It, Fwd_It>::Decoder_Result
-                                        Decoder<In_It, Fwd_It>::decode_once()
+Decoder_Result Decoder<In_It, Fwd_It>::decode_once()
 {
     if (symbols_tracker.size() == 0)
-        return Decoder<In_It, Fwd_It>::Decoder_Result::STOPPED;
+        return Decoder_Result::STOPPED;
     auto res = dec.decode (&work);
     if (res == Decoder_Result::DECODED) {
         std::unique_lock<std::mutex> lock (_mtx);

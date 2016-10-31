@@ -37,9 +37,6 @@
 namespace RaptorQ__v1 {
 namespace Impl {
 
-//extern template class Precode_Matrix<Save_Computation::OFF>;
-//extern template class Precode_Matrix<Save_Computation::ON>;
-
 using with_interleaver    = std::true_type;
 using without_interleaver = std::false_type;
 
