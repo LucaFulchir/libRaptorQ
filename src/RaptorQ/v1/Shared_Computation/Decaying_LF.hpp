@@ -24,6 +24,7 @@
 #include "RaptorQ/v1/Operation.hpp"
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -37,8 +38,30 @@ namespace Impl {
 
 // easy compress from/to eigen matrix
 std::vector<uint8_t> RAPTORQ_API Mtx_to_raw (const DenseMtx &mtx);
+inline std::vector<uint8_t> RAPTORQ_API Mtx_to_raw (const DenseMtx &mtx)
+{
+    std::vector<uint8_t> ret;
+    ret.reserve (static_cast<size_t> (mtx.rows() * mtx.cols()));
+    for (uint32_t row = 0; row < static_cast<uint32_t> (mtx.rows()); ++row) {
+        for (uint32_t col = 0; col < static_cast<uint32_t> (mtx.cols()); ++col)
+            ret.emplace_back (static_cast<uint8_t> (mtx (row, col)));
+    }
+    return ret;
+}
 DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
                                                         const uint32_t cols);
+inline DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
+                                                        const uint32_t cols)
+{
+    uint16_t rows = static_cast<uint16_t> (raw.size() / cols);
+    DenseMtx ret (rows, cols);
+    auto raw_it = raw.begin();
+    for (uint32_t row = 0; row < rows; ++row) {
+        for (uint32_t col = 0; col < cols; ++col, ++raw_it)
+            ret (row, col) = *raw_it;
+    }
+    return ret;
+}
 
 
 // TODO: keys and search: we might be able to decode things without using
@@ -69,10 +92,68 @@ public:
     std::vector<bool> _lost_bitmask;
     std::vector<bool> _repair_bitmask;
 
-    bool operator< (const Cache_Key &rhs) const;
-    bool operator== (const Cache_Key &rhs) const;
+    bool operator< (const Cache_Key &rhs) const
+    {
+        if (_mt_size < rhs._mt_size)
+            return true;
+        if (_mt_size > rhs._mt_size)
+            return false;
+        // _mt_size == rhs._mt_size
+        if (_lost < rhs._lost)
+            return true;
+        if (_lost > rhs._lost)
+            return false;
+        // _lost == rhs._lost
+        if (_lost_bitmask.size() < rhs._lost_bitmask.size())
+            return true;
+        if (_lost_bitmask.size() > rhs._lost_bitmask.size())
+            return false;
+        // _lost_bitmask.size() == rhs._lost_bitmask.size()
+        int32_t idx = static_cast<int32_t> (_lost_bitmask.size() - 1);
+        for (; idx >= 0; --idx) {
+            uint32_t i = static_cast<uint32_t> (idx);
+            if (rhs._lost_bitmask[i] == false &&
+                    _lost_bitmask[i] == true) {
+                return false;
+            }
+            if (rhs._lost_bitmask[i] == true &&
+                    _lost_bitmask[i] == false) {
+                return true;
+            }
+        }
+        // _lost_bitmask == rhs.lost_bitmask
+        if (_repair_bitmask.size() < rhs._repair_bitmask.size())
+            return true;
+        if (_repair_bitmask.size() > rhs._repair_bitmask.size())
+            return false;
+        // _repair_bitmask.size() ==  rhs._repair_bitmask.size()
+        idx = static_cast<int32_t> (_repair_bitmask.size() - 1);
+        for (; idx >= 0; --idx) {
+            uint32_t i = static_cast<uint32_t> (idx);
+            if (rhs._repair_bitmask[i] == false &&
+                    _repair_bitmask[i] == true) {
+                return false;
+            }
+            if (rhs._repair_bitmask[i] == true &&
+                    _repair_bitmask[i] == false) {
+                return true;
+            }
+        }
+        // all the same
+        return false;
+    }
+    bool operator== (const Cache_Key &rhs) const
+    {
+        return _mt_size == rhs._mt_size && _lost == rhs._lost &&
+                _repair == rhs._repair &&
+                            _lost_bitmask.size() == rhs._lost_bitmask.size() &&
+                                            _lost_bitmask == rhs._lost_bitmask &&
+                            _repair_bitmask.size() == rhs._repair_bitmask.size() &&
+                                            _repair_bitmask == rhs._repair_bitmask;
+    }
 
-    uint32_t out_size() const;
+    uint32_t out_size() const
+        { return (_mt_size - _lost) + _repair; }
 };
 
 
