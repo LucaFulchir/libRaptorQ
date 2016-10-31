@@ -202,7 +202,9 @@ SET(SOURCES
             src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp
             src/RaptorQ/v1/Thread_Pool.cpp
             src/RaptorQ/v1/wrapper/C_RAW_API.cpp
-            src/RaptorQ/v1/wrapper/C_RFC_API.cpp)
+            src/RaptorQ/v1/wrapper/C_RFC_API.cpp
+            src/RaptorQ/v1/wrapper/CPP_RAW_API_void.cpp
+            )
 
 SET(HEADERS
             src/RaptorQ/v1/API_Iterators.hpp
@@ -236,10 +238,12 @@ SET(HEADERS
             src/RaptorQ/RFC6330.h
             src/RaptorQ/RFC6330_v1.hpp
             src/RaptorQ/v1/wrapper/C_common.h
-            #src/RaptorQ/v1/wrapper/C_RAW_API.h
+            src/RaptorQ/v1/wrapper/C_RAW_API.h
             src/RaptorQ/v1/wrapper/C_RFC_API.h
             src/RaptorQ/v1/wrapper/CPP_RFC_API.hpp
-            src/RaptorQ/v1/wrapper/CPP_RAW_API.hpp)
+            src/RaptorQ/v1/wrapper/CPP_RAW_API.hpp
+            src/RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp
+            )
 
 if (USE_LZ4 MATCHES "ON")
     SET (HEADERS ${HEADERS}

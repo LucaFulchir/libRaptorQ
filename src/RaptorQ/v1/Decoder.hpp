@@ -44,6 +44,13 @@ namespace Impl {
 extern template class Precode_Matrix<Save_Computation::OFF>;
 extern template class Precode_Matrix<Save_Computation::ON>;
 
+enum class RAPTORQ_LOCAL Decoder_Result : uint8_t {
+    DECODED = 0,
+    STOPPED = 1,
+    CAN_RETRY = 2,
+    NEED_DATA = 3
+};
+
 template <typename In_It>
 class RAPTORQ_LOCAL Raw_Decoder
 {
@@ -69,13 +76,6 @@ public:
         end_of_input = false;
     }
     ~Raw_Decoder();
-
-    enum class RAPTORQ_LOCAL Decoder_Result : uint8_t {
-        DECODED = 0,
-        STOPPED = 1,
-        CAN_RETRY = 2,
-        NEED_DATA = 3
-    };
 
     Error add_symbol (In_It &start, const In_It end, const uint32_t esi);
     Decoder_Result decode (Work_State *thread_keep_working);
@@ -305,8 +305,7 @@ Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
 }
 
 template <typename In_It>
-typename Raw_Decoder<In_It>::Decoder_Result Raw_Decoder<In_It>::decode (
-                                                Work_State *thread_keep_working)
+Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
 {
     // this method can be launched concurrently multiple times.
 

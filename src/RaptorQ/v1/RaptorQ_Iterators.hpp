@@ -34,9 +34,9 @@ class RAPTORQ_LOCAL Decoder;
 } // namespace Impl
 
 
-
 namespace It {
 namespace Encoder {
+
 
 template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Symbol
@@ -52,13 +52,12 @@ public:
         return _enc->encode (start, end, _esi);
     }
     uint32_t id() const
-    {
-        return _esi;
-    }
+        { return _esi; }
 private:
-    Impl::Encoder<Rnd_It, Fwd_It> *_enc;
+    Impl::Encoder<Rnd_It, Fwd_It> *const _enc;
     const uint32_t _esi;
 };
+
 
 template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Symbol_Iterator :
@@ -68,9 +67,7 @@ public:
     Symbol_Iterator (Impl::Encoder<Rnd_It, Fwd_It> *enc, const uint32_t esi)
         : _enc (enc), _esi (esi) {}
     Symbol<Rnd_It, Fwd_It> operator*()
-    {
-        return Symbol<Rnd_It, Fwd_It> (_enc, _esi);
-    }
+        { return Symbol<Rnd_It, Fwd_It> (_enc, _esi); }
     Symbol_Iterator<Rnd_It, Fwd_It>& operator++()
     {
         ++_esi;
@@ -78,19 +75,14 @@ public:
     }
     Symbol_Iterator operator++ (const int i) const
     {
-        Symbol_Iterator<Rnd_It, Fwd_It> ret (_esi + i);
-        return ret;
+        return Symbol_Iterator<Rnd_It, Fwd_It>(_esi + static_cast<uint32_t>(i));
     }
     bool operator== (const Symbol_Iterator<Rnd_It, Fwd_It> &it) const
-    {
-        return it._esi == _esi;
-    }
+        { return it._esi == _esi; }
     bool operator!= (const Symbol_Iterator<Rnd_It, Fwd_It> &it) const
-    {
-        return it._esi != _esi;
-    }
+        { return it._esi != _esi; }
 private:
-    Impl::Encoder<Rnd_It, Fwd_It> *_enc;
+    Impl::Encoder<Rnd_It, Fwd_It> *const _enc;
     uint32_t _esi;
 };
 } // namespace Encoder
@@ -103,22 +95,20 @@ template <typename In_It, typename Fwd_It>
 class RAPTORQ_API Symbol
 {
 public:
-    Symbol (Impl::Decoder<In_It, Fwd_It> *dec, const uint32_t esi)
+    Symbol (Impl::Decoder<In_It, Fwd_It> *dec, const uint16_t esi)
         : _dec (dec), _esi (esi) {}
 
-    uint64_t operator() (Fwd_It &start, const Fwd_It end)
+    Error operator() (Fwd_It &start, const Fwd_It end)
     {
         if (_dec == nullptr)
-            return 0;
+            return Error::INITIALIZATION;
         return _dec->decode_symbol (start, end, _esi);
     }
-    uint32_t id() const
-    {
-        return _esi;
-    }
+    uint16_t id() const
+        { return _esi; }
 private:
-    Impl::Decoder<In_It, Fwd_It> *_dec;
-    const uint32_t _esi;
+    Impl::Decoder<In_It, Fwd_It> *const _dec;
+    const uint16_t _esi;
 };
 
 template <typename In_It, typename Fwd_It>
@@ -126,12 +116,10 @@ class RAPTORQ_API Symbol_Iterator :
         public std::iterator<std::input_iterator_tag, Symbol<In_It, Fwd_It>>
 {
 public:
-    Symbol_Iterator (Impl::Decoder<In_It, Fwd_It> *dec, const uint32_t esi)
+    Symbol_Iterator (Impl::Decoder<In_It, Fwd_It> *dec, const uint16_t esi)
         : _dec (dec), _esi (esi) {}
     Symbol<In_It, Fwd_It> operator*()
-    {
-        return Symbol<In_It, Fwd_It> (_dec, _esi);
-    }
+        { return Symbol<In_It, Fwd_It> (_dec, _esi); }
     Symbol_Iterator<In_It, Fwd_It>& operator++()
     {
         ++_esi;
@@ -139,20 +127,15 @@ public:
     }
     Symbol_Iterator operator++ (const int i) const
     {
-        Symbol_Iterator<In_It, Fwd_It> ret (_esi + i);
-        return ret;
+        return Symbol_Iterator<In_It, Fwd_It>(_esi + static_cast<uint16_t> (i));
     }
     bool operator== (const Symbol_Iterator<In_It, Fwd_It> &it) const
-    {
-        return it._esi == _esi;
-    }
+        { return it._esi == _esi; }
     bool operator!= (const Symbol_Iterator<In_It, Fwd_It> &it) const
-    {
-        return it._esi != _esi;
-    }
+        { return it._esi != _esi; }
 private:
-    Impl::Decoder<In_It, Fwd_It> *_dec;
-    uint32_t _esi;
+    Impl::Decoder<In_It, Fwd_It> *const _dec;
+    uint16_t _esi;
 };
 
 } // namespace Decoder

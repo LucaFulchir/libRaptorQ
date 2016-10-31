@@ -54,6 +54,20 @@ namespace RFC6330__v1 {
 constexpr uint64_t max_data = RFC6330_max_data;  // ~881 GB
 
 namespace Impl {
+template <typename Rnd_It, typename Fwd_It = Rnd_It>
+class RAPTORQ_LOCAL Encoder;
+template <typename In_It, typename Fwd_It = In_It>
+class RAPTORQ_LOCAL Decoder;
+} // namespace Impl
+#ifdef RQ_HEADER_ONLY
+    namespace Impl {
+    template <typename Rnd_It, typename Fwd_It = Rnd_It>
+    using Encoder = RAPTORQ_API Impl::Encoder<Rnd_It, Fwd_It>
+    template <typename In_It, typename Fwd_It>
+    using Decoder = RAPTORQ_API Impl::Decoder<In_It, Fwd_It>
+#endif
+
+namespace Impl {
 
 
 template <typename Rnd_It, typename Fwd_It>
@@ -887,14 +901,14 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
         auto ret = locked_dec->decode (state);
         std::unique_lock<std::mutex> p_lock (*locked_mtx, std::defer_lock);
         switch (ret) {
-        case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::DECODED:
+        case RaptorQ__v1::Impl::Decoder_Result::DECODED:
             work.reset();
             p_lock.lock();
             locked_dec->drop_concurrent();
             locked_notify->notify_all();
             p_lock.unlock();
             return Work_Exit_Status::DONE;
-        case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::NEED_DATA:
+        case RaptorQ__v1::Impl::Decoder_Result::NEED_DATA:
             p_lock.lock();
             if (locked_dec->can_decode()) {
                 // check again to avoid race between threads
@@ -907,7 +921,7 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
                 work.reset();
                 return Work_Exit_Status::DONE;
             }
-        case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::STOPPED:
+        case RaptorQ__v1::Impl::Decoder_Result::STOPPED:
             p_lock.lock();
             if (locked_dec->ready()) { // did an other thread stop us?
                 locked_dec->drop_concurrent();
@@ -916,7 +930,7 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
             }
             // requeued. Do not drop_concurrent
             return Work_Exit_Status::STOPPED;
-        case RaptorQ__v1::Impl::Raw_Decoder<In_It>::Decoder_Result::CAN_RETRY:
+        case RaptorQ__v1::Impl::Decoder_Result::CAN_RETRY:
             // requeued. Do not drop_concurrent
             return Work_Exit_Status::REQUEUE;
         }
@@ -1132,8 +1146,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
                 RaptorQ__v1::Work_State state =
                                         RaptorQ__v1::Work_State::KEEP_WORKING;
                 auto ret = dec_ptr->decode (&state);
-                if (RaptorQ__v1::Impl::Raw_Decoder<In_It>::
-                                            Decoder_Result::DECODED != ret) {
+                if (RaptorQ__v1::Impl::Decoder_Result::DECODED != ret) {
                     return written;
                 }
             } else {

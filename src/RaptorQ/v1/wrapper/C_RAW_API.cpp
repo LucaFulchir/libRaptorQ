@@ -289,35 +289,31 @@ static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
     switch (type) {
     case RaptorQ_type::RQ_DEC_8:
         raw_ptr = reinterpret_cast<void *> (
-                    new RQ::Decoder<uint8_t*, uint8_t*> (
-                        static_cast<RaptorQ__v1::Block_Size>(symbols),
-                        symbol_size,
-                        static_cast<RQ::Decoder<uint8_t*, uint8_t*>::Report>
-                                                                    (report)));
+                            new RQ::Decoder<uint8_t*, uint8_t*> (
+                                static_cast<RaptorQ__v1::Block_Size>(symbols),
+                                symbol_size,
+                                static_cast<RQ::Dec_Report> (report)));
         break;
     case RaptorQ_type::RQ_DEC_16:
         raw_ptr = reinterpret_cast<void *> (
-                    new RQ::Decoder<uint16_t*, uint16_t*> (
-                        static_cast<RaptorQ__v1::Block_Size>(symbols),
-                        symbol_size,
-                        static_cast<RQ::Decoder<uint16_t*, uint16_t*>::Report>
-                                                                    (report)));
+                            new RQ::Decoder<uint16_t*, uint16_t*> (
+                                static_cast<RaptorQ__v1::Block_Size>(symbols),
+                                symbol_size,
+                                static_cast<RQ::Dec_Report> (report)));
         break;
     case RaptorQ_type::RQ_DEC_32:
         raw_ptr = reinterpret_cast<void *> (
-                    new RQ::Decoder<uint32_t*, uint32_t*> (
-                        static_cast<RaptorQ__v1::Block_Size>(symbols),
-                        symbol_size,
-                        static_cast<RQ::Decoder<uint32_t*, uint32_t*>::Report>
-                                                                    (report)));
+                            new RQ::Decoder<uint32_t*, uint32_t*> (
+                                static_cast<RaptorQ__v1::Block_Size>(symbols),
+                                symbol_size,
+                                static_cast<RQ::Dec_Report> (report)));
         break;
     case RaptorQ_type::RQ_DEC_64:
         raw_ptr = reinterpret_cast<void *> (
-                    new RQ::Decoder<uint64_t*, uint64_t*> (
-                        static_cast<RaptorQ__v1::Block_Size>(symbols),
-                        symbol_size,
-                        static_cast<RQ::Decoder<uint64_t*, uint64_t*>::Report>
-                                                                    (report)));
+                            new RQ::Decoder<uint64_t*, uint64_t*> (
+                                static_cast<RaptorQ__v1::Block_Size>(symbols),
+                                symbol_size,
+                                static_cast<RQ::Dec_Report> (report)));
         break;
     case RaptorQ_type::RQ_ENC_8:
     case RaptorQ_type::RQ_ENC_16:

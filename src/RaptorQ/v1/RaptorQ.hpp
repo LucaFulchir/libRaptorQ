@@ -22,7 +22,9 @@
 
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/block_sizes.hpp"
-#include "RaptorQ/v1/RaptorQ_Iterators.hpp"
+#ifdef RQ_HEADER_ONLY
+    #include "RaptorQ/v1/RaptorQ_Iterators.hpp"
+#endif
 #include "RaptorQ/v1/Encoder.hpp"
 #include "RaptorQ/v1/Decoder.hpp"
 #include "RaptorQ/v1/Parameters.hpp"
@@ -40,8 +42,25 @@
 
 
 namespace RaptorQ__v1 {
-namespace Impl {
 
+namespace Impl {
+template <typename Rnd_It, typename Fwd_It = Rnd_It>
+class RAPTORQ_LOCAL Encoder;
+template <typename In_It, typename Fwd_It = In_It>
+class RAPTORQ_LOCAL Decoder;
+} // namespace Impl
+
+// expose classes, but only if header-only
+#ifdef RQ_HEADER_ONLY
+    // does this export symbols??
+    template <typename Rnd_It, typename Fwd_It>
+    using Encoder = RAPTORQ_API Impl::Encoder<Rnd_It, Fwd_It>;
+    template <typename Rnd_It, typename Fwd_It>
+    using Decoder = RAPTORQ_API Impl::Decoder<Rnd_It, Fwd_It>;
+#endif
+
+
+namespace Impl {
 
 template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_LOCAL Encoder
@@ -56,11 +75,13 @@ public:
     size_t symbol_size() const; //FIXME: max smbol size is same as signed size_t
     uint32_t max_repair() const;
 
+#ifdef RQ_HEADER_ONLY
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> begin_source();
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end_source();
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> begin_repair();
     RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> end_repair
                                                         (const uint32_t repair);
+#endif
 
     bool has_data() const;
     size_t set_data (const Rnd_It &from, const Rnd_It &to);
@@ -94,16 +115,17 @@ private:
                                                     std::promise<Error> p);
 };
 
+enum class RAPTORQ_LOCAL Dec_Report : uint8_t {
+    PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
+    PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
+    COMPLETE = RQ_COMPUTE_COMPLETE
+};
+
 template <typename In_It, typename Fwd_It>
 class RAPTORQ_LOCAL Decoder
 {
 public:
-
-    enum class RAPTORQ_LOCAL Report : uint8_t {
-        PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
-        PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
-        COMPLETE = RQ_COMPUTE_COMPLETE
-    };
+    using Report = Dec_Report;
 
     ~Decoder();
     Decoder (const Block_Size symbols, const size_t symbol_size,
@@ -113,8 +135,10 @@ public:
     uint16_t symbols() const;
     size_t symbol_size() const;
 
+#ifdef RQ_HEADER_ONLY
     RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> begin();
     RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> end();
+#endif
 
     Error add_symbol (In_It &from, const In_It to, const uint32_t esi);
     void end_of_input();
@@ -124,7 +148,7 @@ public:
     uint16_t needed_symbols() const;
 
     void set_max_concurrency (const uint16_t max_threads);
-    using Decoder_Result = typename Raw_Decoder<In_It>::Decoder_Result;
+    using Decoder_Result = Decoder_Result;
     Decoder_Result decode_once();
     std::pair<Error, uint16_t> poll();
     std::pair<Error, uint16_t> wait_sync();
@@ -228,6 +252,7 @@ uint32_t Encoder<Rnd_It, Fwd_It>::max_repair() const
                                                                     _param.L);
 }
 
+#ifdef RQ_HEADER_ONLY
 template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
                                         Encoder<Rnd_It, Fwd_It>::begin_source()
@@ -255,6 +280,7 @@ RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
     return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (nullptr,
                                                             _symbols + repair);
 }
+#endif
 
 template <typename Rnd_It, typename Fwd_It>
 bool Encoder<Rnd_It, Fwd_It>::has_data() const
@@ -509,6 +535,7 @@ size_t Decoder<In_It, Fwd_It>::symbol_size() const
     return _symbol_size;
 }
 
+#ifdef RQ_HEADER_ONLY
 template <typename In_It, typename Fwd_It>
 RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
                                                 Decoder<In_It, Fwd_It>::begin()
@@ -523,6 +550,7 @@ RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
     return RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> (nullptr,
                                                                 _symbols);
 }
+#endif
 
 template <typename In_It, typename Fwd_It>
 uint16_t Decoder<In_It, Fwd_It>::needed_symbols() const

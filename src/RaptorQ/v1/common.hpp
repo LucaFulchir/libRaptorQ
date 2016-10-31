@@ -135,8 +135,17 @@ typedef RaptorQ_Compress RFC6330_Compress;
 #else
 // C++ version. keep the enum synced
 #include <cstdint>
+#include <memory>
+#include <utility>
 
 namespace RaptorQ__v1 {
+// Bring back make_unique from C++14
+// but do not pollute the std:: namespace
+namespace Impl {
+template<typename T, typename... Ts>
+std::unique_ptr<T> RAPTORQ_LOCAL make_unique (Ts&&... params)
+    { return std::unique_ptr<T> (new T(std::forward<Ts> (params)...)); }
+} // namespace Impl
 
 enum class Compress : uint8_t { NONE = RQ_COMPRESS_NONE,
                                 LZ4 = RQ_COMPRESS_LZ4
@@ -167,17 +176,21 @@ inline Compress operator& (const Compress a, const Compress b)
     };
 } // namespace RaptorQ__v1
 namespace RFC6330__v1 {
-    using Error = RaptorQ__v1::Error; // easier
-    using Compress = RaptorQ__v1::Compress; // easier
-    enum class RAPTORQ_API Compute : uint8_t {
-        NONE = RQ_COMPUTE_NONE,
-        PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
-        PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
-        COMPLETE = RQ_COMPUTE_COMPLETE,
-        NO_BACKGROUND = RQ_COMPUTE_NO_BACKGROUND,
-        NO_POOL = RQ_COMPUTE_NO_POOL,
-        NO_RETRY = RQ_COMPUTE_NO_RETRY
-    };
+namespace Impl {
+    using make_unique = RaptorQ__v1::Impl::make_unique;
+} // namespace Impl
+
+using Error = RaptorQ__v1::Error; // easier
+using Compress = RaptorQ__v1::Compress; // easier
+enum class RAPTORQ_API Compute : uint8_t {
+    NONE = RQ_COMPUTE_NONE,
+    PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
+    PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
+    COMPLETE = RQ_COMPUTE_COMPLETE,
+    NO_BACKGROUND = RQ_COMPUTE_NO_BACKGROUND,
+    NO_POOL = RQ_COMPUTE_NO_POOL,
+    NO_RETRY = RQ_COMPUTE_NO_RETRY
+};
 
 inline Compute operator| (const Compute a, const Compute b)
 {
@@ -190,13 +203,6 @@ inline Compute operator& (const Compute a, const Compute b)
                                                     static_cast<uint8_t> (b));
 }
 } // namespace RFC6330__v1
-
-// Bring back make_unique from C++14
-#include <memory>
-#include <utility>
-template<typename T, typename... Ts>
-std::unique_ptr<T> make_unique (Ts&&... params)
-    { return std::unique_ptr<T> (new T(std::forward<Ts> (params)...)); }
 
 #endif
 
@@ -218,6 +224,7 @@ namespace Impl {
 // don't use #define everywhere. let the dead code elimination take care
 // of eliminating unused code.
 constexpr bool debug = RQ_DEBUG;
+
 }
 }
 

@@ -31,7 +31,7 @@
 #include "../external/optionparser-1.4/optionparser.h"
 #pragma clang diagnostic pop
 #pragma GCC diagnostic pop
-#include "RaptorQ/RaptorQ_v1.hpp"
+#include "RaptorQ/RaptorQ_v1_hdr.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
