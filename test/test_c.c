@@ -237,7 +237,7 @@ bool decode (struct RFC6330_v1 *rfc, uint32_t mysize, float drop_prob,
     // there are.
     for (size_t i = 0; i < next_encoded; ++i) {
         uint32_t *data = encoded[i].symbol;
-        uint32_t data_size = rfc->symbol_size (dec) / sizeof(uint32_t);
+        uint32_t data_size =(uint32_t)rfc->symbol_size (dec) / sizeof(uint32_t);
         RFC6330_Error err = rfc->add_symbol_id (dec, (void **)&data,
                                                     data_size, encoded[i].id);
         if (err != RQ_ERR_NONE && err != RQ_ERR_NOT_NEEDED) {
