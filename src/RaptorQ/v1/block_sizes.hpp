@@ -606,7 +606,7 @@ static const RaptorQ_Block_Size RQ_blocks[477] = {
     };
 
 
-#ifdef __cplusplus
+#if __cplusplus >= 201103L
 
 namespace RaptorQ__v1 {
 
@@ -802,4 +802,4 @@ enum class Block_Size : uint16_t {
 };
 
 } // namespace RaptorQ__v1
-#endif // __cplusplus
+#endif // __cplusplus >= 201103L

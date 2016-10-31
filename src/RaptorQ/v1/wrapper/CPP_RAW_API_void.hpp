@@ -24,8 +24,10 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/RaptorQ.hpp"
 #include "RaptorQ/v1/wrapper/C_common.h"
+#if __cplusplus >= 201103L
 #include <future>
 #include <utility>
+#endif
 
 
 // There are a lot of NON-C++11 things here.
@@ -36,6 +38,14 @@
 // This is ugly. I know. no other way?
 
 // For added safety, please use the header-only library
+
+
+// FIXME: test if C++98 works with this:
+#if __cplusplus >= 201103L
+#define EXPLICIT explicit
+#else
+#define EXPLICIT
+#endif
 
 
 namespace RaptorQ__v1 {
@@ -53,10 +63,10 @@ namespace It {
 class RAPTORQ_API Encoder_void final
 {
 public:
-    Encoder_void (const RaptorQ_type type, const Block_Size symbols,
+    Encoder_void (const RaptorQ_type type, const RaptorQ_Block_Size symbols,
                                                     const size_t symbol_size);
     ~Encoder_void();
-    explicit operator bool() const;
+    EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;
@@ -77,8 +87,11 @@ public:
 
     bool precompute_sync();
     bool compute_sync();
+    #if __cplusplus >= 201103L
+    // not even going to try and make this C++98
     std::future<Error> precompute();
     std::future<Error> compute();
+    #endif
 
     size_t encode (void* &output, const void* end, const uint32_t id);
 
@@ -92,10 +105,10 @@ class RAPTORQ_API Decoder_void
 public:
     using Report = Dec_Report;
 
-    Decoder_void (const RaptorQ_type type, const Block_Size symbols,
+    Decoder_void (const RaptorQ_type type, const RaptorQ_Block_Size symbols,
                             const size_t symbol_size, const Report computation);
     ~Decoder_void();
-    explicit operator bool() const;
+    EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;
@@ -116,15 +129,24 @@ public:
     void set_max_concurrency (const uint16_t max_threads);
     using Decoder_Result = Decoder_Result;
     Decoder_Result decode_once();
-    std::pair<Error, uint16_t> poll();
-    std::pair<Error, uint16_t> wait_sync();
+    struct wait_res
+    {
+        const Error err;
+        const uint16_t symbol;
+    };
+
+    wait_res poll();
+    wait_res wait_sync();
+    #if __cplusplus >= 201103L
+    // not even going to try and make this C++98
     std::future<std::pair<Error, uint16_t>> wait();
+    #endif
 
     Error decode_symbol (void* &start, const void* end, const uint16_t esi);
     // returns number of bytes written, offset of data in last iterator
     struct decode_pair {
-        size_t written;
-        size_t offset;
+        const size_t written;
+        const size_t offset;
     };
     decode_pair decode_bytes (void* &start, const void* end,
                                     const size_t from_byte, const size_t skip);

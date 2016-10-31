@@ -56,22 +56,27 @@ static RaptorQ_type RAPTORQ_LOCAL init_t (const RaptorQ_type type,
 //// Encoder
 /////////////////
 
-Encoder_void::Encoder_void (const RaptorQ_type type, const Block_Size symbols,
+Encoder_void::Encoder_void (const RaptorQ_type type,
+                                            const RaptorQ_Block_Size symbols,
                                                     const size_t symbol_size)
     : _type (init_t (type, true))
 {
     switch (_type) {
     case RaptorQ_type::RQ_ENC_8:
-        _encoder = new Encoder<uint8_t*, uint8_t*> (symbols, symbol_size);
+        _encoder = new Encoder<uint8_t*, uint8_t*> (
+                            static_cast<Block_Size> (symbols), symbol_size);
         return;
     case RaptorQ_type::RQ_ENC_16:
-        _encoder = new Encoder<uint16_t*, uint16_t*> (symbols, symbol_size);
+        _encoder = new Encoder<uint16_t*, uint16_t*> (
+                            static_cast<Block_Size> (symbols), symbol_size);
         return;
     case RaptorQ_type::RQ_ENC_32:
-        _encoder = new Encoder<uint32_t*, uint32_t*> (symbols, symbol_size);
+        _encoder = new Encoder<uint32_t*, uint32_t*> (
+                            static_cast<Block_Size> (symbols), symbol_size);
         return;
     case RaptorQ_type::RQ_ENC_64:
-        _encoder = new Encoder<uint64_t*, uint64_t*> (symbols, symbol_size);
+        _encoder = new Encoder<uint64_t*, uint64_t*> (
+                            static_cast<Block_Size> (symbols), symbol_size);
         return;
     case RaptorQ_type::RQ_DEC_8:
     case RaptorQ_type::RQ_DEC_16:
@@ -482,28 +487,33 @@ size_t Encoder_void::encode (void* &output, const void* end, const uint32_t id)
 //// Decoder
 /////////////////
 
-Decoder_void::Decoder_void (const RaptorQ_type type, const Block_Size symbols,
-                                                    const size_t symbol_size,
-                                                    const Report computation)
+Decoder_void::Decoder_void (const RaptorQ_type type,
+                                            const RaptorQ_Block_Size symbols,
+                                            const size_t symbol_size,
+                                            const Report computation)
     : _type (init_t (type, true))
 {
 
     switch (_type) {
     case RaptorQ_type::RQ_DEC_8:
-        _decoder = new Decoder<uint8_t*, uint8_t*> (symbols, symbol_size,
-                                                                computation);
+        _decoder = new Decoder<uint8_t*, uint8_t*> (
+                                            static_cast<Block_Size> (symbols),
+                                                    symbol_size, computation);
         return;
     case RaptorQ_type::RQ_DEC_16:
-        _decoder = new Decoder<uint16_t*, uint16_t*> (symbols, symbol_size,
-                                                                computation);
+        _decoder = new Decoder<uint16_t*, uint16_t*> (
+                                            static_cast<Block_Size> (symbols),
+                                                    symbol_size, computation);
         return;
     case RaptorQ_type::RQ_DEC_32:
-        _decoder = new Decoder<uint32_t*, uint32_t*> (symbols, symbol_size,
-                                                                computation);
+        _decoder = new Decoder<uint32_t*, uint32_t*> (
+                                            static_cast<Block_Size> (symbols),
+                                                    symbol_size, computation);
         return;
     case RaptorQ_type::RQ_DEC_64:
-        _decoder = new Decoder<uint64_t*, uint64_t*> (symbols, symbol_size,
-                                                                computation);
+        _decoder = new Decoder<uint64_t*, uint64_t*> (
+                                            static_cast<Block_Size> (symbols),
+                                                    symbol_size, computation);
         return;
     case RaptorQ_type::RQ_ENC_8:
     case RaptorQ_type::RQ_ENC_16:
@@ -815,21 +825,26 @@ Decoder_void::Decoder_Result Decoder_void::decode_once()
     return Decoder_void::Decoder_Result::STOPPED;
 }
 
-std::pair<Error, uint16_t> Decoder_void::poll()
+Decoder_void::wait_res Decoder_void::poll()
 {
+    std::pair<Error, uint16_t> res {Error::INITIALIZATION, 0};
     switch (_type) {
     case RaptorQ_type::RQ_DEC_8:
-        return reinterpret_cast<Decoder<uint8_t*, uint8_t*>*> (_decoder)->
+        res = reinterpret_cast<Decoder<uint8_t*, uint8_t*>*> (_decoder)->
                                                                         poll();
+        break;
     case RaptorQ_type::RQ_DEC_16:
-        return reinterpret_cast<Decoder<uint16_t*, uint16_t*>*> (_decoder)->
+        res = reinterpret_cast<Decoder<uint16_t*, uint16_t*>*> (_decoder)->
                                                                         poll();
+        break;
     case RaptorQ_type::RQ_DEC_32:
-        return reinterpret_cast<Decoder<uint32_t*, uint32_t*>*> (_decoder)->
+        res = reinterpret_cast<Decoder<uint32_t*, uint32_t*>*> (_decoder)->
                                                                         poll();
+        break;
     case RaptorQ_type::RQ_DEC_64:
-        return reinterpret_cast<Decoder<uint64_t*, uint64_t*>*> (_decoder)->
+        res = reinterpret_cast<Decoder<uint64_t*, uint64_t*>*> (_decoder)->
                                                                         poll();
+        break;
     case RaptorQ_type::RQ_ENC_8:
     case RaptorQ_type::RQ_ENC_16:
     case RaptorQ_type::RQ_ENC_32:
@@ -837,24 +852,29 @@ std::pair<Error, uint16_t> Decoder_void::poll()
     case RaptorQ_type::RQ_NONE:
         break;
     }
-    return {Error::INITIALIZATION, 0};
+    return {res.first, res.second};
 }
 
-std::pair<Error, uint16_t> Decoder_void::wait_sync()
+Decoder_void::wait_res Decoder_void::wait_sync()
 {
+    std::pair<Error, uint16_t> res {Error::INITIALIZATION, 0};
     switch (_type) {
     case RaptorQ_type::RQ_DEC_8:
-        return reinterpret_cast<Decoder<uint8_t*, uint8_t*>*> (_decoder)->
+        res = reinterpret_cast<Decoder<uint8_t*, uint8_t*>*> (_decoder)->
                                                                     wait_sync();
+        break;
     case RaptorQ_type::RQ_DEC_16:
-        return reinterpret_cast<Decoder<uint16_t*, uint16_t*>*> (_decoder)->
+        res = reinterpret_cast<Decoder<uint16_t*, uint16_t*>*> (_decoder)->
                                                                     wait_sync();
+        break;
     case RaptorQ_type::RQ_DEC_32:
-        return reinterpret_cast<Decoder<uint32_t*, uint32_t*>*> (_decoder)->
+        res = reinterpret_cast<Decoder<uint32_t*, uint32_t*>*> (_decoder)->
                                                                     wait_sync();
+        break;
     case RaptorQ_type::RQ_DEC_64:
-        return reinterpret_cast<Decoder<uint64_t*, uint64_t*>*> (_decoder)->
+        res = reinterpret_cast<Decoder<uint64_t*, uint64_t*>*> (_decoder)->
                                                                     wait_sync();
+        break;
     case RaptorQ_type::RQ_ENC_8:
     case RaptorQ_type::RQ_ENC_16:
     case RaptorQ_type::RQ_ENC_32:
@@ -862,7 +882,7 @@ std::pair<Error, uint16_t> Decoder_void::wait_sync()
     case RaptorQ_type::RQ_NONE:
         break;
     }
-    return {Error::INITIALIZATION, 0};
+    return {res.first, res.second};
 }
 
 std::future<std::pair<Error, uint16_t>> Decoder_void::wait()

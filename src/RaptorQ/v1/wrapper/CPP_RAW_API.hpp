@@ -23,7 +23,9 @@
 #include "RaptorQ/v1/block_sizes.hpp"
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp"
+#if __cplusplus >= 201103L
 #include <future>
+#endif
 
 
 // There are a lot of NON-C++11 things here.
@@ -33,6 +35,12 @@
 // have different stl, or different C++ version.
 // This is ugly. I know. no other way?
 
+// FIXME: test if C++98 works with this:
+#if __cplusplus >= 201103L
+#define EXPLICIT explicit
+#else
+#define EXPLICIT
+#endif
 
 namespace RaptorQ__v1 {
 
@@ -51,9 +59,9 @@ template <typename Rnd_It, typename Fwd_It = Rnd_It>
 class RAPTORQ_API Encoder
 {
 public:
-    Encoder (const Block_Size symbols, const size_t symbol_size);
+    Encoder (const RaptorQ_Block_Size symbols, const size_t symbol_size);
     ~Encoder();
-    explicit operator bool() const;
+    EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;
@@ -73,8 +81,10 @@ public:
 
     bool precompute_sync();
     bool compute_sync();
+    #if __cplusplus >= 201103L
     std::future<Error> precompute();
     std::future<Error> compute();
+    #endif
 
     size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t id);
 
@@ -88,9 +98,9 @@ class RAPTORQ_API Decoder
 public:
     using Report = RaptorQ__v1::Impl::Dec_Report;
 
-    Decoder (const Block_Size symbols, const size_t symbol_size,
+    Decoder (const RaptorQ_Block_Size symbols, const size_t symbol_size,
                                                             const Report type);
-    explicit operator bool() const;
+    EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;
@@ -109,13 +119,25 @@ public:
     void set_max_concurrency (const uint16_t max_threads);
     using Decoder_Result = Impl::Decoder_Result;
     Decoder_Result decode_once();
-    std::pair<Error, uint16_t> poll();
-    std::pair<Error, uint16_t> wait_sync();
+    struct wait_res
+    {
+        size_t written;
+        size_t offset;
+    };
+
+    wait_res poll();
+    wait_res wait_sync();
+    #if __cplusplus >= 201103L
     std::future<std::pair<Error, uint16_t>> wait();
+    #endif
 
     Error decode_symbol (Fwd_It &start, const Fwd_It end, const uint16_t esi);
     // returns numer of bytes written, offset of data in last iterator
-    std::pair<size_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
+    struct decode_pair {
+        size_t written;
+        size_t offset;
+    };
+    decode_pair decode_bytes (Fwd_It &start, const Fwd_It end,
                                     const size_t from_byte, const size_t skip);
 private:
     Impl::Decoder_void *_decoder;
@@ -234,35 +256,39 @@ private:
 
 
 template <>
-Encoder<uint8_t*>::Encoder (const Block_Size symbols, const size_t symbol_size)
+Encoder<uint8_t*>::Encoder (const RaptorQ_Block_Size symbols,
+                                                    const size_t symbol_size)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_8,
                                                         symbols, symbol_size);
 }
 
 template <>
-Encoder<uint16_t*>::Encoder (const Block_Size symbols, const size_t symbol_size)
+Encoder<uint16_t*>::Encoder (const RaptorQ_Block_Size symbols,
+                                                    const size_t symbol_size)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_16,
                                                         symbols, symbol_size);
 }
 
 template <>
-Encoder<uint32_t*>::Encoder (const Block_Size symbols, const size_t symbol_size)
+Encoder<uint32_t*>::Encoder (const RaptorQ_Block_Size symbols,
+                                                    const size_t symbol_size)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_32,
                                                         symbols, symbol_size);
 }
 
 template <>
-Encoder<uint64_t*>::Encoder (const Block_Size symbols, const size_t symbol_size)
+Encoder<uint64_t*>::Encoder (const RaptorQ_Block_Size symbols,
+                                                    const size_t symbol_size)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_64,
                                                         symbols, symbol_size);
 }
 
 template <typename Rnd_It, typename Fwd_It>
-Encoder<Rnd_It, Fwd_It>::Encoder (const Block_Size symbols,
+Encoder<Rnd_It, Fwd_It>::Encoder (const RaptorQ_Block_Size symbols,
                                                     const size_t symbol_size)
 {
     RQ_UNUSED (symbols);
@@ -443,7 +469,8 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 
 
 template <>
-Decoder<uint8_t*>::Decoder (const Block_Size symbols, const size_t symbol_size,
+Decoder<uint8_t*>::Decoder (const RaptorQ_Block_Size symbols,
+                                        const size_t symbol_size,
                                         const Decoder<uint8_t*>::Report type)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_8,
@@ -451,7 +478,8 @@ Decoder<uint8_t*>::Decoder (const Block_Size symbols, const size_t symbol_size,
 }
 
 template <>
-Decoder<uint16_t*>::Decoder (const Block_Size symbols, const size_t symbol_size,
+Decoder<uint16_t*>::Decoder (const RaptorQ_Block_Size symbols,
+                                        const size_t symbol_size,
                                         const Decoder<uint16_t*>::Report type)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_16,
@@ -459,7 +487,8 @@ Decoder<uint16_t*>::Decoder (const Block_Size symbols, const size_t symbol_size,
 }
 
 template <>
-Decoder<uint32_t*>::Decoder (const Block_Size symbols, const size_t symbol_size,
+Decoder<uint32_t*>::Decoder (const RaptorQ_Block_Size symbols,
+                                        const size_t symbol_size,
                                         const Decoder<uint32_t*>::Report type)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_32,
@@ -467,7 +496,8 @@ Decoder<uint32_t*>::Decoder (const Block_Size symbols, const size_t symbol_size,
 }
 
 template <>
-Decoder<uint64_t*>::Decoder (const Block_Size symbols, const size_t symbol_size,
+Decoder<uint64_t*>::Decoder (const RaptorQ_Block_Size symbols,
+                                        const size_t symbol_size,
                                         const Decoder<uint64_t*>::Report type)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_64,
@@ -475,7 +505,7 @@ Decoder<uint64_t*>::Decoder (const Block_Size symbols, const size_t symbol_size,
 }
 
 template <typename In_It, typename Fwd_It>
-Decoder<In_It, Fwd_It>::Decoder (const Block_Size symbols,
+Decoder<In_It, Fwd_It>::Decoder (const RaptorQ_Block_Size symbols,
                                 const size_t symbol_size, const Report type)
 {
     RQ_UNUSED (symbols);
@@ -581,7 +611,7 @@ typename Decoder<In_It, Fwd_It>::Decoder_Result
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll()
+typename Decoder<In_It, Fwd_It>::wait_res Decoder<In_It, Fwd_It>::poll()
 {
     if (_decoder == nullptr)
         return {Error::INITIALIZATION, 0};
@@ -589,7 +619,7 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll()
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::wait_sync()
+typename Decoder<In_It, Fwd_It>::wait_res Decoder<In_It, Fwd_It>::wait_sync()
 {
     if (_decoder == nullptr) {
         return {Error::INITIALIZATION, 0};
@@ -640,7 +670,9 @@ Error Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<size_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
+typename Decoder<In_It, Fwd_It>::decode_pair
+                                        Decoder<In_It, Fwd_It>::decode_bytes (
+                                                    Fwd_It &start,
                                                     const Fwd_It end,
                                                     const size_t from_byte,
                                                     const size_t skip)
