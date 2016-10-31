@@ -22,17 +22,20 @@ code in this category.
 
 
 **libRaptorQ** implements **RFC6330**, which specifies the RaptorQ algorithm.  
+Since the RFC is really complex, there is also a simpler (and maybe slightly faster)
+RAW API that you can use.  The RFC API is not recommended due to the RFC complexity.
 
-libRaptorQ is entirely written in *C++11*, and uses eigen to handle matrix
-manipulation.
+libRaptorQ is a header-only library written in *C++11*, and uses eigen to handle matrix
+manipulation.  
+Although header-only, the library can be compiled to create shared and static libraries
+with both C and C++98 compatibility.
 
 
 Currently it's only been tested under Linux, but should work well under
 *BSD and MacOSX, too.
 
-Windows _should_ work too, provided you use a complier that understands C++11  
-(hint: you might have some problems with VisualC++, but that's not a C++
-compiler anyway)
+Unfortunately Windows is not supported. support for <future> is broken,
+so you can not compile it with Visual Studio 2015.
 
 
 ## Developers ##
