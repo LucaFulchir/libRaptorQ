@@ -200,7 +200,6 @@ endif()
 SET(SOURCES
             src/RaptorQ/v1/Precode_Matrix_Instantiation.cpp
             src/RaptorQ/v1/Shared_Computation/Decaying_LF.cpp
-            src/RaptorQ/v1/Thread_Pool.cpp
             src/RaptorQ/v1/wrapper/C_RAW_API.cpp
             src/RaptorQ/v1/wrapper/C_RFC_API.cpp
             src/RaptorQ/v1/wrapper/CPP_RAW_API_void.cpp

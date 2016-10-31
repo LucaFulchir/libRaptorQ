@@ -177,7 +177,7 @@ inline Compress operator& (const Compress a, const Compress b)
 } // namespace RaptorQ__v1
 namespace RFC6330__v1 {
 namespace Impl {
-    using make_unique = RaptorQ__v1::Impl::make_unique;
+    using RaptorQ__v1::Impl::make_unique;
 } // namespace Impl
 
 using Error = RaptorQ__v1::Error; // easier
