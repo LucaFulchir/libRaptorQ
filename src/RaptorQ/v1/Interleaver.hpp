@@ -160,25 +160,23 @@ public:
     Symbol_it (const Rnd_It data_from, const Rnd_It data_to, const size_t start,
                                         const size_t end, const size_t idx,
                                         const Partition sub_blocks,
-                                        const uint16_t symbol_size,
                                         const uint16_t symbol_id,
                                         const uint16_t k)
             :_data_from (data_from), _data_to (data_to), _start (start),
                                 _end (end), _idx(idx), _sub_blocks (sub_blocks),
-                                _symbol_size (symbol_size), // FIXME: useles??
-                                _symbol_id (symbol_id), _k(k)
+                                                _symbol_id (symbol_id), _k(k)
     {}
 
     constexpr Symbol_it<Rnd_It> begin() const
     {
         return Symbol_it<Rnd_It> (_data_from, _data_to, _start, _end, 0,
-                                    _sub_blocks, _symbol_size, _symbol_id, _k);
+                                                _sub_blocks, _symbol_id, _k);
     }
     constexpr Symbol_it<Rnd_It> end() const
     {
         return Symbol_it<Rnd_It> (_data_from, _data_to, _start, _end,
                                      _sub_blocks.tot (0) + _sub_blocks.tot (1),
-                                    _sub_blocks, _symbol_size, _symbol_id, _k);
+                                                _sub_blocks, _symbol_id, _k);
     }
     using T = typename std::iterator_traits<Rnd_It>::value_type;
     T operator[] (const size_t pos) const
@@ -211,15 +209,13 @@ public:
         return *data;
     }
     T operator* () const
-    {
-        return (*this)[_idx];
-    }
+        { return (*this)[_idx]; }
     Symbol_it<Rnd_It> operator++ (int i) const
     {
         if (_idx + i >=  _sub_blocks.tot (0) + _sub_blocks.tot (1))
             return end();
         return Symbol_it<Rnd_It> (_data_from, _data_to, _start, _end, _idx + i,
-                                    _sub_blocks, _symbol_size, _symbol_id, _k);
+                                    _sub_blocks, _symbol_id, _k);
     }
     Symbol_it<Rnd_It>& operator++()
     {
@@ -228,20 +224,16 @@ public:
         return *this;
     }
     bool operator== (const Symbol_it<Rnd_It> &s) const
-    {
-        return _idx == s._idx;
-    }
+        { return _idx == s._idx; }
     bool operator!= (const Symbol_it<Rnd_It> &s) const
-    {
-        return _idx != s._idx;
-    }
+        { return _idx != s._idx; }
 
 private:
     const Rnd_It _data_from, _data_to;
     const size_t _start, _end;
     size_t _idx;
     const Partition _sub_blocks;
-    const uint16_t _symbol_size, _symbol_id, _k;
+    const uint16_t _symbol_id, _k;
 };
 
 //
@@ -278,17 +270,14 @@ public:
     {
         if (symbol_id <  _symbols) {
             return Symbol_it<Rnd_It> (_data_from, _data_to, _start, _end, 0,
-                                        _sub_blocks, _symbol_size, symbol_id,
-                                                                    _symbols);
+                                            _sub_blocks, symbol_id, _symbols);
         }
         // out of range.
         return Symbol_it<Rnd_It> (_data_from, _data_to, 0, 0, 0, _sub_blocks,
-                                                            _symbol_size, 0, 0);
+                                                                        0, 0);
     }
     const Symbol_it<Rnd_It> operator* () const
-    {
-        return (*this)[_idx];
-    }
+        { return (*this)[_idx]; }
     const Source_Block<Rnd_It> operator++ (int i) const
     {
         if (_idx + i >= _symbols)

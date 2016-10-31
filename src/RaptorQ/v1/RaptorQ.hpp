@@ -72,7 +72,7 @@ public:
     explicit operator bool() const;
 
     uint16_t symbols() const;
-    size_t symbol_size() const; //FIXME: max smbol size is same as signed size_t
+    size_t symbol_size() const;
     uint32_t max_repair() const;
 
 #ifdef RQ_HEADER_ONLY
