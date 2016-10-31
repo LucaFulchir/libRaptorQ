@@ -563,6 +563,10 @@ int main (int argc, char **argv)
             return 1;
         }
         // TODO: launch benchmark
+        // This should launch single-thread benchmark up to 5 seconds, then
+        // estimate the amount needed for the next blocks.
+        // Meaning we should do some interpolation?
+        // is just taking the last 3 points and getting the x^3 curve enough?
         std::cerr << "Benchmarks not implemented yet\n";
         return 0;
     } else if (command.compare ("blocks") == 0) {

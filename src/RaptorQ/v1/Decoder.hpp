@@ -180,7 +180,6 @@ uint16_t Raw_Decoder<In_It>::needed_symbols() const
 template <typename In_It>
 bool Raw_Decoder<In_It>::add_concurrent (const uint16_t max_concurrent)
 {
-    // TODO: aomic should be better?
     std::unique_lock<std::mutex> guard (lock);
     RQ_UNUSED(guard);
     if (max_concurrent > concurrent) {
@@ -200,6 +199,7 @@ template <typename In_It>
 void Raw_Decoder<In_It>::drop_concurrent()
 {
     std::unique_lock<std::mutex> guard (lock);
+    RQ_UNUSED(guard);
     // "if" should not be necessary. But I forgot to add --make-bug-free flag.
     if (concurrent > 0)
         --concurrent;
@@ -429,7 +429,6 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
     if (type == Save_Computation::ON && !DO_NOT_SAVE &&
                                         precode_res == Precode_Result::DONE) {
         DenseMtx res;
-        // TODO: check again if other thread already saved this?
         if (missing.rows() != 0) {
             const int32_t mt_size = static_cast<int32_t>(L_rows + overhead);
             res.setIdentity (mt_size, mt_size);

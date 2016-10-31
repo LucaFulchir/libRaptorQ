@@ -136,7 +136,6 @@ public:
     RFC6330_OTI_Common_Data OTI_Common() const;
     RFC6330_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
-    // TODO: introduce memory limits on threading ?
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
 
     size_t precompute_max_memory ();
@@ -146,7 +145,7 @@ public:
     size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
     void free (const uint8_t sbn);
     uint8_t blocks() const;
-    uint32_t block_size (const uint8_t sbn) const; // TODO: eliminate
+    uint32_t block_size (const uint8_t sbn) const;
     uint16_t symbol_size() const;
     uint16_t symbols (const uint8_t sbn) const;
     uint32_t max_repair (const uint8_t sbn) const;
@@ -304,7 +303,7 @@ public:
                                                             const uint8_t sbn);
     // result in ITERATORS
     // last *might* be half written depending on data alignments
-    // FIXME: <uint64_t, uint16_t> ? why only _8?
+    // NOTE: skip = uint8_t to avoid problems with _alignment
     std::pair<uint64_t, uint8_t> decode_aligned (Fwd_It &start,const Fwd_It end,
                                                             const uint8_t skip);
     std::pair<size_t, uint8_t> decode_block_aligned (Fwd_It &start,
