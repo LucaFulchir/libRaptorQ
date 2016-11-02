@@ -209,21 +209,6 @@ uint32_t Encoder_void::max_repair() const
     return 0;
 }
 
-It::Encoder::Symbol_Iterator_void Encoder_void::begin_source()
-    { return It::Encoder::Symbol_Iterator_void (this, 0); }
-
-It::Encoder::Symbol_Iterator_void Encoder_void::end_source()
-    { return It::Encoder::Symbol_Iterator_void (this, symbols()); }
-
-It::Encoder::Symbol_Iterator_void Encoder_void::begin_repair()
-    { return It::Encoder::Symbol_Iterator_void (this, symbols()); }
-
-It::Encoder::Symbol_Iterator_void Encoder_void::end_repair (
-                                                        const uint32_t repair)
-{
-    return It::Encoder::Symbol_Iterator_void (this, symbols() + repair);
-}
-
 bool Encoder_void::has_data() const
 {
     switch (_type) {
@@ -489,39 +474,57 @@ size_t Encoder_void::encode (void* &output, const void* end, const uint32_t id)
 Decoder_void::Decoder_void (const RaptorQ_type type,
                                             const RaptorQ_Block_Size symbols,
                                             const size_t symbol_size,
-                                            const Report computation)
+                                            const RaptorQ_Compute computation)
     : _type (init_t (type, false))
 {
+    _decoder = nullptr;
+    Impl::Dec_Report report = Impl::Dec_Report::NONE;
+    switch (computation) {
+    case RQ_COMPUTE_PARTIAL_FROM_BEGINNING:
+    case RQ_COMPUTE_PARTIAL_ANY:
+    case RQ_COMPUTE_COMPLETE:
+        report = static_cast<Impl::Dec_Report> (computation);
+        break;
+    case RQ_COMPUTE_NO_BACKGROUND:
+    case RQ_COMPUTE_NO_POOL:
+    case RQ_COMPUTE_NO_RETRY:
+    case RQ_COMPUTE_NONE:
+        break;
+    }
+    if (report == Impl::Dec_Report::NONE) {
+        _type = RaptorQ_type::RQ_NONE;
+        return;
+    }
 
     switch (_type) {
     case RaptorQ_type::RQ_DEC_8:
         _decoder = new Decoder<uint8_t*, uint8_t*> (
                                             static_cast<Block_Size> (symbols),
-                                                    symbol_size, computation);
+                                                        symbol_size, report);
         return;
     case RaptorQ_type::RQ_DEC_16:
         _decoder = new Decoder<uint16_t*, uint16_t*> (
                                             static_cast<Block_Size> (symbols),
-                                                    symbol_size, computation);
+                                                        symbol_size, report);
         return;
     case RaptorQ_type::RQ_DEC_32:
         _decoder = new Decoder<uint32_t*, uint32_t*> (
                                             static_cast<Block_Size> (symbols),
-                                                    symbol_size, computation);
+                                                        symbol_size, report);
         return;
     case RaptorQ_type::RQ_DEC_64:
         _decoder = new Decoder<uint64_t*, uint64_t*> (
                                             static_cast<Block_Size> (symbols),
-                                                    symbol_size, computation);
+                                                        symbol_size, report);
         return;
     case RaptorQ_type::RQ_ENC_8:
     case RaptorQ_type::RQ_ENC_16:
     case RaptorQ_type::RQ_ENC_32:
     case RaptorQ_type::RQ_ENC_64:
     case RaptorQ_type::RQ_NONE:
+        _type = RaptorQ_type::RQ_NONE;
         break;
     }
-    _decoder = nullptr;
 }
 
 Decoder_void::~Decoder_void()
@@ -620,12 +623,6 @@ size_t Decoder_void::symbol_size() const
     }
     return 0;
 }
-
-It::Decoder::Symbol_Iterator_void Decoder_void::begin()
-    { return It::Decoder::Symbol_Iterator_void (this, 0); }
-
-It::Decoder::Symbol_Iterator_void Decoder_void::end()
-    { return It::Decoder::Symbol_Iterator_void (this, symbols()); }
 
 Error Decoder_void::add_symbol (void* &from, const void* to, const uint32_t esi)
 {

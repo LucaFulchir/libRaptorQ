@@ -23,6 +23,7 @@
 #include "RaptorQ/v1/block_sizes.hpp"
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp"
+#include "RaptorQ/v1/RaptorQ_Iterators.hpp"
 #if __cplusplus >= 201103L
     #include <future>
 #endif
@@ -43,17 +44,6 @@
 #endif
 
 namespace RaptorQ__v1 {
-
-namespace It {
-    namespace Encoder {
-        template <typename Rnd_It, typename Fwd_It = Rnd_It>
-        class RAPTORQ_API Symbol_Iterator;
-    } // namespace Encoder
-    namespace Decoder {
-        template <typename In_It, typename Fwd_It = In_It>
-        class RAPTORQ_API Symbol_Iterator;
-    } // namespace Decoder
-} // namespace It
 
 template <typename Rnd_It, typename Fwd_It = Rnd_It>
 class RAPTORQ_API Encoder
@@ -96,11 +86,10 @@ template <typename In_It, typename Fwd_It = In_It>
 class RAPTORQ_API Decoder
 {
 public:
-    using Report = RaptorQ__v1::Impl::Dec_Report;
 
     ~Decoder();
     Decoder (const RaptorQ_Block_Size symbols, const size_t symbol_size,
-                                                            const Report type);
+                                                    const RaptorQ_Compute type);
     EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
@@ -142,112 +131,6 @@ public:
 private:
     Impl::Decoder_void *_decoder;
 };
-
-
-
-///////////////////
-//// Iterators
-///////////////////
-
-namespace It {
-namespace Encoder {
-
-template <typename Rnd_It, typename Fwd_It = Rnd_It>
-class RAPTORQ_API Symbol
-{
-public:
-    Symbol (Impl::Encoder_void *enc, const uint32_t esi)
-        : _enc (enc), _esi (esi) {}
-
-    uint64_t operator() (Rnd_It &start, const Rnd_It end)
-    {
-        if (_enc == nullptr)
-            return 0;
-        return _enc->encode (start, end, _esi);
-    }
-    uint32_t id() const
-        { return _esi; }
-private:
-    Impl::Encoder_void *const _enc;
-    const uint32_t _esi;
-};
-
-template <typename Rnd_It, typename Fwd_It>
-class RAPTORQ_API Symbol_Iterator :
-        public std::iterator<std::input_iterator_tag, Symbol<Rnd_It>>
-{
-public:
-    Symbol_Iterator (Impl::Encoder_void *enc, const uint32_t esi)
-        : _enc (enc), _esi (esi) {}
-    Symbol<Rnd_It> operator*()
-        { return Symbol<Rnd_It> (_enc, _esi); }
-    Symbol_Iterator& operator++()
-    {
-        ++_esi;
-        return *this;
-    }
-    Symbol_Iterator operator++ (const int i) const
-        { return Symbol_Iterator (_enc, _esi + static_cast<uint32_t>(i)); }
-    bool operator== (const Symbol_Iterator &it) const
-        { return it._esi == _esi; }
-    bool operator!= (const Symbol_Iterator &it) const
-        { return it._esi != _esi; }
-private:
-    Impl::Encoder_void *const _enc;
-    uint32_t _esi;
-};
-} // namespace Encoder
-
-
-namespace Decoder {
-template <typename Rnd_It, typename Fwd_It = Rnd_It>
-class RAPTORQ_API Symbol
-{
-public:
-    Symbol (Impl::Decoder_void *dec, const uint16_t esi)
-        : _dec (dec), _esi (esi) {}
-
-    Error operator() (Rnd_It &start, const Rnd_It end)
-    {
-        if (_dec == nullptr)
-            return Error::INITIALIZATION;
-        return _dec->decode_symbol (start, end, _esi);
-    }
-    uint32_t id() const
-        { return _esi; }
-private:
-    Impl::Decoder_void *const _dec;
-    const uint16_t _esi;
-};
-
-template <typename Rnd_It, typename Fwd_It>
-class RAPTORQ_API Symbol_Iterator :
-        public std::iterator<std::input_iterator_tag, Symbol<Rnd_It>>
-{
-public:
-    Symbol_Iterator (Impl::Decoder_void *dec, const uint16_t esi)
-        : _dec (dec), _esi (esi) {}
-    Symbol<Rnd_It> operator*()
-        { return Symbol<Rnd_It> (_dec, _esi); }
-    Symbol_Iterator& operator++()
-    {
-        ++_esi;
-        return *this;
-    }
-    Symbol_Iterator operator++ (const int i) const
-        { return Symbol_Iterator (_dec, _esi + static_cast<uint16_t> (i));}
-    bool operator== (const Symbol_Iterator &it) const
-        { return it._esi == _esi; }
-    bool operator!= (const Symbol_Iterator &it) const
-        { return it._esi != _esi; }
-private:
-    Impl::Decoder_void *_dec;
-    uint16_t _esi;
-};
-
-} // namespace Decoder
-} // namespace It
-
 
 
 ///////////////////
@@ -472,8 +355,8 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 
 template <>
 Decoder<uint8_t*>::Decoder (const RaptorQ_Block_Size symbols,
-                                        const size_t symbol_size,
-                                        const Decoder<uint8_t*>::Report type)
+                                                    const size_t symbol_size,
+                                                    const RaptorQ_Compute type)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_8,
                                                     symbols, symbol_size, type);
@@ -481,8 +364,8 @@ Decoder<uint8_t*>::Decoder (const RaptorQ_Block_Size symbols,
 
 template <>
 Decoder<uint16_t*>::Decoder (const RaptorQ_Block_Size symbols,
-                                        const size_t symbol_size,
-                                        const Decoder<uint16_t*>::Report type)
+                                                     const size_t symbol_size,
+                                                     const RaptorQ_Compute type)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_16,
                                                     symbols, symbol_size, type);
@@ -490,8 +373,8 @@ Decoder<uint16_t*>::Decoder (const RaptorQ_Block_Size symbols,
 
 template <>
 Decoder<uint32_t*>::Decoder (const RaptorQ_Block_Size symbols,
-                                        const size_t symbol_size,
-                                        const Decoder<uint32_t*>::Report type)
+                                                     const size_t symbol_size,
+                                                     const RaptorQ_Compute type)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_32,
                                                     symbols, symbol_size, type);
@@ -499,8 +382,8 @@ Decoder<uint32_t*>::Decoder (const RaptorQ_Block_Size symbols,
 
 template <>
 Decoder<uint64_t*>::Decoder (const RaptorQ_Block_Size symbols,
-                                        const size_t symbol_size,
-                                        const Decoder<uint64_t*>::Report type)
+                                                     const size_t symbol_size,
+                                                     const RaptorQ_Compute type)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_64,
                                                     symbols, symbol_size, type);
@@ -508,7 +391,7 @@ Decoder<uint64_t*>::Decoder (const RaptorQ_Block_Size symbols,
 
 template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::Decoder (const RaptorQ_Block_Size symbols,
-                                const size_t symbol_size, const Report type)
+                        const size_t symbol_size, const RaptorQ_Compute type)
 {
     RQ_UNUSED (symbols);
     RQ_UNUSED (symbol_size);

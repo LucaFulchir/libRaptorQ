@@ -115,6 +115,7 @@ private:
 };
 
 enum class RAPTORQ_LOCAL Dec_Report : uint8_t {
+    NONE = RQ_COMPUTE_NONE,
     PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
     PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
     COMPLETE = RQ_COMPUTE_COMPLETE
@@ -582,6 +583,9 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
     uint32_t last;
     bool expected = false;
     switch (_type) {
+    case Report::NONE:
+        assert (false && "RQ: Report enum: should not have gotten here!");
+        return {Error::INITIALIZATION, 0};
     case Report::PARTIAL_FROM_BEGINNING:
         // report the number of symbols that are known, starting from
         // the beginning.

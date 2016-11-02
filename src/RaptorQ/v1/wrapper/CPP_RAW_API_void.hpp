@@ -42,23 +42,14 @@
 
 // FIXME: test if C++98 works with this:
 #if __cplusplus >= 201103L
-#define EXPLICIT explicit
+#define RQ_EXPLICIT explicit
 #else
-#define EXPLICIT
+#define RQ_EXPLICIT
 #endif
 
 
 namespace RaptorQ__v1 {
 namespace Impl {
-
-namespace It {
-    namespace Encoder {
-        class RAPTORQ_API Symbol_Iterator_void;
-    } // namespace Encoder
-    namespace Decoder {
-        class RAPTORQ_API Symbol_Iterator_void;
-    } // namespace Decoder
-} // namespace It
 
 class RAPTORQ_API Encoder_void final
 {
@@ -66,19 +57,11 @@ public:
     Encoder_void (const RaptorQ_type type, const RaptorQ_Block_Size symbols,
                                                     const size_t symbol_size);
     ~Encoder_void();
-    EXPLICIT operator bool() const;
+    RQ_EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;
     uint32_t max_repair() const;
-
-    // Iterators are exposed for mad people only.
-    // please do not use this interface directly.
-    // include CPP_RAW_API.hpp
-    It::Encoder::Symbol_Iterator_void begin_source();
-    It::Encoder::Symbol_Iterator_void end_source();
-    It::Encoder::Symbol_Iterator_void begin_repair();
-    It::Encoder::Symbol_Iterator_void end_repair (const uint32_t repair);
 
     bool has_data() const;
     size_t set_data (const void* from, const void* to);
@@ -103,21 +86,13 @@ private:
 class RAPTORQ_API Decoder_void
 {
 public:
-    using Report = Dec_Report;
-
     Decoder_void (const RaptorQ_type type, const RaptorQ_Block_Size symbols,
-                            const size_t symbol_size, const Report computation);
+                const size_t symbol_size, const RaptorQ_Compute computation);
     ~Decoder_void();
-    EXPLICIT operator bool() const;
+    RQ_EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;
-
-    // Iterators are exposed for mad people only.
-    // please do not use this interface directly.
-    // include CPP_RAW_API.hpp
-    It::Decoder::Symbol_Iterator_void begin();
-    It::Decoder::Symbol_Iterator_void end();
 
     Error add_symbol (void* &from, const void* to, const uint32_t esi);
     void end_of_input();
@@ -153,110 +128,6 @@ private:
     RaptorQ_type _type;
     void *_decoder;
 };
-
-
-
-// Iterators:
-
-
-namespace It {
-namespace Encoder {
-
-class RAPTORQ_API Symbol_void
-{
-public:
-    Symbol_void (Impl::Encoder_void *enc, const uint32_t esi)
-        : _enc (enc), _esi (esi) {}
-
-    uint64_t operator() (void* &start, const void* end)
-    {
-        if (_enc == nullptr)
-            return 0;
-        return _enc->encode (start, end, _esi);
-    }
-    uint32_t id() const
-        { return _esi; }
-private:
-    Encoder_void *const _enc;
-    const uint32_t _esi;
-};
-
-class RAPTORQ_API Symbol_Iterator_void :
-        public std::iterator<std::input_iterator_tag, Symbol_void>
-{
-public:
-    Symbol_Iterator_void (Encoder_void *enc, const uint32_t esi)
-        : _enc (enc), _esi (esi) {}
-    Symbol_void operator*()
-        { return Symbol_void (_enc, _esi); }
-    Symbol_Iterator_void& operator++()
-    {
-        ++_esi;
-        return *this;
-    }
-    Symbol_Iterator_void operator++ (const int i) const
-        { return Symbol_Iterator_void (_enc, _esi + static_cast<uint32_t>(i)); }
-    bool operator== (const Symbol_Iterator_void &it) const
-        { return it._esi == _esi; }
-    bool operator!= (const Symbol_Iterator_void &it) const
-        { return it._esi != _esi; }
-private:
-    Encoder_void *const _enc;
-    uint32_t _esi;
-};
-} // namespace Encoder
-
-
-namespace Decoder {
-
-class RAPTORQ_API Symbol_void
-{
-public:
-    Symbol_void (Decoder_void *dec, const uint16_t esi)
-        : _dec (dec), _esi (esi) {}
-
-    Error operator() (void* &start, const void* end)
-    {
-        if (_dec == nullptr)
-            return Error::INITIALIZATION;
-        return _dec->decode_symbol (start, end, _esi);
-    }
-    uint32_t id() const
-        { return _esi; }
-private:
-    Decoder_void *const _dec;
-    const uint16_t _esi;
-};
-
-class RAPTORQ_API Symbol_Iterator_void :
-        public std::iterator<std::input_iterator_tag, Symbol_void>
-{
-public:
-    Symbol_Iterator_void (Decoder_void *dec, const uint16_t esi)
-        : _dec (dec), _esi (esi) {}
-    Symbol_void operator*()
-        { return Symbol_void (_dec, _esi); }
-    Symbol_Iterator_void& operator++()
-    {
-        ++_esi;
-        return *this;
-    }
-    Symbol_Iterator_void operator++ (const int i) const
-        { return Symbol_Iterator_void (_dec, _esi + static_cast<uint16_t> (i));}
-    bool operator== (const Symbol_Iterator_void &it) const
-        { return it._esi == _esi; }
-    bool operator!= (const Symbol_Iterator_void &it) const
-        { return it._esi != _esi; }
-private:
-    Decoder_void *_dec;
-    uint16_t _esi;
-};
-
-
-} // namespace Decoder
-} // namespace It
-
-
 
 
 } // namespace Impl

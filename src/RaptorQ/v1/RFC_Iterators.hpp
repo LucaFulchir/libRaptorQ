@@ -22,7 +22,9 @@
 
 #include "RaptorQ/v1/common.hpp"
 #include <cmath>
+#include <iterator>
 
+// NOTE: this file is included from RFC.hpp and CPP_RFC_API.hpp
 
 // Yes, another template parameter would keep us away from macros.
 // But I prefer to kep the parameters the same as for the classes.
@@ -219,7 +221,7 @@ public:
 
     uint64_t operator() (In_It &start, const In_It end)
     {
-        if (_dec == nullptr)
+        //if (_dec == nullptr)
             return 0;
         // FIXME: we can't decode wach symbol separately? :(
         //return _dec->decode (start, end, _id);
