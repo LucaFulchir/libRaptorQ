@@ -234,7 +234,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     std::vector<out_dec_align> received;
     // mysize and the out_alignment might be different. be sure to have
     // enough elements in "received".
-    // NOTE: this meanst that the last element might have additional data.
+    // NOTE: this means that the last element might have additional data.
     size_t out_size = static_cast<size_t> (
                 std::ceil(static_cast<float>(mysize) / sizeof(out_dec_align)));
     received.reserve (out_size);

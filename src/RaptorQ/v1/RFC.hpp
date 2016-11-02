@@ -34,7 +34,7 @@
 #include "RaptorQ/v1/De_Interleaver.hpp"
 #include "RaptorQ/v1/Decoder.hpp"
 #include "RaptorQ/v1/Encoder.hpp"
-#include "RaptorQ/v1/API_Iterators.hpp"
+#include "RaptorQ/v1/RFC_Iterators.hpp"
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
 #include "RaptorQ/v1/Thread_Pool.hpp"
 #include <algorithm>
@@ -54,17 +54,16 @@ namespace RFC6330__v1 {
 constexpr uint64_t max_data = RFC6330_max_data;  // ~881 GB
 
 namespace Impl {
-template <typename Rnd_It, typename Fwd_It = Rnd_It>
+template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_LOCAL Encoder;
-template <typename In_It, typename Fwd_It = In_It>
+template <typename In_It, typename Fwd_It>
 class RAPTORQ_LOCAL Decoder;
 } // namespace Impl
 #ifdef RQ_HEADER_ONLY
-    namespace Impl {
-    template <typename Rnd_It, typename Fwd_It = Rnd_It>
-    using Encoder = RAPTORQ_API Impl::Encoder<Rnd_It, Fwd_It>
-    template <typename In_It, typename Fwd_It>
-    using Decoder = RAPTORQ_API Impl::Decoder<In_It, Fwd_It>
+    template <typename Rnd_It, typename Fwd_It>
+    using Encoder = Impl::Encoder<Rnd_It, Fwd_It>;
+    template <typename Rnd_It, typename Fwd_It>
+    using Decoder = Impl::Decoder<Rnd_It, Fwd_It>;
 #endif
 
 namespace Impl {
@@ -120,17 +119,10 @@ public:
         exiting = false;
     }
 
-    Block_Iterator<Rnd_It, Fwd_It> begin ()
-    {
-        return Block_Iterator<Rnd_It, Fwd_It> (this,
-                                                interleave.get_partition(), 0);
-    }
-    const Block_Iterator<Rnd_It, Fwd_It> end ()
-    {
-        auto part = interleave.get_partition();
-        return Block_Iterator<Rnd_It, Fwd_It> (this, part,
-                            static_cast<uint8_t> (part.num(0) + part.num(1)));
-    }
+    It::Encoder::Block_Iterator<Rnd_It, Fwd_It> begin ()
+        { return It::Encoder::Block_Iterator<Rnd_It, Fwd_It> (this, 0); }
+    const It::Encoder::Block_Iterator<Rnd_It, Fwd_It> end ()
+        { return It::Encoder::Block_Iterator<Rnd_It, Fwd_It> (this, blocks()); }
 
     operator bool() const { return interleave; }
     RFC6330_OTI_Common_Data OTI_Common() const;
@@ -658,10 +650,9 @@ template <typename Rnd_It, typename Fwd_It>
 size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
                                                             const uint32_t &id)
 {
-    const uint32_t mask_8 = static_cast<uint32_t> (std::pow (2, 8)) - 1;
-    const uint32_t mask = ~(mask_8 << 24);
+    constexpr uint32_t mask = ~(static_cast<uint32_t>(0xFF) << 24);
 
-    return encode (output, end, id & mask, static_cast<uint8_t> (id & mask_8));
+    return encode (output, end, id & mask, static_cast<uint8_t> (id >> 24));
 }
 
 template <typename Rnd_It, typename Fwd_It>

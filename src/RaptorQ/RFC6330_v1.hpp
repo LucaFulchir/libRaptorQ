@@ -22,5 +22,6 @@
 
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/CPP_RFC_API.hpp"
+#include "RaptorQ/v1/wrapper/CPP_RFC_API_void.hpp"
 #include "RaptorQ/v1/Thread_Pool.hpp"
 

@@ -490,7 +490,7 @@ Decoder_void::Decoder_void (const RaptorQ_type type,
                                             const RaptorQ_Block_Size symbols,
                                             const size_t symbol_size,
                                             const Report computation)
-    : _type (init_t (type, true))
+    : _type (init_t (type, false))
 {
 
     switch (_type) {

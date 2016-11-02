@@ -201,10 +201,10 @@ SET(SOURCES
             src/RaptorQ/v1/wrapper/C_RAW_API.cpp
             src/RaptorQ/v1/wrapper/C_RFC_API.cpp
             src/RaptorQ/v1/wrapper/CPP_RAW_API_void.cpp
+            src/RaptorQ/v1/wrapper/CPP_RFC_API_void.cpp
             )
 
 SET(HEADERS
-            src/RaptorQ/v1/API_Iterators.hpp
             src/RaptorQ/v1/block_sizes.hpp
             src/RaptorQ/v1/caches.hpp
             src/RaptorQ/v1/common.hpp
@@ -224,6 +224,7 @@ SET(HEADERS
             src/RaptorQ/v1/RaptorQ.hpp
             src/RaptorQ/v1/RaptorQ_Iterators.hpp
             src/RaptorQ/v1/RFC.hpp
+            src/RaptorQ/v1/RFC_Iterators.hpp
             src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
             src/RaptorQ/v1/table2.hpp
             src/RaptorQ/v1/Thread_Pool.hpp
@@ -238,6 +239,7 @@ SET(HEADERS
             src/RaptorQ/v1/wrapper/C_RAW_API.h
             src/RaptorQ/v1/wrapper/C_RFC_API.h
             src/RaptorQ/v1/wrapper/CPP_RFC_API.hpp
+            src/RaptorQ/v1/wrapper/CPP_RFC_API_void.hpp
             src/RaptorQ/v1/wrapper/CPP_RAW_API.hpp
             src/RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp
             )
@@ -446,18 +448,16 @@ if(DYNAMIC_LIB MATCHES "ON")
 endif()
 
 
-# add main tests
+# benchamrks (header only)
 add_executable(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
 target_compile_options(
     libRaptorQ-test PRIVATE
     ${CXX_COMPILER_FLAGS}
 )
-add_dependencies(libRaptorQ-test RaptorQ)
-target_link_libraries(libRaptorQ-test ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
-add_custom_target(tests DEPENDS libRaptorQ-test)
+target_link_libraries(libRaptorQ-test ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
 # build examples
-# C interface
+# C interface (linked)
 add_executable(test_c EXCLUDE_FROM_ALL test/test_c.c)
 target_compile_options(
     test_c PRIVATE
@@ -472,26 +472,24 @@ else()
     target_link_libraries(test_c RaptorQ   ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 endif()
 
-# CPP interface - RFC interface
+# CPP interface - RFC interface (header only)
 add_executable(test_cpp_rfc EXCLUDE_FROM_ALL test/test_cpp_rfc.cpp)
 target_compile_options(
     test_cpp_rfc PRIVATE
     ${CXX_COMPILER_FLAGS}
 )
-add_dependencies(test_cpp_rfc RaptorQ)
-target_link_libraries(test_cpp_rfc ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+target_link_libraries(test_cpp_rfc ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
-# CPP interface - RAW interface
+# CPP interface - RAW interface (header only)
 add_executable(test_cpp_raw EXCLUDE_FROM_ALL test/test_cpp_raw.cpp)
 target_compile_options(
     test_cpp_raw PRIVATE
     ${CXX_COMPILER_FLAGS}
 )
-add_dependencies(test_cpp_raw RaptorQ)
-target_link_libraries(test_cpp_raw ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
-add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw)
+target_link_libraries(test_cpp_raw ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw libRaptorQ-test)
 
-# CLI tool - RAW API interface
+# CLI tool - RAW API interface (header only)
 set(CLI_raw_sources src/cli/RaptorQ.cpp external/optionparser-1.4/optionparser.h)
 if(CLI MATCHES "ON")
     add_executable(CLI_raw ${CLI_raw_sources})
@@ -504,12 +502,11 @@ target_compile_options(
     CLI_raw PRIVATE
     ${CXX_COMPILER_FLAGS}
 )
-add_dependencies(CLI_raw RaptorQ)
 set_target_properties(CLI_raw PROPERTIES OUTPUT_NAME RaptorQ
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
-target_link_libraries(CLI_raw ${RQ_UBSAN} ${STDLIB} RaptorQ ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+target_link_libraries(CLI_raw ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
-add_custom_target(everything DEPENDS make_static_deterministic tests examples docs CLI_tools)
+add_custom_target(everything DEPENDS make_static_deterministic examples docs CLI_tools)
 
 
 install(FILES ${HEADERS} DESTINATION include/RaptorQ/)

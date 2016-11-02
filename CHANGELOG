@@ -1,6 +1,6 @@
 v1.0.0 (prealpha):
     * C++98 compatibility (untested)
-    * we are now a header-only library that can be compiled and linked to C/C++98
+    * we are now a header-only library that can be compiled and linked to C/C++98, with RFC and RAW API
     * RAW API block size is now typesafe.
     * RAW API does not the interleaving code.
     * API reworked to easy manage old/new API in the future

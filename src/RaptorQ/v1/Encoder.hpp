@@ -51,7 +51,6 @@ template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 class RAPTORQ_LOCAL Raw_Encoder
 {
 public:
-    // NOTE: symbols as in RFC table, can't use just any number here!
     Raw_Encoder (const Block_Size symbols, const size_t symbol_size);
     // constructor for interleaver mode
     template <typename R_It = Rnd_It,

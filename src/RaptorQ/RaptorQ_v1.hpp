@@ -21,4 +21,5 @@
 #pragma once
 
 #include "RaptorQ/v1/wrapper/CPP_RAW_API.hpp"
+#include "RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp"
 

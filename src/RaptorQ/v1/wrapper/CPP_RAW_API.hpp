@@ -24,7 +24,7 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp"
 #if __cplusplus >= 201103L
-#include <future>
+    #include <future>
 #endif
 
 
@@ -50,7 +50,7 @@ namespace It {
         class RAPTORQ_API Symbol_Iterator;
     } // namespace Encoder
     namespace Decoder {
-        template <typename Rnd_It, typename Fwd_It = Rnd_It>
+        template <typename In_It, typename Fwd_It = In_It>
         class RAPTORQ_API Symbol_Iterator;
     } // namespace Decoder
 } // namespace It
@@ -92,12 +92,13 @@ private:
     Impl::Encoder_void *_encoder;
 };
 
-template <typename Rnd_It, typename Fwd_It = Rnd_It>
+template <typename In_It, typename Fwd_It = In_It>
 class RAPTORQ_API Decoder
 {
 public:
     using Report = RaptorQ__v1::Impl::Dec_Report;
 
+    ~Decoder();
     Decoder (const RaptorQ_Block_Size symbols, const size_t symbol_size,
                                                             const Report type);
     EXPLICIT operator bool() const;
@@ -106,10 +107,10 @@ public:
     size_t symbol_size() const;
 
     // these are NOT the Encoder_void ones!
-    RaptorQ__v1::It::Decoder::Symbol_Iterator<Rnd_It> begin();
-    RaptorQ__v1::It::Decoder::Symbol_Iterator<Rnd_It> end();
+    RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It> begin();
+    RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It> end();
 
-    Error add_symbol (Rnd_It &from, const Rnd_It to, const uint32_t esi);
+    Error add_symbol (In_It &from, const In_It to, const uint32_t esi);
     void end_of_input();
 
     bool can_decode() const;
@@ -306,7 +307,7 @@ template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::operator bool() const
 {
     if (_encoder == nullptr)
-        return 0;
+        return false;
     return static_cast<bool> (*_encoder);
 }
 
@@ -517,6 +518,11 @@ Decoder<In_It, Fwd_It>::Decoder (const RaptorQ_Block_Size symbols,
                   "uint64_t* are suppoted here. For other tyeps please use "
                   "the header-only version.");
 }
+
+template <typename In_It, typename Fwd_It>
+Decoder<In_It, Fwd_It>::~Decoder()
+    { delete _decoder; }
+
 
 template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::operator bool() const

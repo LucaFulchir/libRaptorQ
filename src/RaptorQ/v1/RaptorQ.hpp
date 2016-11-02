@@ -52,7 +52,6 @@ class RAPTORQ_LOCAL Decoder;
 
 // expose classes, but only if header-only
 #ifdef RQ_HEADER_ONLY
-    // does this export symbols??
     template <typename Rnd_It, typename Fwd_It>
     using Encoder = Impl::Encoder<Rnd_It, Fwd_It>;
     template <typename Rnd_It, typename Fwd_It>
