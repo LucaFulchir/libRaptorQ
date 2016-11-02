@@ -561,10 +561,9 @@ template <typename Rnd_It, typename Fwd_It>
 uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 															const uint32_t &id)
 {
-	const uint32_t mask_8 = static_cast<uint32_t> (std::pow (2, 8)) - 1;
-	const uint32_t mask = ~(mask_8 << 24);
+    constexpr uint32_t mask = ~(static_cast<uint32_t>(0xFF) << 24);
 
-	return encode (output, end, id & mask, static_cast<uint8_t> (id & mask_8));
+    return encode (output, end, id & mask, static_cast<uint8_t> (id >> 24));
 }
 
 template <typename Rnd_It, typename Fwd_It>
