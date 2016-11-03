@@ -37,6 +37,17 @@ Currently it's only been tested under Linux, but should work well under
 Unfortunately Windows is not supported. support for <future> is broken,
 so you can not compile it with Visual Studio 2015.
 
+## Features
+
+- RFC6330 API (complex, not recommended)
+- RAW API (simpler, recommended)
+- multi language:
+  - header only C++11
+  - compiled, C
+  - compiled, C++98
+- cached precomputations (configurable)
+- shared precomputations between processes
+
 
 ## Developers ##
 
@@ -175,7 +186,21 @@ CMAKE_INSTALL_PREFIX Default: /usr/local
 
 ## Using libRaptorQ ##
 
-C and C++11 interfaces are available.
+For the C++11, header-only version, you can include:
+ - "RaptorQ/RaptorQ_v1_hdr.hpp"
+ - "RaptorQ/RFC6330_v1_hdr.hpp"
+
+For the linked, C+98/C++11 API:
+ - "RaptorQ/RaptorQ_v1.hpp"
+ - "RaptorQ/RFC6330_v1.hpp"
+
+For the linked, C API:
+ - "RaptorQ/RaptorQ.h"
+ - "RaptorQ/RFC6330.h"
+
+
+The C++ api is completely in sync between the linked and header-only version,
+so you can switch between the two just by changing the included header file.
 
 You can compile a PDF of the documentation by doing:  
 ``$ make docs``
