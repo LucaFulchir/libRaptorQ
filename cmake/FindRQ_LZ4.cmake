@@ -46,6 +46,10 @@ ELSE(RQ_LZ4_INCLUDE_DIR)
 ENDIF(RQ_LZ4_INCLUDE_DIR)
 
 IF(RQ_LZ4_FOUND)
+    IF(RQ_LZ4_USE_OWN)
+        # force our own lz4 libary
+        SET(RQ_LZ4_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/lz4/lib)
+    ENDIF()
     MESSAGE(STATUS "Found lz4 in ${RQ_LZ4_INCLUDE_DIR}")
     # we need both headers and library, or we use our own
     IF(RQ_LZ4_INCLUDE_DIR MATCHES "${CMAKE_CURRENT_SOURCE_DIR}/external/lz4/lib" OR RQ_LZ4_LIB MATCHES "RQ_LZ4_LIB-NOTFOUND")

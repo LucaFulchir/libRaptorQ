@@ -28,23 +28,27 @@ set(RQ_ABI 1)
 message(STATUS "libRaptorQ version ${RQ_VERSION}")
 add_definitions(-DRQ_VERSION="${RQ_VERSION}")
 
-# default values
-if(NOT CMAKE_BUILD_TYPE)
+if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
 endif()
-
 
 include(GNUInstallDirs)
 
 option(DYNAMIC_LIB "Build dynamic library" ON)
 option(STATIC_LIB "Build static library" ON)
 option(CLANG_STDLIB "Use clang's libc++" OFF)
-option(USE_LZ4 "Use LZ4 compression for result caching" ON)
 option(CLI "BUild CLI tools" ON)
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build Type")
+set(USE_LZ4 "ON" CACHE STRING "Use LZ4 compression for result caching")
 set(RQ_LINKER CACHE STRING "linker to use (auto/gold/ld/bsd)")
+set_property(CACHE CMAKE_BUILD_TYPE   PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+set_property(CACHE USE_LZ4   PROPERTY STRINGS ON BUNDLED OFF)
 set_property(CACHE RQ_LINKER PROPERTY STRINGS GOLD LD BSD)
-mark_as_advanced(FORCE RQ_LINKER)
-
+mark_as_advanced(FORCE RQ_LINKER RQ_GOLD RQ_LZ4_LIB)
+if (USE_LZ4 MATCHES "BUNDLED")
+    set(USE_LZ4 "ON")
+    set(RQ_LZ4_USE_OWN TRUE)
+endif()
 
 # supported linkers: gold, linux standard, bsd
 if(NOT RQ_LINKER)
@@ -378,7 +382,7 @@ if(STATIC_LIB MATCHES "ON")
         set_target_properties (
             RaptorQ_Static
             PROPERTIES
-            LINK_FLAGS "-Wl,-z,now,-z,relro -pie ${LD_OPT}"
+            LINK_FLAGS "-Wl,-z,now,-z,relro${RQ_LZ4_EXCLUDE_SYM} -pie ${LD_OPT}"
         )
     endif()
     set_property(TARGET RaptorQ_Static PROPERTY ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
@@ -435,7 +439,7 @@ if(DYNAMIC_LIB MATCHES "ON")
         # with the wrong number of parameters in the next set_target_properties
         set(RQ_LINK_LIB "${LD_OPT} ")
     else()
-        set(RQ_LINK_LIB "-Wl,-z,now,-z,relro ${LD_OPT}")
+        set(RQ_LINK_LIB "-Wl,-z,now,-z,relro${RQ_LZ4_EXCLUDE_SYM} ${LD_OPT}")
     endif()
     set_target_properties (
         RaptorQ

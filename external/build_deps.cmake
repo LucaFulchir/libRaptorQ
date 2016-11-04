@@ -27,6 +27,8 @@ if(RQ_BUILD_LZ4)
     set(RQ_LZ4_VERSION_PATCH r128)
     set(RQ_LZ4_VERSION_STRING " \"${RQ_LZ4_VERSION_MAJOR}.${RQ_LZ4_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}\" ")
 
+    set(RQ_LZ4_LIBNAME rq_lz4_static)
+
     set(RQ_LZ4_DIR ${PROJECT_SOURCE_DIR}/external/lz4/lib/)
     set(RQ_LZ4_SRCS_LIB ${RQ_LZ4_DIR}lz4.c
                         ${RQ_LZ4_DIR}lz4hc.c
@@ -36,38 +38,45 @@ if(RQ_BUILD_LZ4)
                         ${RQ_LZ4_DIR}lz4frame.h
                         ${RQ_LZ4_DIR}xxhash.c)
 
-    add_library(rq_lz4_static STATIC ${RQ_LZ4_SRCS_LIB})
+    add_library(${RQ_LZ4_LIBNAME} STATIC ${RQ_LZ4_SRCS_LIB})
     include(CheckCCompilerFlag)
+    check_c_compiler_flag("-fPIC" RQ_LZ4_PIC)
+    if(RQ_LZ4_PIC)
+        target_compile_options(
+            ${RQ_LZ4_LIBNAME} PRIVATE
+            "-fPIC"
+        )
+    endif()
     check_c_compiler_flag("-std=c99" RQ_FLAG_C_99)
     if(RQ_FLAG_C_99)
         target_compile_options(
-            rq_lz4_static PRIVATE
+            ${RQ_LZ4_LIBNAME} PRIVATE
             "-std=c99"
         )
     endif()
-    set_target_properties(rq_lz4_static PROPERTIES
+    set_target_properties(${RQ_LZ4_LIBNAME} PROPERTIES
         SOVERSION "${RQ_LZ4_VERSION_MAJOR}.${RQ_LZ4_VERSION_MINOR}")
     #set_property(TARGET lz4_static PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
     ADD_DEFINITIONS("-DLZ4_VERSION=\"${RQ_LZ4_VERSION_PATCH}\"")
     INCLUDE_DIRECTORIES (${RQ_LZ4_DIR})
 
+    # NOTE: will be used in "-Wl..flag,flag,flag" manner. no spaces, and keep the comma
+    set(RQ_LZ4_EXCLUDE_SYM ",--exclude-libs lib${RQ_LZ4_LIBNAME}.a")
 
     # set the dependency and build it all
     if(CMAKE_SYSTEM_NAME MATCHES "Windows")
-        add_custom_target(LZ4 DEPENDS rq_lz4_static)
-        set(RQ_LZ4_DEP rq_lz4_static)
+        add_custom_target(LZ4 DEPENDS ${RQ_LZ4_LIBNAME})
+        set(RQ_LZ4_DEP ${RQ_LZ4_LIBNAME})
     else()
         add_custom_command(
             OUTPUT lz4_deterministic.run
-            COMMAND make_deterministic ${CMAKE_CURRENT_BINARY_DIR}/liblz4.a
-            DEPENDS lz4_static make_deterministic
+            COMMAND make_deterministic ${CMAKE_CURRENT_BINARY_DIR}/lib${RQ_LZ4_LIBNAME}.a
+            DEPENDS ${RQ_LZ4_LIBNAME} make_deterministic
             COMMENT "Removing creation date from lz4 library..."
             VERBATIM
         )
-        add_library(rq_lz4 STATIC IMPORTED)
-        set_target_properties(rq_lz4 PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/liblz4.a)
         add_custom_target(LZ4 DEPENDS lz4_deterministic.run)
-        set(RQ_LZ4_DEP rq_lz4_static)
+        set(RQ_LZ4_DEP ${RQ_LZ4_LIBNAME})
     endif()
 else()
     add_custom_target(LZ4)
