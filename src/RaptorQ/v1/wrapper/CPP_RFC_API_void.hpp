@@ -47,7 +47,7 @@ public:
                                             const void *data_to,
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
-                                            const size_t max_memory);
+                                            const size_t max_sub_block);
 
     operator bool() const;
     RFC6330_OTI_Common_Data OTI_Common() const;

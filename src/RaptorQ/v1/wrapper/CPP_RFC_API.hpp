@@ -50,7 +50,7 @@ public:
     Encoder (const Rnd_It data_from, const Rnd_It data_to,
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
-                                            const size_t max_memory);
+                                            const size_t max_sub_block);
     ~Encoder();
 
     It::Encoder::Block_Iterator<Rnd_It, Fwd_It> begin();
@@ -144,57 +144,57 @@ template <>
 Encoder<uint8_t*>::Encoder (uint8_t* const data_from, uint8_t* const data_to,
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
-                                            const size_t max_memory)
+                                            const size_t max_sub_block)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_8, data_from,
                                                     data_to, min_subsymbol_size,
-                                                    symbol_size, max_memory);
+                                                    symbol_size, max_sub_block);
 }
 
 template <>
 Encoder<uint16_t*>::Encoder (uint16_t* const data_from, uint16_t* const data_to,
                                              const uint16_t min_subsymbol_size,
                                              const uint16_t symbol_size,
-                                             const size_t max_memory)
+                                             const size_t max_sub_block)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_16, data_from,
-                                     data_to, min_subsymbol_size,
-                                     symbol_size, max_memory);
+                                                 data_to, min_subsymbol_size,
+                                                 symbol_size, max_sub_block);
 }
 
 template <>
 Encoder<uint32_t*>::Encoder (uint32_t* const data_from, uint32_t* const data_to,
                                              const uint16_t min_subsymbol_size,
                                              const uint16_t symbol_size,
-                                             const size_t max_memory)
+                                             const size_t max_sub_block)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_32, data_from,
-                                     data_to, min_subsymbol_size,
-                                     symbol_size, max_memory);
+                                                 data_to, min_subsymbol_size,
+                                                 symbol_size, max_sub_block);
 }
 
 template <>
 Encoder<uint64_t*>::Encoder (uint64_t* const data_from, uint64_t* const data_to,
                                              const uint16_t min_subsymbol_size,
                                              const uint16_t symbol_size,
-                                             const size_t max_memory)
+                                             const size_t max_sub_block)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_64, data_from,
-                                     data_to, min_subsymbol_size,
-                                     symbol_size, max_memory);
+                                                 data_to, min_subsymbol_size,
+                                                 symbol_size, max_sub_block);
 }
 
 template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::Encoder (const Rnd_It data_from, const Rnd_It data_to,
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
-                                            const size_t max_memory)
+                                            const size_t max_sub_block)
 {
     RQ_UNUSED (data_from);
     RQ_UNUSED (data_to);
     RQ_UNUSED (min_subsymbol_size);
     RQ_UNUSED (symbol_size);
-    RQ_UNUSED (max_memory);
+    RQ_UNUSED (max_sub_block);
     static_assert (false,
             "RaptorQ: sorry, only uint8_t*, uint16_t*, uint32_t*, uint64_t*, "
                 "supported for the linked library. For more please use the "

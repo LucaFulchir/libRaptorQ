@@ -350,7 +350,7 @@ template <typename Rnd_It>
 Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
                                             const Rnd_It data_to,
                                             const uint16_t min_subsymbol_size,
-                                            const size_t max_block_decodable,
+                                            const size_t max_sub_block,
                                             const uint16_t symbol_size)
     :_data_from (data_from), _data_to (data_to), _symbol_size (symbol_size),
         _alignment (sizeof(typename std::iterator_traits<Rnd_It>::value_type))
@@ -368,6 +368,66 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
     assert((min_subsymbol_size % _alignment) == 0 &&
                 "RaptorQ: minimum subsymbol must be multiple of alignment");
     // derive number of source blocks and sub blocks. seed RFC 6330, pg 8
+    // Explanation of the RFC:
+    //    // RFC says WS = max block size. nope. it's sub-block size.
+    //    // WS = MAX_sub_block_size_BYTES
+    //    MAX_sub_block_size_BYTES = (from input)
+    //    // T = P' = Symbol_Size (BYTES => multiple of alignment)
+    //    Symbol_Size_BYTES = (from_input)
+    //    // F = Input_Size (BYTES => multiple of alignment
+    //    Input_Size_BYTES = (from input)
+    //
+    //    // SS = Sub_Symbol_Alignments
+    //    Sub_Symbol_ALIGNMENTS = (from input)
+    //    // so we can derive:
+    //    Sub_Symbol_BYTES = Sub_Symbol_ALIGNMENTS * alignment
+    //
+    //
+    //    // Kt == total number of symbols.
+    //    Symbols_Num_tot = ceil (Input_Size_BYTES/Symbol_Size_BYTES)
+    //
+    //    // N_max = maximum number of subsymbols in a symbol
+    //    // if we added more subsymbols, we would have to reduce the
+    //    // subsymbol size. but the subsymbol size is a lower bound!
+    //    MAX_subsymbol_per_symbol = floor(Symbol_Size_BYTES/Sub_Symbol_BYTES)
+    //
+    //    KL_N = array_of_size $MAX_subsymbol_per_symbol
+    //
+    //    for (int tmp_subsymbols = 1;
+    //                              tmp_subsymbols <= MAX_subsymbol_per_symbol;
+    //                                                      ++tmp_subsymbols) {
+    //        Subsymbol_Size_ALIGNMENT =
+    //                              ceil(Symbol_Size_BYTES/(AL*tmp_subsymbols))
+    //        Subsymbol_Size_BYTES = AL * Subsymbol_Size_ALIGNMENT
+    //        Subsymbols_per_block =
+    //                          MAX_sub_block_size_BYTES / Subsymbol_Size_BYTES
+    //
+    //        int K' = table_2_k[0];
+    //        for (int i = 0; i < table_2_k.size(); ++i) {
+    //            if (K' > Subsymbols_per_block)
+    //                break;
+    //            K' = table_2_k[i]
+    //        }
+    //        // number of symbols per block must be _at_least_ the number of
+    //        // subsymbols per block?
+    //        KL_N [tmp_subsymbols] = K'
+    //    }
+    //
+    //    // Z = source blocks number
+    //    Source_Blocks = ceil(Symbols_Num_tot / KL_N[MAX_subsymbol_per_symbol])
+    //
+    //
+    //    Symbols_per_block = ceil(Symbols_Num_tot / Source_Blocks)
+    //    // N = Sub_Blocks
+    //    Sub_Blocks = 1
+    //    for (int i = 1; i < MAX_subsymbol_per_symbol; ++i) {
+    //        if (Symbols_per_block <= KL_N[i]) {
+    //            Sub_Blocks = i
+    //            break
+    //        }
+    //    }
+    //
+
     std::vector<uint16_t> sizes;
     size_t iter_size =sizeof(typename std::iterator_traits<Rnd_It>::value_type);
     const uint64_t input_size =
@@ -390,7 +450,7 @@ Interleaver<Rnd_It>::Interleaver (const Rnd_It data_from,
     sizes.reserve (N_max);
     // find our KL(n), for each n
     for (tmp = 1; tmp <= N_max; ++tmp) {
-        auto upper_bound = max_block_decodable / (_alignment *
+        auto upper_bound = max_sub_block / (_alignment *
                             div_ceil<size_t> (_symbol_size, _alignment * tmp));
         size_t idx;
         for (idx = 0; idx < RaptorQ__v1::Impl::K_padded.size(); ++idx) {

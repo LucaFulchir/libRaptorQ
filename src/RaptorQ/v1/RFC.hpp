@@ -78,14 +78,15 @@ public:
     Encoder (const Rnd_It data_from, const Rnd_It data_to,
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
-                                            const size_t max_memory)
-        : _mem (max_memory), _data_from (data_from), _data_to (data_to),
+                                            const size_t max_sub_block)
+        : _max_sub_blk (max_sub_block), _data_from (data_from),
+                                            _data_to (data_to),
                                             _symbol_size (symbol_size),
                                             _min_subsymbol (min_subsymbol_size),
                                             interleave (_data_from,
                                                         _data_to,
                                                         _min_subsymbol,
-                                                        _mem,
+                                                        _max_sub_blk,
                                                         _symbol_size)
     {
         IS_RANDOM(Rnd_It, "RFC6330__v1::Encoder");
@@ -180,7 +181,7 @@ private:
     std::map<uint8_t, Enc> encoders;
     std::mutex _mtx;
 
-    const size_t _mem;
+    const size_t _max_sub_blk;
     const Rnd_It _data_from, _data_to;
     const uint16_t _symbol_size;
     const uint16_t _min_subsymbol;
@@ -279,6 +280,10 @@ public:
         use_pool = true;
         exiting = false;
     }
+    It::Decoder::Block_Iterator<In_It, Fwd_It> begin ()
+        { return It::Decoder::Block_Iterator<In_It, Fwd_It> (this, 0); }
+    const It::Decoder::Block_Iterator<In_It, Fwd_It> end ()
+        { return It::Decoder::Block_Iterator<In_It, Fwd_It> (this, blocks()); }
     operator bool() const
         { return _size <= max_data; }
 

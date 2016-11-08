@@ -115,7 +115,7 @@ Encoder_void::Encoder_void (const RaptorQ_type type, const void* data_from,
                                             const void* data_to,
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
-                                            const size_t max_memory)
+                                            const size_t max_sub_block)
     : _type (init_t (type, true))
 {
     _encoder = nullptr;
@@ -125,28 +125,28 @@ Encoder_void::Encoder_void (const RaptorQ_type type, const void* data_from,
                     reinterpret_cast<uint8_t*> (const_cast<void*>(data_from)),
                     reinterpret_cast<uint8_t*> (const_cast<void*>(data_to)),
                                                 min_subsymbol_size,
-                                                symbol_size, max_memory);
+                                                symbol_size, max_sub_block);
         break;
     case RaptorQ_type::RQ_ENC_16:
         _encoder = new Impl::Encoder<uint16_t*, uint16_t*> (
                     reinterpret_cast<uint16_t*> (const_cast<void*>(data_from)),
                     reinterpret_cast<uint16_t*> (const_cast<void*>(data_to)),
                                                 min_subsymbol_size,
-                                                symbol_size, max_memory);
+                                                symbol_size, max_sub_block);
         break;
     case RaptorQ_type::RQ_ENC_32:
         _encoder = new Impl::Encoder<uint32_t*, uint32_t*> (
                     reinterpret_cast<uint32_t*> (const_cast<void*>(data_from)),
                     reinterpret_cast<uint32_t*> (const_cast<void*>(data_to)),
                                                 min_subsymbol_size,
-                                                symbol_size, max_memory);
+                                                symbol_size, max_sub_block);
         break;
     case RaptorQ_type::RQ_ENC_64:
         _encoder = new Impl::Encoder<uint64_t*, uint64_t*> (
                     reinterpret_cast<uint64_t*> (const_cast<void*>(data_from)),
                     reinterpret_cast<uint64_t*> (const_cast<void*>(data_to)),
                                                 min_subsymbol_size,
-                                                symbol_size, max_memory);
+                                                symbol_size, max_sub_block);
         break;
     case RaptorQ_type::RQ_DEC_8:
     case RaptorQ_type::RQ_DEC_16:
