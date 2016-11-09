@@ -34,6 +34,7 @@
 #include "RaptorQ/RaptorQ_v1_hdr.hpp"
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -100,8 +101,19 @@ const option::Descriptor usage[] =
  {0,0,0,0,0,0}
 };
 
-
+void bench (uint32_t seconds);
 static void info (const char *prog_name);
+static bool encode (const int64_t symbol_size,
+                                        const RaptorQ__v1::Block_Size symbols,
+                                        const uint32_t repair,
+                                        std::istream *input,
+                                        std::ostream *output);
+
+static bool decode (const size_t bytes, const RaptorQ__v1::Block_Size symbols,
+                                                    const int64_t symbol_size,
+                                                    std::istream *input,
+                                                    std::ostream *output);
+
 static void info (const char *prog_name)
 {
     std::cout << "RaptorQ library version: " << RaptorQ_version << "\n";
@@ -143,17 +155,6 @@ struct write_out_args
 };
 
 
-
-static bool encode (const int64_t symbol_size,
-                                        const RaptorQ__v1::Block_Size symbols,
-                                        const uint32_t repair,
-                                        std::istream *input,
-                                        std::ostream *output);
-
-static bool decode (const size_t bytes, const RaptorQ__v1::Block_Size symbols,
-                                                    const int64_t symbol_size,
-                                                    std::istream *input,
-                                                    std::ostream *output);
 static void print_output (struct write_out_args args);
 
 // thread function to wait for the decoders to finish decoding and
@@ -515,7 +516,7 @@ int main (int argc, char **argv)
         // no arguments
         arguments = nullptr;
     } else if (argc == 2) {
-        // maybe "help" or "format"
+        // maybe "help" or "format" or "benchmark"
         arguments = argv + 1;
     } else {
         // command. but if we do not skip it the command line parsing library
@@ -557,17 +558,18 @@ int main (int argc, char **argv)
         if (options[SYMBOLS].count() != 0 || options[SYMBOL_SIZE].count() != 0
                                         || options[REPAIR].count() != 0
                                         || options[BYTES].count() != 0
-                                        || parse.nonOptionsCount() != 0) {
+                                        || parse.nonOptionsCount() != 1) {
             std::cerr << "ERR: \"benchmark\" does not use arguments\n";
             option::printUsage (std::cout, usage);
             return 1;
         }
         // TODO: launch benchmark
-        // This should launch single-thread benchmark up to 5 seconds, then
+        // This should launch single-thread benchmark up to 1 second, then
         // estimate the amount needed for the next blocks.
         // Meaning we should do some interpolation?
         // is just taking the last 3 points and getting the x^3 curve enough?
-        std::cerr << "Benchmarks not implemented yet\n";
+        bench (1);
+        std::cout << "Extrapolate by yourself. cubic curve :p\n";
         return 0;
     } else if (command.compare ("blocks") == 0) {
         std::cout << "Usable block sizes:\n";
@@ -734,5 +736,72 @@ int main (int argc, char **argv)
         if (decode(bytes, symbols, symbol_size, input, output))
             return 0;
         return 1;
+    }
+}
+
+
+// Benchmark stuff:
+
+class Timer {
+public:
+    Timer() {}
+    void start()
+        { t0 = std::chrono::high_resolution_clock::now(); }
+    std::chrono::microseconds stop ()
+    {
+        auto t1 = std::chrono::high_resolution_clock::now();
+        auto diff = t1 - t0;
+        return std::chrono::duration_cast<std::chrono::microseconds> (diff);
+    }
+private:
+    std::chrono::time_point<std::chrono::high_resolution_clock> t0;
+};
+
+
+void bench (uint32_t seconds)
+{
+    // do benchmarks until we find a block that stays "seconds" secs to crunch.
+    // then extrapolate the rest.
+    for (auto blk : *RaptorQ__v1::blocks) {
+        constexpr size_t symbol_size = 1280;    // min supported ipv6 payload
+                                                // kinda arbitrary anyway.
+        std::vector<uint8_t> data (symbol_size * static_cast<uint16_t> (blk),0);
+
+        RaptorQ__v1::Encoder<std::vector<uint8_t>::iterator,
+                    std::vector<uint8_t>::iterator> encoder (blk, symbol_size);
+        encoder.set_data (data.begin(), data.end());
+        Timer time;
+        time.start();
+        encoder.compute_sync();
+        auto microsec_encode = time.stop();
+        const uint32_t max_symbol = static_cast<uint16_t> (blk) + 5;
+        std::vector<std::vector<uint8_t>> encoded (max_symbol);
+        for (uint32_t id = 1; id <= max_symbol; ++id) {
+            // skip the first so the decoder can do its work
+            encoded[id - 1] = std::vector<uint8_t> (symbol_size, 0);
+            auto b_it = encoded[id - 1].begin();
+            encoder.encode (b_it, encoded[id - 1].end(), id);
+        }
+
+
+        using Dec_t = typename RaptorQ__v1::Decoder<
+                                                std::vector<uint8_t>::iterator,
+                                                std::vector<uint8_t>::iterator>;
+        Dec_t decoder (blk, symbol_size, Dec_t::Report::COMPLETE);
+        uint32_t id = 1;
+        for (auto &sym : encoded) {
+            auto b_it = sym.begin();
+            decoder.add_symbol (b_it, sym.end(), id++);
+        }
+        time.start();
+        decoder.decode_once(); // don't even care about the result
+        auto microsec_decode = time.stop();
+
+        auto avg_microsec = (microsec_encode + microsec_decode) / 2;
+
+        std::cout << "  Size: " << static_cast<uint32_t> (blk) << " microsecs: "
+                                                << avg_microsec.count() << "\n";
+        if (avg_microsec > std::chrono::seconds (seconds))
+            break;
     }
 }
