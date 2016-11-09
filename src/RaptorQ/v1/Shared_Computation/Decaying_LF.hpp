@@ -48,6 +48,7 @@ inline std::vector<uint8_t> RAPTORQ_API Mtx_to_raw (const DenseMtx &mtx)
     }
     return ret;
 }
+
 DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
                                                         const uint32_t cols);
 inline DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
@@ -163,16 +164,17 @@ public:
 //   is used a lot at the beginning, and never again, it will still sit
 //   at the top of the cache.
 // The idea behind the "Decaying" LF is to slowly drop the hit count
-// for the cached elements.
+// for all the cached elements.
 //  The basic idea is based on "ticks" (representing access time)
 //   * global tick, increased every hit.
 //   * each element has 2 ticks:
-//     * last access
-//     * score: cache entry tick + appropriate increase for every hit
-//  At every hit, the element score is increased by the number of
-//  elements in the cache, plus a value depending on how close
-//  last_tick was to the global_tick. Closer mean higher frequency access,
-//  so a higher increase will happen.
+//     * last tick
+//     * score: last tick + appropriate increase for every hit
+//  At every cache hit, the element score is increased by up to the number of
+//  elements in the cache, depending on how close
+//  last_tick was to the global_tick. Closer means higher frequency access,
+//  so a higher lesser will happen to avoid starvation in case where
+//  one element is accessed too many times and then forgotten
 ///////////////////////////////////////////////////////////////////////
 
 
@@ -213,11 +215,12 @@ private:
         DLF_Data (const DLF_Data &d);
         DLF_Data (const Key k, const uint32_t _score, const uint32_t _tick,
                                         User_Data &_raw, const Compress alg)
-            : key (k), score (_score), tick(_tick), raw(_raw), algorithm (alg)
+            : key (k), score (_score), tick(_tick), raw(std::move(_raw)),
+              algorithm (alg)
         {}
         Key key;
-        std::atomic<uint32_t> score;
-        std::atomic<uint32_t> tick;
+        uint32_t score;
+        uint32_t tick;
         User_Data raw;
         Compress algorithm;
 
@@ -225,10 +228,15 @@ private:
         DLF_Data& operator= (const DLF_Data &rhs);
     };
     std::mutex biglock;
+    // works without atomic, we lock everything anyway.
+    // which is bad, reaally. using atomic would be better, but more complex
     std::atomic<uint32_t> global_tick;
     size_t actual_size;
     size_t max_size;
     std::vector<DLF_Data> data;
+
+    void test_and_reset_scores();
+    void update_element (DLF_Data &el);
 };
 
 
@@ -236,11 +244,9 @@ template<typename User_Data, typename Key>
 DLF<User_Data, Key>::DLF_Data::DLF_Data (const DLF_Data &d)
     :key (d.key)
 {
-    auto _score = d.score.load();
-    auto _tick = d.tick.load();
     algorithm = d.algorithm;
-    score = _score;
-    tick = _tick;
+    score = d.score;
+    tick = d.tick;
     raw = d.raw;
 }
 
@@ -248,12 +254,10 @@ template<typename User_Data, typename Key>
 typename DLF<User_Data, Key>::DLF_Data&
    DLF<User_Data, Key>::DLF_Data::operator= (const DLF_Data &d)
 {
-    auto _score = d.score.load();
-    auto _tick = d.tick.load();
     key = d.key;
     algorithm = d.algorithm;
-    score = _score;
-    tick = _tick;
+    score = d.score;
+    tick = d.tick;
     raw = d.raw;
 
     return *this;
@@ -261,9 +265,7 @@ typename DLF<User_Data, Key>::DLF_Data&
 
 template<typename User_Data, typename Key>
 bool DLF<User_Data, Key>::DLF_Data::operator< (const DLF_Data &rhs) const
-{
-    return score > rhs.score;
-}
+    { return score < rhs.score; }
 
 template<typename User_Data, typename Key>
 DLF<User_Data, Key>::DLF()
@@ -275,34 +277,74 @@ DLF<User_Data, Key>::DLF()
 
 template<typename User_Data, typename Key>
 size_t DLF<User_Data, Key>::get_size() const
-{
-    return max_size;
-}
+    { return max_size; }
 
 template<typename User_Data, typename Key>
 size_t DLF<User_Data, Key>::resize (const size_t new_size)
 {
     std::lock_guard<std::mutex> guard (biglock);
-    while (actual_size < new_size) {
-        uint32_t item = static_cast<uint32_t> (data.size());
-        if (item == 0)
-            break;
-        --item;
-        auto it = data.begin() + item;
-        actual_size -= sizeof(DLF_Data) + it->raw.size();
-        data.erase (it);
+    RQ_UNUSED (guard);
+    while (actual_size > new_size) {
+        auto r_it = data.rbegin();
+        assert (r_it != data.rend() && "RQ: DLF: r_it should have data.");
+        actual_size -= (sizeof(DLF_Data) + r_it->raw.size());
+        data.pop_back();
     }
     max_size = new_size;
     return max_size;
 }
 
 template<typename User_Data, typename Key>
+void DLF<User_Data, Key>::test_and_reset_scores()
+{
+    // we overflowed. play it safe. reset all scores from zero.
+    uint32_t g_tick = global_tick.load();
+    if (g_tick != 0)
+        return;
+    for (auto &el : data) {
+        const uint32_t abs_score = el.score - el.tick;
+        const uint32_t till_overflow =
+                                std::numeric_limits<uint32_t>::max() - el.tick;
+        if (abs_score > till_overflow) {
+            el.score = abs_score - till_overflow;
+        } else {
+            el.score = 0;
+        }
+        el.tick = 0;
+    }
+}
+
+template<typename User_Data, typename Key>
+void DLF<User_Data, Key>::update_element (DLF<User_Data, Key>::DLF_Data &el)
+{
+    // update the score & timers on the given element
+    auto g_tick = ++global_tick;
+    test_and_reset_scores();
+    uint32_t tick_diff = g_tick - el.tick;
+    uint32_t abs_score = el.score - el.tick;
+    if (abs_score < tick_diff) {
+        abs_score = 0;
+    } else {
+        abs_score -= tick_diff;
+    }
+    el.tick = g_tick;
+    el.score = el.tick + abs_score +
+                                std::min (static_cast<uint32_t> (data.size()),
+                                                                1 + tick_diff);
+    std::sort(data.begin(), data.end());
+}
+
+template<typename User_Data, typename Key>
 std::pair<Compress, User_Data> DLF<User_Data, Key>::get (const Key &key)
 {
     std::lock_guard<std::mutex> guard (biglock);
+    RQ_UNUSED(guard);
     for (auto &tmp : data) {
-        if (tmp.key == key)
-            return {tmp.algorithm, tmp.raw};
+        if (tmp.key == key) {
+            std::pair<Compress, User_Data> ret_data = {tmp.algorithm, tmp.raw};
+            update_element (tmp);
+            return ret_data;
+        }
     }
     return {Compress::NONE, User_Data ()};
 }
@@ -312,47 +354,53 @@ bool DLF<User_Data, Key>::add (const Compress algorithm, User_Data &raw,
                                                                 const Key &key)
 {
     std::lock_guard<std::mutex> guard (biglock);
+    RQ_UNUSED(guard);
     for (auto &tmp : data) {
         if (tmp.key == key) {
-            ++global_tick;
-            if (tmp.score <= global_tick) {
-                auto tick = global_tick.load();
-                tmp.tick = tick;
-            }
-            tmp.score += static_cast<uint32_t> (data.size());
-            std::sort(data.begin(), data.end());
+            update_element (tmp);
             return true;
         }
     }
     // key not present.
     if (max_size - actual_size > sizeof(DLF_Data) + raw.size()) {
-        auto tmp_tick = global_tick.load();
-        //DLF_Data tmp (key, tmp_tick + 1, tmp_tick, raw);
-        //data.push_back(tmp);
-        data.emplace_back (key, tmp_tick + 1, tmp_tick, raw, algorithm);
+        // free space is the best
+        auto g_tick = ++global_tick;
+        test_and_reset_scores();
+        data.emplace_back (key, g_tick + data.size(), g_tick, raw, algorithm);
         std::sort (data.begin(), data.end());
         actual_size += sizeof(DLF_Data) + raw.size();
         return true;
     } else {
-        auto last_item = data.size();
-        if (last_item == 0)
-            return false;
-        --last_item;
-        if (max_size - data[last_item].raw.size() < raw.size()) {
-            ++global_tick;
-            auto tmp_tick = global_tick.load();
-            data[last_item].score = tmp_tick + 1;
-            data[last_item].tick = tmp_tick;
-            actual_size -= data[last_item].raw.size();
-            data[last_item].raw = std::move(raw);
-            max_size += raw.size() + sizeof (DLF_Data);
-            std::sort (data.begin(), data.end());
-            actual_size += sizeof(RaptorQ__v1::Impl::DLF<User_Data, Key>) +
-                                                                    raw.size();
-            return true;
-        } else {
+        // need to delete some element?
+        auto g_tick = ++global_tick;
+        test_and_reset_scores();
+        size_t usable_bytes = max_size - actual_size;
+        size_t delete_from_end = 0;
+        for (auto r_it = data.rbegin(); r_it != data.rend() &&
+                                usable_bytes < (sizeof(DLF_Data) + raw.size());
+                                                                    ++r_it) {
+            // score is less than tick. check for overflows
+            if ((g_tick - r_it->tick) > (r_it->score - r_it->tick)) {
+                ++delete_from_end;
+                usable_bytes +=  sizeof(DLF_Data) + r_it->raw.size();
+            } else {
+                break;
+            }
+        }
+        if (usable_bytes < (sizeof(DLF_Data) + raw.size())) {
+            // can't delete enough cached items, the new item requires
+            // too much space, and fresher elements are present.
             return false;
         }
+        while (delete_from_end > 0) {
+            data.pop_back();
+            --delete_from_end;
+        }
+        data.emplace_back (key, g_tick + data.size(), g_tick, raw, algorithm);
+        std::sort (data.begin(), data.end());
+        actual_size -= usable_bytes;
+        actual_size += sizeof(DLF_Data) + raw.size();
+        return true;
     }
 }
 

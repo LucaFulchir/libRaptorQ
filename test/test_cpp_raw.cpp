@@ -322,6 +322,7 @@ int main (void)
     rand.close ();
     rnd.seed (seed);
 
+    RaptorQ__v1::local_cache_size (5000000);
 
     // encode and decoder
     for (size_t i = 0; i < 1000; ++i) {

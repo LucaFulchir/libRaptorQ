@@ -60,7 +60,7 @@ if(RQ_BUILD_LZ4)
     ADD_DEFINITIONS("-DLZ4_VERSION=\"${RQ_LZ4_VERSION_PATCH}\"")
     INCLUDE_DIRECTORIES (${RQ_LZ4_DIR})
 
-    # NOTE: will be used in "-Wl..flag,flag,flag" manner. no spaces, and keep the comma
+    # NOTE: will be used like "-Wl..flag,flag,flag" . no spaces, and keep the comma
     set(RQ_LZ4_EXCLUDE_SYM ",--exclude-libs lib${RQ_LZ4_LIBNAME}.a")
 
     # set the dependency and build it all
