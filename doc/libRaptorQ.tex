@@ -274,8 +274,8 @@ symbol can have up to \textit{$2^{16}-1$ bytes}long. This gives a maximum files 
 
 \index{Interleaving}\marginlabel{Interleaving:}
 An other feature of RaptorQ is to automatically provide some interleaving of the input data before transmitting it. This means that one symbol will not
-represent one sequential chunk of your input data, but more likely it's the concatenation of different \textbf{sub-symbols}. The size of the subsymbol must thus
-be a fraction of the symbol size. This feature is not used if you set the size of the subsymbol to the size of symbol.
+represent one sequential chunk of your input data, but more likely it's the concatenation of different \textbf{sub-symbols}. \\
+Two parameters regulate this part: the subsymbol size (which must be a multiple of the input data alignment), and sub-block size. \\Setting the subsymbol size the same as the symbol size will disable interleaving. \\ The sub-block size parameter will be used to divide the input data in different blocks. See \href{https://tools.ietf.org/html/rfc6330}{RFC6330} for details.
 
 
 \marginlabel{Memory and Time:}
@@ -324,8 +324,7 @@ RaptorQ::Encoder<T_it, T_it> enc (input.begin(),
                                   4, 1444, 10000)
 \end{lstlisting}
 
-This will create an Encoder that works on vectors of unsigned 32 bit integers for both input and output, that will create symbols of size 1444 bytes, interleaving
-your input every 4 bytes, and try to work with big number of symbols per blocks (\textbf{TODO: explain memory requirements})
+This will create an Encoder that works on vectors of unsigned 32 bit integers for both input and output, that will create symbols of size 1444 bytes, and interleave your data with a subsymbol of 4 bytes and with a block size of at maximum 10.000 bytes.
 
 The available methods for the encoder are the following:
 
@@ -520,7 +519,7 @@ RaptorQ_ptr* RaptorQ_Enc (const RaptorQ_type type,
                     const uint64_t size,
                     const uint16_t min_subsymbol_size,
                     const uint16_t symbol_size,
-                    const size_t max_memory);
+                    const size_t max_sub_block);
 
 RaptorQ_ptr* RaptorQ_Dec (const RaptorQ_type type,
               const RaptorQ_OTI_Common_Data common,
@@ -586,7 +585,7 @@ uint32_t RaptorQ_max_repair (RaptorQ_ptr *enc,
                                    const uint8_t sbn);
 //estimate bytes of ram used in the precomputation
 // of one block
-size_t RaptorQ_precompute_max_memory (
+size_t RaptorQ_precompute_\textsl{max_mem}ory (
                                struct RaptorQ_ptr *enc);
 // do the precomputation.
 void RaptorQ_precompute (struct RaptorQ_ptr *enc,
