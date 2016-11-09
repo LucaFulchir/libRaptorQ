@@ -339,6 +339,8 @@ bool Encoder<Rnd_It, Fwd_It>::compute_sync()
     if (encoder.ready())
         return true;
     if (_state == Enc_State::FULL) {
+        if (precomputed.rows() != 0)
+            return encoder.generate_symbols (precomputed, &_from, &_to);
         return encoder.generate_symbols (&work, &_from, &_to);
     } else {
         if (precomputed.rows() != 0)

@@ -773,7 +773,14 @@ void bench (uint32_t seconds)
         Timer time;
         time.start();
         encoder.compute_sync();
-        auto microsec_encode = time.stop();
+        auto microsec_encode_full = time.stop();
+        // now test after precomputation:
+        encoder.clear_data();
+        encoder.precompute_sync();
+        encoder.set_data (data.begin(), data.end());
+        time.start();
+        encoder.compute_sync();
+        auto microsec_encode_pre = time.stop();
         const uint32_t max_symbol = static_cast<uint16_t> (blk) + 5;
         std::vector<std::vector<uint8_t>> encoded (max_symbol);
         for (uint32_t id = 1; id <= max_symbol; ++id) {
@@ -782,7 +789,6 @@ void bench (uint32_t seconds)
             auto b_it = encoded[id - 1].begin();
             encoder.encode (b_it, encoded[id - 1].end(), id);
         }
-
 
         using Dec_t = typename RaptorQ__v1::Decoder<
                                                 std::vector<uint8_t>::iterator,
@@ -797,10 +803,15 @@ void bench (uint32_t seconds)
         decoder.decode_once(); // don't even care about the result
         auto microsec_decode = time.stop();
 
-        auto avg_microsec = (microsec_encode + microsec_decode) / 2;
+        auto avg_microsec = (microsec_encode_full +
+                             microsec_encode_pre +
+                             microsec_decode) / 3;
 
-        std::cout << "  Size: " << static_cast<uint32_t> (blk) << " microsecs: "
-                                                << avg_microsec.count() << "\n";
+        std::cout << "  Size: " << static_cast<uint32_t> (blk) <<
+             " microsecs (avg): " << avg_microsec.count() <<
+             " microsecs (enc-full): " << microsec_encode_full.count() <<
+             " microsecs (enc-precomputed): " << microsec_encode_pre.count() <<
+             " microsecs (decoder): " << microsec_decode.count() << "\n";
         if (avg_microsec > std::chrono::seconds (seconds))
             break;
     }
