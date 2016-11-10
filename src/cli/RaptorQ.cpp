@@ -657,7 +657,7 @@ int main (int argc, char **argv)
         }
 
         bytes =  static_cast<size_t> (strtol(options[BYTES].arg, nullptr, 10));
-        if (repair == 0) {
+        if (bytes == 0) {
             std::cerr << "ERR: \"--bytes\" must be positive\n";
             return 1;
         }
