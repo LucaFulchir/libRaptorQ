@@ -765,8 +765,8 @@ void bench (uint32_t seconds)
     RaptorQ__v1::local_cache_size (1024*1024*100);
     std::cout << "S: block size.\n";
     std::cout << "A: average microseconds\n";
-    std::cout << "EF: encoder microseconds with    precomputation\n";
     std::cout << "EF: encoder microseconds without precomputation\n";
+    std::cout << "EP: encoder microseconds with    precomputation\n";
     std::cout << "DF: decoder microseconds without precomputation\n";
     std::cout << "DP: decoder microseconds with    precomputation\n";
     // do benchmarks until we find a block that stays "seconds" secs to crunch.
@@ -775,7 +775,7 @@ void bench (uint32_t seconds)
         constexpr size_t symbol_size = 1280;    // min supported ipv6 payload
                                                 // kinda arbitrary anyway.
         using T = typename std::vector<uint8_t>;
-        T data (symbol_size / sizeof(T) * static_cast<uint16_t> (blk), 0);
+        T data (symbol_size * static_cast<uint16_t> (blk), 0);
 
         RaptorQ__v1::Encoder<T::iterator, T::iterator> encoder (
                                                             blk, symbol_size);
