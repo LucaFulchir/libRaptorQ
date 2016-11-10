@@ -760,39 +760,53 @@ private:
 
 void bench (uint32_t seconds)
 {
+    // max 100MB of cache
+    // up to block size 10120 (more or less)
+    RaptorQ__v1::local_cache_size (1024*1024*100);
+    std::cout << "S: block size.\n";
+    std::cout << "A: average microseconds\n";
+    std::cout << "EF: encoder microseconds with    precomputation\n";
+    std::cout << "EF: encoder microseconds without precomputation\n";
+    std::cout << "DF: decoder microseconds without precomputation\n";
+    std::cout << "DP: decoder microseconds with    precomputation\n";
     // do benchmarks until we find a block that stays "seconds" secs to crunch.
     // then extrapolate the rest.
     for (auto blk : *RaptorQ__v1::blocks) {
         constexpr size_t symbol_size = 1280;    // min supported ipv6 payload
                                                 // kinda arbitrary anyway.
-        std::vector<uint8_t> data (symbol_size * static_cast<uint16_t> (blk),0);
+        using T = typename std::vector<uint8_t>;
+        T data (symbol_size / sizeof(T) * static_cast<uint16_t> (blk), 0);
 
-        RaptorQ__v1::Encoder<std::vector<uint8_t>::iterator,
-                    std::vector<uint8_t>::iterator> encoder (blk, symbol_size);
+        RaptorQ__v1::Encoder<T::iterator, T::iterator> encoder (
+                                                            blk, symbol_size);
         encoder.set_data (data.begin(), data.end());
         Timer time;
         time.start();
-        encoder.compute_sync();
+        if (!encoder.compute_sync()) {
+            std::cerr << "Could not encode??\n";
+            return;
+        }
         auto microsec_encode_full = time.stop();
         // now test after precomputation:
         encoder.clear_data();
         encoder.precompute_sync();
         encoder.set_data (data.begin(), data.end());
         time.start();
-        encoder.compute_sync();
+        if (!encoder.compute_sync()) {
+            std::cerr << "Could not encode??\n";
+            return;
+        }
         auto microsec_encode_pre = time.stop();
         const uint32_t max_symbol = static_cast<uint16_t> (blk) + 5;
-        std::vector<std::vector<uint8_t>> encoded (max_symbol);
+        std::vector<T> encoded (max_symbol);
         for (uint32_t id = 1; id <= max_symbol; ++id) {
             // skip the first so the decoder can do its work
-            encoded[id - 1] = std::vector<uint8_t> (symbol_size, 0);
+            encoded[id - 1] = T (symbol_size, 0);
             auto b_it = encoded[id - 1].begin();
             encoder.encode (b_it, encoded[id - 1].end(), id);
         }
 
-        using Dec_t = typename RaptorQ__v1::Decoder<
-                                                std::vector<uint8_t>::iterator,
-                                                std::vector<uint8_t>::iterator>;
+        using Dec_t = typename RaptorQ__v1::Decoder<T::iterator, T::iterator>;
         Dec_t decoder (blk, symbol_size, Dec_t::Report::COMPLETE);
         uint32_t id = 1;
         for (auto &sym : encoded) {
@@ -800,18 +814,39 @@ void bench (uint32_t seconds)
             decoder.add_symbol (b_it, sym.end(), id++);
         }
         time.start();
-        decoder.decode_once(); // don't even care about the result
-        auto microsec_decode = time.stop();
+        auto dec_res = decoder.decode_once();
+        auto microsec_decode_full = time.stop();
+        if (dec_res != RaptorQ__v1::Decoder_Result::DECODED) {
+            std::cerr << "Could not decode size " << static_cast<uint32_t> (blk)
+                                                                        << "\n";
+            microsec_decode_full = std::chrono::microseconds (0);
+            // do not return. can happen :(
+        }
+        std::chrono::microseconds microsec_decode_pre (0);
+        if (microsec_decode_full.count() > 0) {
+            // try to decode again, so that precomputation is used.
+            Dec_t dec_pre (blk, symbol_size, Dec_t::Report::COMPLETE);
+            id = 1;
+            for (auto &sym : encoded) {
+                auto b_it = sym.begin();
+                dec_pre.add_symbol (b_it, sym.end(), id++);
+            }
+            time.start();
+            dec_res = dec_pre.decode_once();
+            microsec_decode_pre = time.stop();
+        }
 
         auto avg_microsec = (microsec_encode_full +
                              microsec_encode_pre +
-                             microsec_decode) / 3;
+                             microsec_decode_full +
+                             microsec_decode_pre) / 4;
 
-        std::cout << "  Size: " << static_cast<uint32_t> (blk) <<
-             " microsecs (avg): " << avg_microsec.count() <<
-             " microsecs (enc-full): " << microsec_encode_full.count() <<
-             " microsecs (enc-precomputed): " << microsec_encode_pre.count() <<
-             " microsecs (decoder): " << microsec_decode.count() << "\n";
+        std::cout << "  S: " << static_cast<uint32_t> (blk) <<
+                                " A: "  << avg_microsec.count() <<
+                                " EF: " << microsec_encode_full.count() <<
+                                " EP: " << microsec_encode_pre.count() <<
+                                " DF: "  << microsec_decode_full.count() <<
+                                " DP: "  << microsec_decode_pre.count() << "\n";
         if (avg_microsec > std::chrono::seconds (seconds))
             break;
     }

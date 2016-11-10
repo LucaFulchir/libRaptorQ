@@ -161,14 +161,14 @@ namespace Impl {
 template<typename T, typename... Ts>
 std::unique_ptr<T> RAPTORQ_LOCAL make_unique (Ts&&... params)
     { return std::unique_ptr<T> (new T(std::forward<Ts> (params)...)); }
+} // namespace Impl
 
-enum class Decoder_Result : uint8_t {
+enum class RAPTORQ_API Decoder_Result : uint8_t {
     DECODED = RQ_DEC_DECODED,
     STOPPED = RQ_DEC_STOPPED,
     CAN_RETRY = RQ_DEC_CAN_RETRY,
     NEED_DATA = RQ_DEC_NEED_DATA
 };
-} // namespace Impl
 
 enum class Compress : uint8_t { NONE = RQ_COMPRESS_NONE,
                                 LZ4 = RQ_COMPRESS_LZ4

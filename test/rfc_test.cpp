@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <random>
 #include <stdlib.h>
@@ -274,54 +275,24 @@ void conform_test (uint16_t *K_idx, uint32_t *test_num,
     }
 }
 
+
+
 class Timer {
 public:
-
-    Timer();
-    void start();
-    uint64_t stop ();   // microseconds
-private:
-    struct clock
+    Timer() {}
+    void start()
+        { t0 = std::chrono::high_resolution_clock::now(); }
+    uint64_t stop ()
     {
-        typedef unsigned long long                 rep;
-        // My machine is 2.4 GHz
-        typedef std::ratio<1, 2400000000>          period;
-        typedef std::chrono::duration<rep, period> duration;
-        typedef std::chrono::time_point<clock>     time_point;
-        static const bool is_steady =              true;
-
-        static time_point now() noexcept
-        {
-            unsigned lo, hi;
-            asm volatile("rdtsc" : "=a" (lo), "=d" (hi));
-            return time_point(duration(static_cast<rep>(hi) << 32 | lo));
-        }
-    };
-    // typedef std::chrono::microseconds microseconds;
-    // typedef std::chrono::duration<double,
-    //              typename std::chrono::high_resolution_clock::period> Cycle;
-    // std::chrono::time_point<std::chrono::high_resolution_clock> t0;
-    typedef std::chrono::duration<uint64_t, std::micro> microseconds;
-    typedef std::chrono::duration<double, typename clock::period> Cycle;
-    std::chrono::time_point<clock> t0;
+        auto t1 = std::chrono::high_resolution_clock::now();
+        auto diff = t1 - t0;
+        return static_cast<uint64_t> (
+                        std::chrono::duration_cast<std::chrono::microseconds> (
+                                                                diff).count());
+    }
+private:
+    std::chrono::time_point<std::chrono::high_resolution_clock> t0;
 };
-
-Timer::Timer() {}
-void Timer::start()
-{
-    //t0 = std::chrono::high_resolution_clock::now();
-    t0 = clock::now();
-}
-
-uint64_t Timer::stop()
-{
-    //auto t1 = std::chrono::high_resolution_clock::now();
-    auto t1 = clock::now();
-    auto ticks_per_iter = Cycle (t1 - t0);
-
-    return static_cast<uint64_t> (std::chrono::duration_cast<microseconds>(
-                                                    ticks_per_iter).count());
-}
 
 // for each matrix size, test it once (encode + decode), get the average time.
 void bench (uint16_t *K_idx, std::array<uint64_t, 477> *times);
@@ -341,11 +312,12 @@ void bench (uint16_t *K_idx, std::array<uint64_t, 477> *times)
         global_mtx.unlock();
         if (idx >= 477)
             return;
-        auto size = RaptorQ::Impl::K_padded[idx];
+        auto symbols = RaptorQ::Impl::K_padded[idx];
         std::uniform_real_distribution<float> drop (0.0, 20.0);
-        uint64_t time = decode (size, rnd, drop(rnd), 4);
+        // size should be symbols * symbol_size
+        uint64_t time = decode (symbols * 1280, rnd, drop (rnd), 4);
         (*times)[idx] = time;
-        std::cout << "K: " << size << " time: " << time << "\n";
+        std::cout << "K: " << symbols << " time: " << time << "\n";
     }
 }
 
@@ -354,22 +326,24 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 {
     // returns average number of microseconds for encoding and decoding
     Timer t;
-    std::vector<uint32_t> myvec;
 
-    //initialize vector
-    std::uniform_int_distribution<uint32_t> distr(0, ~static_cast<uint32_t>(0));
+    const uint16_t symbol_size = 1280;
+    const uint16_t subsymbol = 1280 / 4; // small interleaving
+    const size_t max_sub_block = std::numeric_limits<uint32_t>::max();
+    std::vector<uint8_t> myvec;
+    // initialize vector
+    std::uniform_int_distribution<uint8_t> distr (0,
+                                        std::numeric_limits<uint8_t>::max());
     myvec.reserve (mysize);
     for (uint32_t i = 0; i < mysize; ++i)
         myvec.push_back (distr(rnd));
 
-    std::vector<std::pair<uint32_t, std::vector<uint32_t>>> encoded;
+    std::vector<std::pair<uint32_t, std::vector<uint8_t>>> encoded;
 
-    const uint16_t subsymbol = 8;
-    const uint16_t symbol_size = 8;
     auto enc_it = myvec.begin();
-    RFC6330::Encoder<std::vector<uint32_t>::iterator,
-                                    std::vector<uint32_t>::iterator> enc (
-                    enc_it, myvec.end(), subsymbol, symbol_size, 1073741824);
+    RFC6330::Encoder<std::vector<uint8_t>::iterator,
+                                    std::vector<uint8_t>::iterator> enc (
+                    enc_it, myvec.end(), subsymbol, symbol_size, max_sub_block);
 
     t.start();
     enc.compute (RFC6330::Compute::COMPLETE | RFC6330::Compute::NO_BACKGROUND);
@@ -392,9 +366,9 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
                 ++repair;
                 continue;
             }
-            std::vector<uint32_t> source_sym;
-            source_sym.reserve (symbol_size / 4);
-            source_sym.insert (source_sym.begin(), symbol_size / 4, 0);
+            std::vector<uint8_t> source_sym;
+            source_sym.reserve (symbol_size);
+            source_sym.insert (source_sym.begin(), symbol_size, 0);
             auto it = source_sym.begin();
             (*sym_it) (it, source_sym.end());
             encoded.emplace_back ((*sym_it).id(), std::move(source_sym));
@@ -408,9 +382,9 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
                 continue;
             }
             --repair;
-            std::vector<uint32_t> repair_sym;
-            repair_sym.reserve (symbol_size / 4);
-            repair_sym.insert (repair_sym.begin(), symbol_size / 4, 0);
+            std::vector<uint8_t> repair_sym;
+            repair_sym.reserve (symbol_size);
+            repair_sym.insert (repair_sym.begin(), symbol_size, 0);
             auto it = repair_sym.begin();
             (*sym_it) (it, repair_sym.end());
             encoded.emplace_back ((*sym_it).id(), std::move(repair_sym));
@@ -425,13 +399,13 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     auto oti_scheme = enc.OTI_Scheme_Specific();
     auto oti_common = enc.OTI_Common();
 
-    RFC6330::Decoder<std::vector<uint32_t>::iterator, std::vector<uint32_t>::
+    RFC6330::Decoder<std::vector<uint8_t>::iterator, std::vector<uint8_t>::
                                         iterator> dec (oti_common, oti_scheme);
 
     dec.compute (RFC6330::Compute::COMPLETE | RFC6330::Compute::NO_BACKGROUND |
                                                     RFC6330::Compute::NO_POOL);
 
-    std::vector<uint32_t> received;
+    std::vector<uint8_t> received;
     received.reserve (mysize);
     for (uint32_t i = 0; i < mysize; ++i)
         received.push_back (0);
@@ -446,6 +420,7 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
         }
     }
 
+    dec.end_of_input();
     auto re_it = received.begin();
     t.start();
     auto decoded = dec.decode_aligned (re_it, received.end(), 0);
@@ -457,7 +432,7 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
                                             static_cast<int> (overhead) << "\n";
         return 0;
     }
-    for (uint16_t i = 0; i < mysize; ++i) {
+    for (uint32_t i = 0; i < mysize; ++i) {
         if (myvec[i] != received[i]) {
             std::cout << "FAILED, but we though otherwise! " << mysize << " - "
                                             << drop_prob << " - " <<
