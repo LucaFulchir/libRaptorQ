@@ -254,8 +254,8 @@ void conform_test (uint16_t *K_idx, uint32_t *test_num,
             ++overhead;
             max_drop = (40 / 1000000) * test;
         }
-        auto size = RaptorQ::Impl::K_padded[idx];
-        auto time = decode (size, rnd, max_drop, overhead);
+        auto symbols = RaptorQ::Impl::K_padded[idx];
+        auto time = decode (symbols, rnd, max_drop, overhead);
         if (time == 0) {
             global_mtx.lock();
             uint32_t third;
@@ -314,8 +314,7 @@ void bench (uint16_t *K_idx, std::array<uint64_t, 477> *times)
             return;
         auto symbols = RaptorQ::Impl::K_padded[idx];
         std::uniform_real_distribution<float> drop (0.0, 20.0);
-        // size should be symbols * symbol_size
-        uint64_t time = decode (symbols * 1280, rnd, drop (rnd), 4);
+        uint64_t time = decode (symbols, rnd, drop (rnd), 4);
         (*times)[idx] = time;
         std::cout << "K: " << symbols << " time: " << time << "\n";
     }
@@ -334,8 +333,8 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     // initialize vector
     std::uniform_int_distribution<uint8_t> distr (0,
                                         std::numeric_limits<uint8_t>::max());
-    myvec.reserve (mysize);
-    for (uint32_t i = 0; i < mysize; ++i)
+    myvec.reserve (mysize * symbol_size);
+    for (uint32_t i = 0; i < mysize * symbol_size; ++i)
         myvec.push_back (distr(rnd));
 
     std::vector<std::pair<uint32_t, std::vector<uint8_t>>> encoded;
@@ -366,9 +365,7 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
                 ++repair;
                 continue;
             }
-            std::vector<uint8_t> source_sym;
-            source_sym.reserve (symbol_size);
-            source_sym.insert (source_sym.begin(), symbol_size, 0);
+            std::vector<uint8_t> source_sym (symbol_size, 0);
             auto it = source_sym.begin();
             (*sym_it) (it, source_sym.end());
             encoded.emplace_back ((*sym_it).id(), std::move(source_sym));
@@ -382,9 +379,7 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
                 continue;
             }
             --repair;
-            std::vector<uint8_t> repair_sym;
-            repair_sym.reserve (symbol_size);
-            repair_sym.insert (repair_sym.begin(), symbol_size, 0);
+            std::vector<uint8_t> repair_sym (symbol_size, 0);
             auto it = repair_sym.begin();
             (*sym_it) (it, repair_sym.end());
             encoded.emplace_back ((*sym_it).id(), std::move(repair_sym));
@@ -405,10 +400,7 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     dec.compute (RFC6330::Compute::COMPLETE | RFC6330::Compute::NO_BACKGROUND |
                                                     RFC6330::Compute::NO_POOL);
 
-    std::vector<uint8_t> received;
-    received.reserve (mysize);
-    for (uint32_t i = 0; i < mysize; ++i)
-        received.push_back (0);
+    std::vector<uint8_t> received (mysize * symbol_size, 0);
 
     for (size_t i = 0; i < encoded.size(); ++i) {
         auto it = encoded[i].second.begin();
@@ -427,14 +419,14 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     uint64_t micro2 = t.stop();
 
 
-    if (decoded.first != mysize) {
+    if (decoded.first != mysize * symbol_size) {
         std::cout << "NOPE: "<< mysize << " - " << drop_prob << " - " <<
                                             static_cast<int> (overhead) << "\n";
         return 0;
     }
-    for (uint32_t i = 0; i < mysize; ++i) {
+    for (uint32_t i = 0; i < mysize * symbol_size; ++i) {
         if (myvec[i] != received[i]) {
-            std::cout << "FAILED, but we though otherwise! " << mysize << " - "
+            std::cout << "FAILED, but we though otherwise! " << i << " - "
                                             << drop_prob << " - " <<
                                             static_cast<int> (overhead) << "\n";
             return 0;
