@@ -2,7 +2,10 @@
 
 
 [![build status](https://www.fenrirproject.org/Luker/libRaptorQ/badges/master/build.svg)](https://www.fenrirproject.org/Luker/libRaptorQ/commits/master)  
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=79L8P7TXWFQK4)
+[![Donate](https://img.shields.io/badge/Donate-Patreon-orange.svg)](https://patreon.com/Luker)  
 [Homepage](https://www.fenrirproject.org/Luker/libRaptorQ/wikis/home)
+
 
 stable  release: **v0.1.9**  
 current release: **v1.0.0-prealpha**  
