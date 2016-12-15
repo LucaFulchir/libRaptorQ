@@ -149,7 +149,7 @@ typedef uint64_t RFC6330_OTI_Common_Data;
 typedef uint32_t RFC6330_OTI_Scheme_Specific_Data;
 
 
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || _MSC_VER > 1900
 // C++ version. keep the enum synced
 #include <memory>
 #include <utility>

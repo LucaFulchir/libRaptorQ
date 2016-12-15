@@ -22,7 +22,7 @@
 
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/C_common.h"
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || _MSC_VER > 1900
 #include <future>
 #endif
 
@@ -54,7 +54,7 @@ public:
     RFC6330_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
     // FIXME: C++98 needs something else.
-    #if __cplusplus >= 201103L
+    #if __cplusplus >= 201103L || _MSC_VER > 1900
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     #endif
 
@@ -92,7 +92,7 @@ public:
                                                     const uint8_t alignment);
     operator bool() const;
 
-    #if __cplusplus >= 201103L
+    #if __cplusplus >= 201103L || _MSC_VER > 1900
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     #endif
 

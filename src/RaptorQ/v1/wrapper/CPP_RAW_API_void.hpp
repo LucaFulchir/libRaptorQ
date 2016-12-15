@@ -24,7 +24,7 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/RaptorQ.hpp"
 #include "RaptorQ/v1/wrapper/C_common.h"
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || _MSC_VER > 1900
 #include <future>
 #include <utility>
 #endif
@@ -41,7 +41,7 @@
 
 
 // FIXME: test if C++98 works with this:
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || _MSC_VER > 1900
 #define RQ_EXPLICIT explicit
 #else
 #define RQ_EXPLICIT
@@ -70,7 +70,7 @@ public:
 
     bool precompute_sync();
     bool compute_sync();
-    #if __cplusplus >= 201103L
+    #if __cplusplus >= 201103L || _MSC_VER > 1900
     // not even going to try and make this C++98
     std::future<Error> precompute();
     std::future<Error> compute();
@@ -111,7 +111,7 @@ public:
 
     wait_res poll();
     wait_res wait_sync();
-    #if __cplusplus >= 201103L
+    #if __cplusplus >= 201103L || _MSC_VER > 1900
     // not even going to try and make this C++98
     std::future<std::pair<Error, uint16_t>> wait();
     #endif

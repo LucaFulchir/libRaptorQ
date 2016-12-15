@@ -24,7 +24,7 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp"
 #include "RaptorQ/v1/RaptorQ_Iterators.hpp"
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || _MSC_VER > 1900
     #include <future>
 #endif
 
@@ -37,7 +37,7 @@
 // This is ugly. I know. no other way?
 
 // FIXME: test if C++98 works with this:
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || _MSC_VER > 1900
 #define EXPLICIT explicit
 #else
 #define EXPLICIT
@@ -71,7 +71,7 @@ public:
 
     bool precompute_sync();
     bool compute_sync();
-    #if __cplusplus >= 201103L
+    #if __cplusplus >= 201103L || _MSC_VER > 1900
     std::future<Error> precompute();
     std::future<Error> compute();
     #endif
@@ -116,7 +116,7 @@ public:
 
     wait_res poll();
     wait_res wait_sync();
-    #if __cplusplus >= 201103L
+    #if __cplusplus >= 201103L || _MSC_VER > 1900
     std::future<std::pair<Error, uint16_t>> wait();
     #endif
 

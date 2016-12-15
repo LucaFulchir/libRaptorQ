@@ -24,7 +24,7 @@
 #include "RaptorQ/v1/wrapper/CPP_RFC_API_void.hpp"
 #include "RaptorQ/v1/RFC_Iterators.hpp"
 #include <cmath>
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || _MSC_VER > 1900
 #include <future>
 #endif
 
@@ -60,7 +60,7 @@ public:
     RFC6330_OTI_Common_Data OTI_Common() const;
     RFC6330_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
-    #if __cplusplus >= 201103L
+    #if __cplusplus >= 201103L || _MSC_VER > 1900
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     #endif
 
@@ -100,7 +100,7 @@ public:
 
     operator bool() const;
 
-    #if __cplusplus >= 201103L
+    #if __cplusplus >= 201103L || _MSC_VER > 1900
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     #endif
 

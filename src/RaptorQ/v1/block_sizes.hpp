@@ -606,7 +606,7 @@ static const RaptorQ_Block_Size RQ_blocks[477] = {
     };
 
 
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || _MSC_VER > 1900
 
 namespace RaptorQ__v1 {
 
