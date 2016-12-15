@@ -22,6 +22,7 @@
 
 #include "RaptorQ/v1/Precode_Matrix.hpp"
 #include "RaptorQ/v1/Rand.hpp"
+#include <limits>
 
 ///////////////////
 //
@@ -160,10 +161,14 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::make_GAMMA() const
         uint16_t col;
         for (col = 0; col <= row; ++col)
             // alpha ^^ (i-j), as in rfc6330, pg24
-            // rfc only says "i-j", but we could go well over oct_exp size.
-            // we hope they just missed a modulus :/
-            GAMMA (row, col) = RaptorQ__v1::Impl::oct_exp[(row - col) %
-                                            RaptorQ__v1::Impl::oct_exp.size()];
+            // end of Section 5.7.2: alpha^^i == oct_exp(i)
+            //
+            // rfc only says "i-j", while the ^^ op. is defined only if
+            // the exponent is < 255.
+            // we could actually use oct_exp.size() (=>510) since oct_exp
+            // actually contains the same values twice. We still use 255
+            // so that our implementation is more similar to the other.
+            GAMMA (row, col) = RaptorQ__v1::Impl::oct_exp[(row - col) % 255];
         for (; col < GAMMA.cols(); ++col) {
             GAMMA (row, col) = 0;
         }
