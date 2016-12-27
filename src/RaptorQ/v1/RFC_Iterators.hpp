@@ -221,10 +221,10 @@ public:
 
     uint64_t operator() (In_It &start, const In_It end)
     {
-        //if (_dec == nullptr)
+        if (_dec == nullptr || esi (_id) > _dec->symbols (block (_id)))
             return 0;
-        // FIXME: we can't decode wach symbol separately? :(
-        //return _dec->decode (start, end, _id);
+        return _dec->decode_symbol (start, end,
+                                static_cast<uint16_t> (esi (_id)), block (_id));
     }
     uint32_t id() const
         { return _id; }

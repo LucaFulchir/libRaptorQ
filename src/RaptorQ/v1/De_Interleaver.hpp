@@ -38,8 +38,8 @@ public:
     {
         IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::De_Interleaver");
     }
-    size_t operator() (Fwd_It &start, const Fwd_It end,
-                                const size_t max_bytes, const uint8_t skip);
+    size_t operator() (Fwd_It &start, const Fwd_It end, const size_t max_bytes,
+                            const uint8_t skip, const uint16_t from_esi = 0);
 private:
     const RaptorQ__v1::Impl::DenseMtx *_symbols;
     const Partition _sub_blocks;
@@ -49,13 +49,14 @@ private:
 template <typename Fwd_It>
 size_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
                                                     const size_t max_bytes,
-                                                    const uint8_t skip)
+                                                    const uint8_t skip,
+                                                    const uint16_t from_esi)
 {
     // return number of BYTES written
     size_t written = 0;
     int32_t byte = 0;
     uint32_t subsym_byte = 0;
-    uint16_t esi = 0;
+    uint16_t esi = from_esi;
     uint16_t sub_blk = 0;
     const uint16_t max_esi = static_cast<uint16_t> (_symbols->rows());
     uint16_t sub_sym_size = _al *(_sub_blocks.num(0) > 0 ? _sub_blocks.size(0) :

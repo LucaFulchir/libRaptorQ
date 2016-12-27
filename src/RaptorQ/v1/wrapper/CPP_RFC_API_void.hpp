@@ -100,6 +100,8 @@ public:
 
     void end_of_input();
 
+    uint64_t decode_symbol (void* &start, const void* end, const uint16_t esi,
+                                                            const uint8_t sbn);
     uint64_t decode_bytes (void* &start, const void* end, const uint8_t skip);
     size_t decode_block_bytes (void* &start, const void* end,
                                                             const uint8_t skip,

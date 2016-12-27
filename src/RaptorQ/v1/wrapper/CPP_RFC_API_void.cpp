@@ -683,6 +683,51 @@ void Decoder_void::end_of_input()
     }
 }
 
+
+uint64_t Decoder_void::decode_symbol (void* &start, const void* end,
+                                        const uint16_t esi, const uint8_t sbn)
+{
+    const cast_dec _dec (_decoder);
+    uint8_t *p_8;
+    uint16_t *p_16;
+    uint32_t *p_32;
+    uint64_t *p_64;
+    size_t ret = 0;
+    switch (_type) {
+    case RaptorQ_type::RQ_DEC_8:
+        p_8 = reinterpret_cast<uint8_t*> (start);
+        ret = _dec._8->decode_symbol (p_8,
+                reinterpret_cast<uint8_t*> (const_cast<void*> (end)), esi, sbn);
+        start = p_8;
+        break;
+    case RaptorQ_type::RQ_DEC_16:
+        p_16 = reinterpret_cast<uint16_t*> (start);
+        ret = _dec._16->decode_symbol (p_16,
+                reinterpret_cast<uint16_t*> (const_cast<void*>(end)), esi, sbn);
+        start = p_16;
+        break;
+    case RaptorQ_type::RQ_DEC_32:
+        p_32 = reinterpret_cast<uint32_t*> (start);
+        ret = _dec._32->decode_symbol (p_32,
+                reinterpret_cast<uint32_t*> (const_cast<void*>(end)), esi, sbn);
+        start = p_32;
+        break;
+    case RaptorQ_type::RQ_DEC_64:
+        p_64 = reinterpret_cast<uint64_t*> (start);
+        ret = _dec._64->decode_symbol (p_64,
+                reinterpret_cast<uint64_t*> (const_cast<void*>(end)), esi, sbn);
+        start = p_64;
+        break;
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return ret;
+}
+
 // result in BYTES
 uint64_t Decoder_void::decode_bytes (void* &start, const void* end,
                                                             const uint8_t skip)

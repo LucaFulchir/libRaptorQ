@@ -294,6 +294,8 @@ public:
     void end_of_input();
 
     // result in BYTES
+    uint64_t decode_symbol (Fwd_It &start, const Fwd_It end, const uint16_t esi,
+                                                            const uint8_t sbn);
     uint64_t decode_bytes (Fwd_It &start, const Fwd_It end, const uint8_t skip);
     size_t decode_block_bytes (Fwd_It &start, const Fwd_It end,
                                                             const uint8_t skip,
@@ -1112,6 +1114,73 @@ std::pair<Error, uint8_t> Decoder<In_It, Fwd_It>::get_report (
     }
     // can be reached if computing thread was stopped
     return {Error::WORKING, 0};
+}
+
+template <typename In_It, typename Fwd_It>
+uint64_t Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
+                                                            const uint16_t esi,
+                                                            const uint8_t sbn)
+{
+    if (!operator bool() || sbn > blocks() || esi > symbols (sbn))
+        return 0;
+
+
+    std::shared_ptr<RaptorQ__v1::Impl::Raw_Decoder<In_It>> dec_ptr = nullptr;
+    std::unique_lock<std::mutex> lock (_mtx);
+    auto it = decoders.find (sbn);
+
+    if (it == decoders.end())
+        return 0;   // did not receiveany data yet.
+
+    if (use_pool) {
+        dec_ptr = it->second.dec;
+        lock.unlock();
+        if (!dec_ptr->ready())
+            return 0;   // did not receive enough data, or could not decode yet.
+    } else {
+        dec_ptr = it->second.dec;
+        lock.unlock();
+        if (!dec_ptr->ready()) {
+            if (!dec_ptr->can_decode())
+                return 0;
+            RaptorQ__v1::Work_State keep_working =
+                                        RaptorQ__v1::Work_State::KEEP_WORKING;
+            dec_ptr->decode (&keep_working);
+            if (!dec_ptr->ready())
+                return 0;
+        }
+    }
+    // decoder has decoded the block
+
+    Impl::De_Interleaver<Fwd_It> de_interleaving (dec_ptr->get_symbols(),
+                                                    _sub_blocks, _alignment);
+    size_t max_bytes = block_size (sbn);
+    if (sbn == (blocks() - 1)) {
+        // size of the data (_size) is different from the sum of the size of
+        // all blocks. get the real size, so we do not write more.
+        // we obviously need to consider this only for the last block.
+        uint64_t all_blocks = 0;
+        for (uint8_t id = 0; id < blocks(); ++id)
+            all_blocks += block_size (sbn);
+        const uint64_t diff = all_blocks - _size;
+        max_bytes -= static_cast<size_t>(diff);
+    }
+    // find the end:
+    auto real_end = start;
+    size_t fwd_iter_for_symbol = symbol_size() /
+                    sizeof(typename std::iterator_traits<Fwd_It>::value_type);
+    // be sure that 'end' points AT MAX to the end of the symbol
+    if (std::is_same<typename std::iterator_traits<Fwd_It>::iterator_category,
+                                    std::random_access_iterator_tag>::value) {
+        real_end += fwd_iter_for_symbol;
+        if (real_end > end)
+            real_end = end;
+    } else {
+        // sory, fwd_iterators do not have comparison operators :(
+        while (real_end != end && fwd_iter_for_symbol != 0)
+            ++real_end;
+    }
+    return de_interleaving (start, end, max_bytes, 0, esi);
 }
 
 template <typename In_It, typename Fwd_It>
