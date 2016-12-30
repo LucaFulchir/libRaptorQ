@@ -223,6 +223,36 @@ RFC6330_OTI_Scheme_Specific_Data Encoder_void::OTI_Scheme_Specific() const
     return 0;
 }
 
+Encoder_void::result Encoder_void::compute_sync (const Compute flags)
+{
+    const cast_enc _enc (_encoder);
+    Encoder_void::result res (Error::INITIALIZATION, 0);
+    std::future<std::pair<Error, uint8_t>> fut;
+    switch (_type) {
+    case RaptorQ_type::RQ_ENC_8:
+        fut = _enc._8->compute (flags);
+        break;
+    case RaptorQ_type::RQ_ENC_16:
+        fut = _enc._16->compute (flags);
+        break;
+    case RaptorQ_type::RQ_ENC_32:
+        fut = _enc._32->compute (flags);
+        break;
+    case RaptorQ_type::RQ_ENC_64:
+        fut = _enc._64->compute (flags);
+        break;
+    case RaptorQ_type::RQ_DEC_8:
+    case RaptorQ_type::RQ_DEC_16:
+    case RaptorQ_type::RQ_DEC_32:
+    case RaptorQ_type::RQ_DEC_64:
+    case RaptorQ_type::RQ_NONE:
+        return res;
+    }
+
+    std::tie (res.err, res.sbn) = fut.get();
+    return res;
+}
+
 std::future<std::pair<Error, uint8_t>> Encoder_void::compute (
                                                             const Compute flags)
 {
@@ -269,6 +299,7 @@ size_t Encoder_void::precompute_max_memory ()
     }
     return 0;
 }
+
 
 size_t Encoder_void::encode (void* &output, const void* end, const uint32_t esi,
                                                         const uint8_t sbn)

@@ -154,7 +154,7 @@ public:
     std::future<std::pair<Error, uint16_t>> wait();
 
 
-    Error decode_symbol (Fwd_It &start, const Fwd_It end,const uint16_t esi);
+    Error decode_symbol (Fwd_It &start, const Fwd_It end, const uint16_t esi);
     // return number of bytes written
     std::pair<size_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
                                     const size_t from_byte, const size_t skip);

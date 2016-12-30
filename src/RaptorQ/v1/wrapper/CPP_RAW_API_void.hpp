@@ -40,7 +40,6 @@
 // For added safety, please use the header-only library
 
 
-// FIXME: test if C++98 works with this:
 #if __cplusplus >= 201103L || _MSC_VER > 1900
 #define RQ_EXPLICIT explicit
 #else

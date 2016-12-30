@@ -53,10 +53,18 @@ public:
     RFC6330_OTI_Common_Data OTI_Common() const;
     RFC6330_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
-    // FIXME: C++98 needs something else.
     #if __cplusplus >= 201103L || _MSC_VER > 1900
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     #endif
+    class result
+    {
+    public:
+        result (const Error _err, const uint8_t _sbn)
+            : err (_err), sbn (_sbn) {}
+        Error err;
+        uint8_t sbn;
+    };
+    result compute_sync (const Compute flags);
 
     size_t precompute_max_memory ();
     size_t encode (void* &output, const void* end, const uint32_t esi,

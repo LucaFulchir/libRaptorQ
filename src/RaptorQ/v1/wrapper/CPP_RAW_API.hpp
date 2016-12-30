@@ -36,7 +36,6 @@
 // have different stl, or different C++ version.
 // This is ugly. I know. no other way?
 
-// FIXME: test if C++98 works with this:
 #if __cplusplus >= 201103L || _MSC_VER > 1900
 #define EXPLICIT explicit
 #else
