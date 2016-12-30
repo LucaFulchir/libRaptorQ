@@ -44,6 +44,107 @@ public:
         REORDER = 0x05
     };
     Operation() = delete;
+    Operation (const Operation &rhs)
+        :_type (rhs._type)
+    {
+        switch (rhs._type)
+        {
+        case _t::SWAP:
+            swap = rhs.swap;
+            break;
+        case _t::ADD_MUL:
+            add_mul = rhs.add_mul;
+            break;
+        case _t::DIV:
+            div = rhs.div;
+            break;
+        case _t::BLOCK:
+            block = rhs.block;
+            break;
+        case _t::REORDER:
+            reorder = rhs.reorder;
+            break;
+        case _t::NONE:
+            break;
+        }
+    }
+    Operation& operator= (const Operation &rhs)
+    {
+        assert (_type == rhs._type && "Operation types do not correspond.");
+        switch (rhs._type)
+        {
+        case _t::SWAP:
+            swap = rhs.swap;
+            break;
+        case _t::ADD_MUL:
+            add_mul = rhs.add_mul;
+            break;
+        case _t::DIV:
+            div = rhs.div;
+            break;
+        case _t::BLOCK:
+            block = rhs.block;
+            break;
+        case _t::REORDER:
+            reorder = rhs.reorder;
+            break;
+        case _t::NONE:
+            break;
+        }
+        return *this;
+    }
+
+    Operation (Operation &&rhs)
+        :_type (rhs._type)
+    {
+        switch (rhs._type)
+        {
+        case _t::SWAP:
+            swap = std::move (rhs.swap);
+            break;
+        case _t::ADD_MUL:
+            add_mul = std::move (rhs.add_mul);
+            break;
+        case _t::DIV:
+            div = std::move (rhs.div);
+            break;
+        case _t::BLOCK:
+            block = std::move (rhs.block);
+            break;
+        case _t::REORDER:
+            reorder = std::move (rhs.reorder);
+            break;
+        case _t::NONE:
+            break;
+        }
+    }
+
+    Operation& operator= (Operation &&rhs)
+    {
+        assert (_type == rhs._type && "Operation types do not correspond.");
+        switch (rhs._type)
+        {
+        case _t::SWAP:
+            swap = std::move (rhs.swap);
+            break;
+        case _t::ADD_MUL:
+            add_mul = std::move (rhs.add_mul);
+            break;
+        case _t::DIV:
+            div = std::move (rhs.div);
+            break;
+        case _t::BLOCK:
+            block = std::move (rhs.block);
+            break;
+        case _t::REORDER:
+            reorder = std::move (rhs.reorder);
+            break;
+        case _t::NONE:
+            break;
+        }
+        return *this;
+    }
+
     Operation (const _t type, const uint16_t row_1, const uint16_t row_2)
         : _type (type), swap (row_1, row_2) { assert (type == _t::SWAP); }
     Operation (const _t type, const uint16_t row_1, const uint16_t row_2,
@@ -83,15 +184,22 @@ public:
         }
     }
 private:
+    Operation (const _t type)
+        :_type (type) {}
     class RAPTORQ_LOCAL Swap
     {
     public:
         Swap (const uint16_t row_1, const uint16_t row_2)
             : _row_1 (row_1), _row_2 (row_2) {}
+        Swap (const Swap&) = default;
+        Swap& operator= (const Swap&) = default;
+        Swap (Swap &&) = default;
+        Swap& operator= (Swap &&) = default;
+        ~Swap() {}
         void build_mtx (DenseMtx &mtx) const
             { mtx.row(_row_1).swap (mtx.row(_row_2)); }
     private:
-        const uint16_t _row_1, _row_2;
+        uint16_t _row_1, _row_2;
     };
 
     class RAPTORQ_LOCAL Add_Mul
@@ -99,14 +207,19 @@ private:
     public:
         Add_Mul (const uint16_t row_1, const uint16_t row_2, const Octet scalar)
             : _row_1 (row_1), _row_2 (row_2), _scalar (scalar) {}
+        Add_Mul (const Add_Mul&) = default;
+        Add_Mul& operator= (const Add_Mul&) = default;
+        Add_Mul (Add_Mul&&) = default;
+        Add_Mul& operator= (Add_Mul&&) = default;
+        ~Add_Mul() {}
         void build_mtx (DenseMtx &mtx) const
         {
             const auto row = mtx.row (_row_2) * _scalar;
             mtx.row (_row_1) += row;
         }
     private:
-        const uint16_t _row_1, _row_2;
-        const Octet _scalar;
+        uint16_t _row_1, _row_2;
+        Octet _scalar;
     };
 
     class RAPTORQ_LOCAL Div
@@ -114,11 +227,16 @@ private:
     public:
         Div (const uint16_t row_1, const Octet scalar)
             : _row_1 (row_1), _scalar (scalar) {}
+        Div (const Div&) = default;
+        Div& operator= (const Div&) = default;
+        Div (Div&&) = default;
+        Div& operator= (Div&&) = default;
+        ~Div() {}
         void build_mtx (DenseMtx &mtx) const
             { mtx.row (_row_1) /= _scalar; }
     private:
-        const uint16_t _row_1;
-        const Octet _scalar;
+        uint16_t _row_1;
+        Octet _scalar;
     };
 
     class RAPTORQ_LOCAL Block
@@ -126,6 +244,11 @@ private:
     public:
         Block (const DenseMtx &block)
             : _block (block) {}
+        Block (const Block&) = default;
+        Block& operator= (const Block&) = default;
+        Block (Block&&) = default;
+        Block& operator= (Block&&) = default;
+        ~Block() {}
         void build_mtx (DenseMtx &mtx) const
         {
             const auto orig = mtx.block (0,0, _block.cols(), mtx.cols());
@@ -133,7 +256,7 @@ private:
         }
         void clear()
             { _block = DenseMtx(); }
-        private:
+    private:
         DenseMtx _block;
     };
 
@@ -142,6 +265,11 @@ private:
     public:
         Reorder (const std::vector<uint16_t> &order)
             : _order (order) {}
+        Reorder (const Reorder&) = default;
+        Reorder& operator= (const Reorder&) = default;
+        Reorder (Reorder&&) = default;
+        Reorder& operator= (Reorder&&) = default;
+        ~Reorder() {}
         void build_mtx (DenseMtx &mtx) const
         {
             uint16_t overhead = static_cast<uint16_t> (
@@ -163,9 +291,9 @@ private:
 
     const _t _type;
     union {
-        const Swap swap;
-        const Add_Mul add_mul;
-        const Div div;
+        Swap swap;
+        Add_Mul add_mul;
+        Div div;
         Block block;
         Reorder reorder;
     };
