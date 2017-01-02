@@ -184,10 +184,10 @@ template<typename User_Data, typename Key>
 class RAPTORQ_LOCAL DLF
 {
 public:
-    DLF (const DLF&) = delete; // Don't Implement
-    DLF& operator= (const DLF&) = delete;// Don't implement
-    DLF (DLF &&) = delete; // Don't Implement
-    DLF& operator= (DLF &&) = delete;// Don't implement
+    DLF (const DLF&) = delete;
+    DLF& operator= (const DLF&) = delete;
+    DLF (DLF &&) = delete;
+    DLF& operator= (DLF &&) = delete;
 
     static inline DLF *get()
     {
@@ -315,7 +315,8 @@ void DLF<User_Data, Key>::test_and_reset_scores()
 }
 
 template<typename User_Data, typename Key>
-void DLF<User_Data, Key>::update_element (DLF<User_Data, Key>::DLF_Data &el)
+void DLF<User_Data, Key>::update_element (
+                                    typename DLF<User_Data, Key>::DLF_Data &el)
 {
     // update the score & timers on the given element
     auto g_tick = ++global_tick;

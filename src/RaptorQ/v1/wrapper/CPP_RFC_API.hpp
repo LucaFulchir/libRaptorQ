@@ -51,6 +51,11 @@ public:
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
                                             const size_t max_sub_block);
+    Encoder() = delete;
+    Encoder (const Encoder&) = delete;
+    Encoder& operator= (const Encoder&) = delete;
+    Encoder (Encoder&&) = default;
+    Encoder& operator= (Encoder&&) = default;
     ~Encoder();
 
     It::Encoder::Block_Iterator<Rnd_It, Fwd_It> begin();
@@ -93,6 +98,11 @@ public:
                                                     const uint16_t sub_blocks,
                                                     const uint8_t blocks,
                                                     const uint8_t alignment);
+    Decoder() = delete;
+    Decoder (const Decoder&) = delete;
+    Decoder& operator= (const Decoder&) = delete;
+    Decoder (Decoder&&) = default;
+    Decoder& operator= (Decoder&&) = default;
     ~Decoder();
 
     It::Decoder::Block_Iterator<In_It, Fwd_It> begin ();

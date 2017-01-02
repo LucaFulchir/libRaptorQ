@@ -43,6 +43,11 @@ class RAPTORQ_LOCAL Partition
 public:
     Partition()
         { _part1 = {0, 0}; _part2 = {0, 0}; }
+    Partition (const Partition&) = default;
+    Partition& operator= (const Partition&) = default;
+    Partition (Partition&&) = default;
+    Partition& operator= (Partition&&) = default;
+    ~Partition() = default;
     // partition something into "num1" partitions of "size1" and "num2"
     // of "size2"
     // still better than the TL, TS, NL, NL in RFC6330...
@@ -100,6 +105,12 @@ public:
     Symbol_Wrap (const uint8_t *raw, const uint16_t size) : _raw (raw),
                                                                     _size (size)
     {}
+    Symbol_Wrap() = delete;
+    Symbol_Wrap (const Symbol_Wrap&) = default;
+    //Symbol_Wrap& operator= (const Symbol_Wrap&) = default;
+    Symbol_Wrap (Symbol_Wrap&&) = default;
+    Symbol_Wrap& operator= (Symbol_Wrap&&) = default;
+    ~Symbol_Wrap() = default;
 
     Symbol_Wrap<T>& operator= (const Symbol_Wrap<T> &a)
     {
@@ -156,7 +167,7 @@ template <typename Rnd_It>
 class RAPTORQ_LOCAL Symbol_it
 {
 public:
-    Symbol_it ();
+
     Symbol_it (const Rnd_It data_from, const Rnd_It data_to, const size_t start,
                                         const size_t end, const size_t idx,
                                         const Partition sub_blocks,
@@ -166,6 +177,11 @@ public:
                                 _end (end), _idx(idx), _sub_blocks (sub_blocks),
                                                 _symbol_id (symbol_id), _k(k)
     {}
+    Symbol_it() = delete;
+    Symbol_it (const Symbol_it&) = default;
+    Symbol_it& operator= (const Symbol_it&) = default;
+    Symbol_it (Symbol_it&&) = default;
+    Symbol_it& operator= (Symbol_it&&) = default;
 
     constexpr Symbol_it<Rnd_It> begin() const
     {
@@ -255,6 +271,11 @@ public:
                     _symbols (
                         static_cast<uint16_t> ((end - start) / symbol_size))
     {}
+    Source_Block() = delete;
+    Source_Block (const Source_Block&) = default;
+    Source_Block& operator= (const Source_Block&) = default;
+    Source_Block (Source_Block&&) = default;
+    Source_Block& operator= (Source_Block&&) = default;
 
     constexpr Source_Block<Rnd_It> begin() const
     {
@@ -313,6 +334,11 @@ public:
                                             const uint16_t min_subsymbol_size,
                                             const size_t max_block_decodable,
                                             const uint16_t symbol_syze);
+    Interleaver() = delete;
+    Interleaver (const Interleaver&) = default;
+    Interleaver& operator= (const Interleaver&) = default;
+    Interleaver (Interleaver&&) = default;
+    Interleaver& operator= (Interleaver&&) = default;
 
     Source_Block<Rnd_It>& begin() const;
     Source_Block<Rnd_It>& end() const;

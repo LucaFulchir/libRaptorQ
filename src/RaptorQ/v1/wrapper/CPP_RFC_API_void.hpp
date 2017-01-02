@@ -24,6 +24,9 @@
 #include "RaptorQ/v1/wrapper/C_common.h"
 #if __cplusplus >= 201103L || _MSC_VER > 1900
 #include <future>
+#define RQ_EXPLICIT explicit
+#else
+#define RQ_EXPLICIT
 #endif
 
 
@@ -48,8 +51,13 @@ public:
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
                                             const size_t max_sub_block);
+    Encoder_void() = delete;
+    Encoder_void (const Encoder_void&) = delete;
+    Encoder_void& operator= (const Encoder_void&) = delete;
+    Encoder_void (Encoder_void&&) = default;
+    Encoder_void& operator= (Encoder_void&&) = default;
 
-    operator bool() const;
+    RQ_EXPLICIT operator bool() const;
     RFC6330_OTI_Common_Data OTI_Common() const;
     RFC6330_OTI_Scheme_Specific_Data OTI_Scheme_Specific() const;
 
@@ -98,7 +106,12 @@ public:
                                                     const uint16_t sub_blocks,
                                                     const uint8_t blocks,
                                                     const uint8_t alignment);
-    operator bool() const;
+    Decoder_void() = delete;
+    Decoder_void (const Decoder_void&) = delete;
+    Decoder_void& operator= (const Decoder_void&) = delete;
+    Decoder_void (Decoder_void&&) = default;
+    Decoder_void& operator= (Decoder_void&&) = default;
+    RQ_EXPLICIT operator bool() const;
 
     #if __cplusplus >= 201103L || _MSC_VER > 1900
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);

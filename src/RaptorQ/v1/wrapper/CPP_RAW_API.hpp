@@ -50,6 +50,11 @@ class RAPTORQ_API Encoder
 public:
     Encoder (const RaptorQ_Block_Size symbols, const size_t symbol_size);
     ~Encoder();
+    Encoder() = delete;
+    Encoder (const Encoder&) = delete;
+    Encoder& operator= (const Encoder&) = delete;
+    Encoder (Encoder &&) = default;
+    Encoder& operator= (Encoder &&) = default;
     EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
@@ -89,6 +94,10 @@ public:
     ~Decoder();
     Decoder (const RaptorQ_Block_Size symbols, const size_t symbol_size,
                                                     const RaptorQ_Compute type);
+    Decoder (const Decoder&) = delete;
+    Decoder& operator= (const Decoder&) = delete;
+    Decoder (Decoder &&) = default;
+    Decoder& operator= (Decoder &&) = default;
     EXPLICIT operator bool() const;
 
     uint16_t symbols() const;

@@ -27,6 +27,9 @@
 #if __cplusplus >= 201103L || _MSC_VER > 1900
 #include <future>
 #include <utility>
+#define RQ_EXPLICIT explicit
+#else
+#define RQ_EXPLICIT
 #endif
 
 
@@ -40,13 +43,6 @@
 // For added safety, please use the header-only library
 
 
-#if __cplusplus >= 201103L || _MSC_VER > 1900
-#define RQ_EXPLICIT explicit
-#else
-#define RQ_EXPLICIT
-#endif
-
-
 namespace RaptorQ__v1 {
 namespace Impl {
 
@@ -56,6 +52,11 @@ public:
     Encoder_void (const RaptorQ_type type, const RaptorQ_Block_Size symbols,
                                                     const size_t symbol_size);
     ~Encoder_void();
+    Encoder_void() = delete;
+    Encoder_void (const Encoder_void&) = delete;
+    Encoder_void& operator= (const Encoder_void&) = delete;
+    Encoder_void (Encoder_void&&) = default;
+    Encoder_void& operator= (Encoder_void&&) = default;
     RQ_EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
@@ -88,6 +89,11 @@ public:
     Decoder_void (const RaptorQ_type type, const RaptorQ_Block_Size symbols,
                 const size_t symbol_size, const RaptorQ_Compute computation);
     ~Decoder_void();
+    Decoder_void() = delete;
+    Decoder_void (const Decoder_void&) = delete;
+    Decoder_void& operator= (const Decoder_void&) = delete;
+    Decoder_void (Decoder_void&&) = default;
+    Decoder_void& operator= (Decoder_void&&) = default;
     RQ_EXPLICIT operator bool() const;
 
     uint16_t symbols() const;

@@ -61,6 +61,12 @@ class RAPTORQ_API Symbol
 public:
     Symbol (RQ_ENC_T *const enc, const uint32_t id)
         : _enc (enc), _id (id) {}
+    Symbol() = delete;
+    Symbol (const Symbol&) = default;
+    Symbol& operator= (const Symbol&) = default;
+    Symbol (Symbol&&) = default;
+    Symbol& operator= (Symbol&&) = default;
+    ~Symbol() = default;
 
     uint64_t operator() (Fwd_It &start, const Fwd_It end)
     {
@@ -91,6 +97,13 @@ class RAPTORQ_API Symbol_Iterator :
 public:
     Symbol_Iterator (RQ_ENC_T *const enc, const uint32_t id)
         : _enc (enc), _id (id) {}
+    Symbol_Iterator() = delete;
+    Symbol_Iterator (const Symbol_Iterator&) = default;
+    Symbol_Iterator& operator= (const Symbol_Iterator&) = default;
+    Symbol_Iterator (Symbol_Iterator&&) = default;
+    Symbol_Iterator& operator= (Symbol_Iterator&&) = default;
+    ~Symbol_Iterator() = default;
+
     Symbol<Rnd_It, Fwd_It> operator*()
         { return Symbol<Rnd_It, Fwd_It> (_enc, _id); }
     Symbol_Iterator<Rnd_It, Fwd_It>& operator++()
@@ -119,6 +132,12 @@ class RAPTORQ_API Block
 public:
     Block (RQ_ENC_T *const enc, const uint8_t block)
         : _enc (enc), _block (block) {}
+    Block() = delete;
+    Block (const Block&) = default;
+    Block& operator= (const Block&) = default;
+    Block (Block&&) = default;
+    Block& operator= (Block&&) = default;
+    ~Block() = default;
 
     Symbol_Iterator<Rnd_It, Fwd_It> begin_source() const
     {
@@ -183,6 +202,13 @@ class RAPTORQ_API Block_Iterator :
 public:
     Block_Iterator (RQ_ENC_T *const enc, const uint8_t block)
         : _enc (enc), _block (block) {}
+    Block_Iterator() = delete;
+    Block_Iterator (const Block_Iterator&) = default;
+    Block_Iterator& operator= (const Block_Iterator&) = default;
+    Block_Iterator (Block_Iterator&&) = default;
+    Block_Iterator& operator= (Block_Iterator&&) = default;
+    ~Block_Iterator() = default;
+
     Block<Rnd_It, Fwd_It> operator*()
         { return Block<Rnd_It, Fwd_It> (_enc, _block); }
     Block_Iterator<Rnd_It, Fwd_It>& operator++()
@@ -218,6 +244,12 @@ class RAPTORQ_API Symbol
 public:
     Symbol (RQ_DEC_T *const dec, const uint32_t id)
         : _dec (dec), _id (id) {}
+    Symbol() = delete;
+    Symbol (const Symbol&) = default;
+    Symbol& operator= (const Symbol&) = default;
+    Symbol (Symbol&&) = default;
+    Symbol& operator= (Symbol&&) = default;
+    ~Symbol() = default;
 
     uint64_t operator() (In_It &start, const In_It end)
     {
@@ -249,6 +281,13 @@ class RAPTORQ_API Symbol_Iterator :
 public:
     Symbol_Iterator (RQ_DEC_T *const dec, const uint32_t id)
         : _dec (dec), _id (id) {}
+    Symbol_Iterator() = delete;
+    Symbol_Iterator (const Symbol_Iterator&) = default;
+    Symbol_Iterator& operator= (const Symbol_Iterator&) = default;
+    Symbol_Iterator (Symbol_Iterator&&) = default;
+    Symbol_Iterator& operator= (Symbol_Iterator&&) = default;
+    ~Symbol_Iterator() = default;
+
     Symbol<In_It, Fwd_It> operator*()
         { return Symbol<In_It, Fwd_It> (_dec, _id); }
     Symbol_Iterator<In_It, Fwd_It>& operator++()
@@ -277,6 +316,12 @@ class RAPTORQ_API Block
 public:
     Block (RQ_DEC_T *const dec, const uint8_t block)
         : _dec (dec), _block (block) {}
+    Block() = delete;
+    Block (const Block&) = default;
+    Block& operator= (const Block&) = default;
+    Block (Block&&) = default;
+    Block& operator= (Block&&) = default;
+    ~Block() = default;
 
     Symbol_Iterator<In_It, Fwd_It> begin() const
     {
@@ -322,6 +367,13 @@ class RAPTORQ_API Block_Iterator :
 public:
     Block_Iterator (RQ_DEC_T *const dec, const uint8_t block)
         : _dec (dec), _block (block) {}
+    Block_Iterator() = delete;
+    Block_Iterator (const Block_Iterator&) = default;
+    Block_Iterator& operator= (const Block_Iterator&) = default;
+    Block_Iterator (Block_Iterator&&) = default;
+    Block_Iterator& operator= (Block_Iterator&&) = default;
+    ~Block_Iterator() = default;
+
     Block<In_It, Fwd_It> operator*()
         { return Block<In_It, Fwd_It> (_dec, _block); }
     Block_Iterator<In_It, Fwd_It>& operator++()

@@ -35,6 +35,10 @@ class RAPTORQ_LOCAL LZ4
 public:
     LZ4();
     ~LZ4();
+    LZ4 (const LZ4&) = delete;
+    LZ4& operator= (const LZ4&) = delete;
+    LZ4 (LZ4&&) = default;
+    LZ4& operator= (LZ4&&) = default;
 
     std::vector<uint8_t> encode (const std::vector<uint8_t> &in);
     std::vector<uint8_t> decode (const std::vector<uint8_t> &in);

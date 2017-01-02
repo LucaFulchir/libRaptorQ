@@ -74,6 +74,11 @@ class RAPTORQ_LOCAL Encoder
 {
 public:
 
+    Encoder() = delete;
+    Encoder (const Encoder&) = delete;
+    Encoder& operator= (const Encoder&) = delete;
+    Encoder (Encoder&&) = default;
+    Encoder& operator= (Encoder&&) = default;
     ~Encoder();
     Encoder (const Rnd_It data_from, const Rnd_It data_to,
                                             const uint16_t min_subsymbol_size,
@@ -218,6 +223,10 @@ public:
     //      uint8_t alignment;
     //  };
     //};
+    Decoder (const Decoder&) = delete;
+    Decoder& operator= (const Decoder&) = delete;
+    Decoder (Decoder&&) = default;
+    Decoder& operator= (Decoder&&) = default;
     ~Decoder();
     Decoder (const RFC6330_OTI_Common_Data common,
                             const RFC6330_OTI_Scheme_Specific_Data scheme)
@@ -1083,7 +1092,6 @@ std::pair<Error, uint8_t> Decoder<In_It, Fwd_It>::get_report (
             }
         }
     } else if (Compute::PARTIAL_ANY == (flags & Compute::PARTIAL_ANY)) {
-        // FIXME: locking might not be necessary. map emplace/erase do not
         // invalidate other pointers.
         auto undecodable = decoders.end();
         std::unique_lock<std::mutex> dec_lock (_mtx);

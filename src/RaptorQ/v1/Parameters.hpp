@@ -40,6 +40,13 @@ class RAPTORQ_LOCAL Tuple
     // a1 0-(P1-1)
     // b1 0-(P1-1)
 public:
+    Tuple() = default;
+    Tuple (const Tuple&) = default;
+    Tuple& operator= (const Tuple&) = default;
+    Tuple (Tuple&&) = default;
+    Tuple& operator= (Tuple&&) = default;
+    ~Tuple() = default;
+
     uint16_t d, a, b, d1, a1, b1;   // great names. thanks rfc6330!
 };
 
@@ -47,6 +54,13 @@ class RAPTORQ_API Parameters
 {
 public:
     explicit Parameters (const uint16_t symbols);
+    Parameters() = delete;
+    Parameters (const Parameters&) = default;
+    Parameters& operator= (const Parameters&) = default;
+    Parameters (Parameters&&) = default;
+    Parameters& operator= (Parameters&&) = default;
+    ~Parameters() {}
+
     uint16_t Deg (const uint32_t v) const;
     Tuple tuple (const uint32_t ISI) const;
     std::vector<uint16_t> get_idxs (const uint32_t ISI) const;

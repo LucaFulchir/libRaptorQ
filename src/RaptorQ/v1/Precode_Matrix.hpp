@@ -57,6 +57,12 @@ public:
     Precode_Matrix(const Parameters &params)
         :_params (params)
     {}
+    Precode_Matrix() = delete;
+    Precode_Matrix (const Precode_Matrix&) = default;
+    Precode_Matrix& operator= (const Precode_Matrix&) = default;
+    Precode_Matrix (Precode_Matrix&&) = default;
+    Precode_Matrix& operator= (Precode_Matrix&&) = default;
+    ~Precode_Matrix() = default;
 
     void gen (const uint32_t repair_overhead);
 

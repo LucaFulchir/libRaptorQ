@@ -84,6 +84,19 @@ public:
     Thread_Pool(Thread_Pool&&) = delete;
     Thread_Pool& operator=(Thread_Pool const&) = delete;
     Thread_Pool& operator=(Thread_Pool &&) = delete;
+    ~Thread_Pool()
+    {
+        std::unique_lock<std::mutex> _data_lock (_data_mtx);
+        _queue.clear();
+        _data_lock.unlock();
+
+        resize_pool (0, RaptorQ__v1::Work_State::ABORT_COMPUTATION);
+
+        _cond.notify_all();
+        std::unique_lock<std::mutex> pool_lock (_pool_mtx);
+        while (_pool.size() != 0 || _exiting.size() != 0)
+            _cond.wait (pool_lock);
+    }
 
     inline static Thread_Pool& get()
     {
@@ -181,20 +194,7 @@ public:
     }
 
 private:
-    Thread_Pool() { resize_pool (1, RaptorQ__v1::Work_State::ABORT_COMPUTATION); }
-    ~Thread_Pool()
-    {
-        std::unique_lock<std::mutex> _data_lock (_data_mtx);
-        _queue.clear();
-        _data_lock.unlock();
-
-        resize_pool (0, RaptorQ__v1::Work_State::ABORT_COMPUTATION);
-
-        _cond.notify_all();
-        std::unique_lock<std::mutex> pool_lock (_pool_mtx);
-        while (_pool.size() != 0 || _exiting.size() != 0)
-            _cond.wait (pool_lock);
-    }
+    Thread_Pool() {resize_pool (1, RaptorQ__v1::Work_State::ABORT_COMPUTATION);}
 
     std::mutex _data_mtx, _pool_mtx;
     std::condition_variable _cond;

@@ -165,6 +165,7 @@ public:
         if (_type == _t::REORDER)
             reorder.clear();
     }
+
     void build_mtx (DenseMtx &mtx) const
     {
         switch (_type)

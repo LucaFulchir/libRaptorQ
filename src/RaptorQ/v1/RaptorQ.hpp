@@ -68,6 +68,12 @@ public:
     ~Encoder();
     // used for precomputation
     Encoder (const Block_Size symbols, const size_t symbol_size);
+    Encoder() = delete;
+    Encoder (const Encoder&) = delete;
+    Encoder& operator= (const Encoder&) = delete;
+    Encoder (Encoder &&) = default;
+    Encoder& operator= (Encoder &&) = default;
+
     explicit operator bool() const;
 
     uint16_t symbols() const;
@@ -130,6 +136,11 @@ public:
     ~Decoder();
     Decoder (const Block_Size symbols, const size_t symbol_size,
                                                             const Report type);
+    Decoder (const Decoder&) = delete;
+    Decoder& operator= (const Decoder&) = delete;
+    Decoder (Decoder &&) = default;
+    Decoder& operator= (Decoder &&) = default;
+
     explicit operator bool() const;
 
     uint16_t symbols() const;

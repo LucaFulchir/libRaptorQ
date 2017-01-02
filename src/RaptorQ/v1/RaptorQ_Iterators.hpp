@@ -67,6 +67,12 @@ class RAPTORQ_API Symbol
 public:
     Symbol (RQ_ENC_T *enc, const uint32_t esi)
         : _enc (enc), _esi (esi) {}
+    Symbol() = delete;
+    Symbol (const Symbol&) = default;
+    Symbol& operator= (const Symbol&) = default;
+    Symbol (Symbol&&) = default;
+    Symbol& operator= (Symbol&&) = default;
+    ~Symbol() = default;
 
     uint64_t operator() (Fwd_It &start, const Fwd_It end)
     {
@@ -89,6 +95,13 @@ class RAPTORQ_API Symbol_Iterator :
 public:
     Symbol_Iterator (RQ_ENC_T *enc, const uint32_t esi)
         : _enc (enc), _esi (esi) {}
+    Symbol_Iterator() = delete;
+    Symbol_Iterator (const Symbol_Iterator&) = default;
+    Symbol_Iterator& operator= (const Symbol_Iterator&) = default;
+    Symbol_Iterator (Symbol_Iterator&&) = default;
+    Symbol_Iterator& operator= (Symbol_Iterator&&) = default;
+    ~Symbol_Iterator() = default;
+
     Symbol<Rnd_It, Fwd_It> operator*()
         { return Symbol<Rnd_It, Fwd_It> (_enc, _esi); }
     Symbol_Iterator<Rnd_It, Fwd_It>& operator++()
@@ -120,6 +133,12 @@ class RAPTORQ_API Symbol
 public:
     Symbol (RQ_DEC_T *dec, const uint16_t esi)
         : _dec (dec), _esi (esi) {}
+    Symbol() = delete;
+    Symbol (const Symbol&) = default;
+    Symbol& operator= (const Symbol&) = default;
+    Symbol (Symbol&&) = default;
+    Symbol& operator= (Symbol&&) = default;
+    ~Symbol() = default;
 
     Error operator() (Fwd_It &start, const Fwd_It end)
     {
@@ -141,6 +160,13 @@ class RAPTORQ_API Symbol_Iterator :
 public:
     Symbol_Iterator (RQ_DEC_T *dec, const uint16_t esi)
         : _dec (dec), _esi (esi) {}
+    Symbol_Iterator() = delete;
+    Symbol_Iterator (const Symbol_Iterator&) = default;
+    Symbol_Iterator& operator= (const Symbol_Iterator&) = default;
+    Symbol_Iterator (Symbol_Iterator&&) = default;
+    Symbol_Iterator& operator= (Symbol_Iterator&&) = default;
+    ~Symbol_Iterator() = default;
+
     Symbol<In_It, Fwd_It> operator*()
         { return Symbol<In_It, Fwd_It> (_dec, _esi); }
     Symbol_Iterator<In_It, Fwd_It>& operator++()

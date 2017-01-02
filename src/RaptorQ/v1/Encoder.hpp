@@ -59,6 +59,11 @@ public:
     Raw_Encoder (RFC6330__v1::Impl::Interleaver<Rnd_It> *interleaver,
                                                             const uint8_t sbn);
     ~Raw_Encoder();
+    Raw_Encoder() = delete;
+    Raw_Encoder (const Raw_Encoder&) = delete;
+    Raw_Encoder& operator= (const Raw_Encoder&) = delete;
+    Raw_Encoder (Raw_Encoder&&) = default;
+    Raw_Encoder& operator= (Raw_Encoder&&) = default;
 
     // "Enc" will have two implementations, depending os whether the
     // interleaver was used or not.

@@ -31,6 +31,11 @@ template <typename Fwd_It>
 class RAPTORQ_LOCAL De_Interleaver
 {
 public:
+    De_Interleaver() = delete;
+    De_Interleaver (const De_Interleaver&) = default;
+    De_Interleaver& operator= (const De_Interleaver&) = default;
+    De_Interleaver (De_Interleaver&&) = default;
+    De_Interleaver& operator= (De_Interleaver &&) = default;
     De_Interleaver (const RaptorQ__v1::Impl::DenseMtx *symbols,
                                                     const Partition sub_blocks,
                                                     const uint8_t alignment)
