@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2016-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -21,29 +21,25 @@
 #pragma once
 
 #include "RaptorQ/v1/common.hpp"
-#include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
-#ifdef RQ_USE_LZ4
-    #include "RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp"
-#endif
 #include <vector>
 #include <utility>
 
 namespace RaptorQ__v1 {
 
-Compress RAPTORQ_API supported_compressions();
-Compress RAPTORQ_API get_compression();
-bool     RAPTORQ_API set_compression (const Compress compression);
+RAPTORQ_API Compress supported_compressions();
+RAPTORQ_API Compress get_compression();
+RAPTORQ_API bool     set_compression (const Compress compression);
 
-size_t RAPTORQ_API shared_cache_size (const size_t shared_cache);
-size_t RAPTORQ_API local_cache_size (const size_t local_cache);
-size_t RAPTORQ_API get_shared_cache_size();
-size_t RAPTORQ_API get_local_cache_size();
+RAPTORQ_API size_t shared_cache_size (const size_t shared_cache);
+RAPTORQ_API size_t local_cache_size (const size_t local_cache);
+RAPTORQ_API size_t get_shared_cache_size();
+RAPTORQ_API size_t get_local_cache_size();
 
 namespace Impl {
 
-std::pair<Compress, std::vector<uint8_t>> RAPTORQ_API compress (
+RAPTORQ_API std::pair<Compress, std::vector<uint8_t>> compress (
                                             const std::vector<uint8_t> &data);
-std::vector<uint8_t> RAPTORQ_API decompress (const Compress algorithm,
+RAPTORQ_API std::vector<uint8_t> decompress (const Compress algorithm,
                                             const std::vector<uint8_t> &data);
 
 } // namespace Impl
@@ -61,93 +57,3 @@ using RaptorQ__v1::get_shared_cache_size;
 using RaptorQ__v1::get_local_cache_size;
 
 } // namespace RFC6330__v1
-
-
-// Implementation
-
-namespace RaptorQ__v1 {
-
-namespace Impl {
-static Compress compression = Compress::NONE;
-} // namespace Impl
-
-inline Compress supported_compressions()
-{
-#ifdef RQ_USE_LZ4
-    return Compress::NONE | Compress::LZ4;
-#else
-    return Compress::NONE;
-#endif
-}
-
-inline Compress get_compression()
-    { return Impl::compression; }
-
-inline bool set_compression (const Compress _compression)
-{
-    switch (_compression) {
-    case Compress::NONE:
-        Impl::compression = Compress::NONE;
-        return true;
-    case Compress::LZ4:
-#ifdef RQ_USE_LZ4
-        Impl::compression = Compress::LZ4;
-        return true;
-#else
-        return false;
-#endif
-    }
-    return false;
-}
-
-inline size_t shared_cache_size (const size_t shared_cache)
-    { return 0; }
-
-inline size_t local_cache_size (const size_t local_cache)
-{
-    return RaptorQ__v1::Impl::DLF<std::vector<uint8_t>,
-                                    RaptorQ__v1::Impl::Cache_Key>::
-                                                get()->resize (local_cache);
-}
-
-inline size_t get_shared_cache_size()
-    { return 0; }
-
-inline size_t get_local_cache_size()
-{
-    return RaptorQ__v1::Impl::DLF<std::vector<uint8_t>,
-                                    RaptorQ__v1::Impl::Cache_Key>::
-                                                            get()->get_size();
-}
-
-namespace Impl {
-inline std::pair<Compress, std::vector<uint8_t>> compress (
-                                            const std::vector<uint8_t> &data)
-{
-    if (Impl::compression == Compress::NONE)
-        return {Compress::NONE, data};
-#ifdef RQ_USE_LZ4
-    if (Impl::compression == Compress::LZ4) {
-        LZ4<LZ4_t::ENCODER> lz4;
-        return {Compress::LZ4, lz4.encode (data)};
-    }
-#endif
-    return {Compress::NONE, std::vector<uint8_t>()};
-}
-
-inline std::vector<uint8_t> decompress (const Compress algorithm,
-                                            const std::vector<uint8_t> &data)
-{
-    if (algorithm == Compress::NONE)
-        return data;
-#ifdef RQ_USE_LZ4
-    if (algorithm == Compress::LZ4) {
-        LZ4<LZ4_t::DECODER> lz4;
-        return lz4.decode (data);
-    }
-#endif
-    return std::vector<uint8_t>();
-}
-
-} // namespace Impl
-} // namespace RaptorQ__v1
