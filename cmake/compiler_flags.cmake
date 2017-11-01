@@ -48,8 +48,18 @@ endif()
 ###################
 
 #gnu options
-set(RQ_GNU_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -ffast-math -Wno-unknown-pragmas -Wall -Wextra -pedantic -Wno-padded  -fstack-protector-all -fstrict-aliasing -fwrapv -fvisibility=hidden )
-set(RQ_GNU_CXX_OPTIONS ${RQ_DETERMINISTIC} -std=c++11 -ffast-math -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -Wextra -pedantic -Wno-padded -Wno-unknown-pragmas -fstack-protector-all -fstrict-aliasing -fwrapv -fvisibility=hidden -fvisibility-inlines-hidden )
+set(RQ_GNU_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -ffast-math
+    -Wno-unknown-pragmas -Wall -Wextra -pedantic -Wno-padded
+    -fstack-protector-all -fstrict-aliasing -fwrapv -fvisibility=hidden
+    -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wrestrict
+    -Wnull-dereference -Wdouble-promotion -Wshadow -Wformat=2)
+
+set(RQ_GNU_CXX_OPTIONS ${RQ_DETERMINISTIC} -std=c++11 -ffast-math
+    -fno-rtti -fno-exceptions -Wno-unknown-pragmas -Wall -Wextra
+    -pedantic -Wno-padded -Wno-unknown-pragmas -fstack-protector-all
+    -fstrict-aliasing -fwrapv -fvisibility=hidden -fvisibility-inlines-hidden
+    -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wrestrict
+    -Wnull-dereference -Wuseless-cast -Wdouble-promotion -Wshadow -Wformat=2)
 
 # GCC internal compiler errors with:
 # -fsanitize=undefined
@@ -67,8 +77,18 @@ set(RQ_GNU_C_RELWITHDEBINFO   -g -Ofast -fwrapv -ftree-loop-distribution -funrol
 set(RQ_GNU_CXX_RELWITHDEBINFO -g -Ofast -fwrapv -ftree-loop-distribution -funroll-loops )
 
 # clang options
-set(RQ_CLANG_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -ffast-math -fno-math-errno -Wall -pedantic -Weverything -Wno-padded -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security -Wno-disabled-macro-expansion -fvisibility=hidden -fvisibility-inlines-hidden)
-set(RQ_CLANG_CXX_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC} -std=c++11 -fno-rtti -fno-exceptions -ffast-math -fno-math-errno -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat -Wno-padded -Wno-unknown-pragmas -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security -fvisibility=hidden -fvisibility-inlines-hidden)
+set(RQ_CLANG_C_OPTIONS ${RQ_DETERMINISTIC} -std=c11 -ffast-math
+    -fno-math-errno -Wall -Wextra -pedantic -Weverything -Wno-padded
+    -fstack-protector-all -fstrict-aliasing -Wformat -Wformat-security
+    -Wno-disabled-macro-expansion -fvisibility=hidden -fvisibility-inlines-hidden
+    -Wdouble-promotion -Wshadow -Wformat=2 -Wnull-dereference)
+set(RQ_CLANG_CXX_OPTIONS ${RQ_STDLIB_FLAG} ${RQ_DETERMINISTIC}
+    -std=c++11 -fno-rtti -fno-exceptions -ffast-math -fno-math-errno
+    -Wall -pedantic -Weverything -Wno-c++98-compat-pedantic -Wno-c++98-compat
+    -Wno-padded -Wno-unknown-pragmas -fstack-protector-all -fstrict-aliasing
+    -Wformat -Wformat-security -fvisibility=hidden -fvisibility-inlines-hidden
+    -Wno-documentation -Wno-documentation-unknown-command
+    -Wdouble-promotion -Wshadow -Wformat=2 -Wnull-dereference)
 
 set(RQ_CLANG_C_DEBUG   -O0 -g )
 set(RQ_CLANG_CXX_DEBUG -O0 -g )
