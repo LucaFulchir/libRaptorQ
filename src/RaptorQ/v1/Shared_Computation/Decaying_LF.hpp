@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cmath>
 #include <deque>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <vector>

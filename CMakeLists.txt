@@ -27,6 +27,7 @@ set(RQ_VERSION 1.0.0-prealpha)
 set(RQ_ABI 1)
 message(STATUS "libRaptorQ version ${RQ_VERSION}")
 add_definitions(-DRQ_VERSION="${RQ_VERSION}")
+add_definitions(-DEIGEN_MPL2_ONLY)
 
 if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
@@ -74,7 +75,7 @@ else()
     set(RQ_LINKER BSD)
 endif()
 
-# defaults: only enable LTO/PROFILING with known compielrs
+# defaults: only enable LTO/PROFILING with known compilers
 # exception: osx/BSD. llvm linker/profiling not default?
 if ((CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU") AND
         (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin") AND (NOT ${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD"))
@@ -196,8 +197,6 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
     message(WARNING, "RaptorQ builds are not deterministic in Windows yet")
 else()
     add_definitions(-DRQ_UNIX)
-    # used by ftok to get a key. Track both the file and the version
-    add_definitions(-DRQ_SHMPATH="${CMAKE_INSTALL_LIBDIR}/libRaptorQ.so-${RQ_VERSION}")
 endif()
 
 
@@ -247,6 +246,12 @@ SET(HEADERS
             src/RaptorQ/v1/wrapper/CPP_RAW_API.hpp
             src/RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp
             )
+
+if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+    # windows-only placeholder
+else()
+    # linux-only placeholder
+endif()
 
 if (USE_LZ4 MATCHES "ON")
     SET (HEADERS ${HEADERS}
