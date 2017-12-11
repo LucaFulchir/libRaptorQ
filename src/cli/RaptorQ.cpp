@@ -27,6 +27,8 @@
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #pragma clang diagnostic ignored "-Wconditional-uninitialized"
 #pragma clang diagnostic ignored "-Wweak-vtables"
+#pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
+#pragma clang diagnostic ignored "-Wcast-qual"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #include "../external/optionparser-1.4/optionparser.h"
 #pragma clang diagnostic pop
@@ -62,7 +64,7 @@ static option::ArgStatus Numeric (const option::Option& option, bool msg)
 {
     char* endptr = nullptr;
     int64_t res = -1;
-    if (option.arg != 0)
+    if (option.arg != nullptr)
         res = strtol(option.arg, &endptr, 10);
     // NOTE: numeric arguments must be >= 0
     if (endptr != option.arg && *endptr == 0 && res >= 0)
@@ -98,7 +100,7 @@ const option::Descriptor usage[] =
  {UNKNOWN, 0, "", "", Arg::None, "DECODE only parameters:"},
  {BYTES, 0, "b", "bytes", Arg::Numeric, "  -b --bytes\t"
                                     "data size for each {en,de}coder block"},
- {0,0,0,0,0,0}
+ {0,0,nullptr,nullptr,nullptr,nullptr}
 };
 
 void bench (uint32_t seconds);
