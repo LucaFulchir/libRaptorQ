@@ -21,5 +21,6 @@
 #pragma once
 
 #define RQ_HEADER_ONLY
+#include "RaptorQ/v1/caches.ipp"
 #include "RaptorQ/v1/RaptorQ.hpp"
 

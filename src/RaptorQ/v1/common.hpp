@@ -144,6 +144,17 @@ typedef enum {
 
 #define RQ_UNUSED(x)    ((void)x)
 
+/* Supporting header-only and compiled modes mean that sometimes a function
+ * should be inline and other times not.
+ * This becouse inline means both "single implementation" (useful for hdr-only)
+ * and "local to the translation unit" (bad for compiled)
+ */
+#ifdef RQ_HEADER_ONLY
+#define RQ_HDR_INLINE inline
+#else
+#define RQ_HDR_INLINE
+#endif
+
 static const uint64_t RFC6330_max_data = 946270874880;  // ~881 GB
 typedef uint64_t RFC6330_OTI_Common_Data;
 typedef uint32_t RFC6330_OTI_Scheme_Specific_Data;

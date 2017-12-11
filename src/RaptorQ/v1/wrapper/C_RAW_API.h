@@ -23,7 +23,11 @@
 #include "RaptorQ/v1/block_sizes.hpp"
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/C_common.h"
+#ifdef __cplusplus
+#include <cstdbool>
+#else
 #include <stdbool.h>
+#endif
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -60,13 +64,13 @@ extern "C"
         #endif
 
         // precomputation caching
-        RaptorQ_Compress (*const supported_compressions)();
-        RaptorQ_Compress (*const get_compression)();
+        RaptorQ_Compress (*const supported_compressions) (void);
+        RaptorQ_Compress (*const get_compression) (void);
         bool (*const set_compression) (const RaptorQ_Compress);
         size_t (*const shared_cache_size) (const size_t);
         size_t  (*const local_cache_size) (const size_t);
-        size_t (*const get_shared_cache_size)();
-        size_t  (*const get_local_cache_size)();
+        size_t (*const get_shared_cache_size) (void);
+        size_t  (*const get_local_cache_size) (void);
 
         // constructos
         struct RaptorQ_ptr* (*const Encoder) (RaptorQ_type type,

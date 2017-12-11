@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -18,10 +18,4 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
-
-#define RQ_HEADER_ONLY
 #include "RaptorQ/v1/caches.ipp"
-#include "RaptorQ/v1/RFC.hpp"
-#include "RaptorQ/v1/Thread_Pool.hpp"
-

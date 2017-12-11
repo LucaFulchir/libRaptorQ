@@ -59,7 +59,8 @@ set(RQ_GNU_CXX_OPTIONS ${RQ_DETERMINISTIC} -std=c++11 -ffast-math
     -pedantic -Wno-padded -Wno-unknown-pragmas -fstack-protector-all
     -fstrict-aliasing -fwrapv -fvisibility=hidden -fvisibility-inlines-hidden
     -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wrestrict
-    -Wnull-dereference -Wuseless-cast -Wdouble-promotion -Wshadow -Wformat=2)
+    -Wnull-dereference -Wuseless-cast -Wdouble-promotion -Wshadow -Wformat=2
+    -Wno-duplicated-branches)
 
 # GCC internal compiler errors with:
 # -fsanitize=undefined

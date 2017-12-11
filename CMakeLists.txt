@@ -205,6 +205,7 @@ SET(SOURCES
             src/RaptorQ/v1/wrapper/C_RFC_API.cpp
             src/RaptorQ/v1/wrapper/CPP_RAW_API_void.cpp
             src/RaptorQ/v1/wrapper/CPP_RFC_API_void.cpp
+            src/RaptorQ/v1/wrapper/CPP_caches.cpp
             )
 
 SET(HEADERS
@@ -235,6 +236,9 @@ SET(HEADERS
             src/RaptorQ/v1/util/Bitmask.hpp
             src/RaptorQ/v1/util/div.hpp
             src/RaptorQ/v1/util/Graph.hpp
+            )
+
+SET(HEADERS_LINKED
             src/RaptorQ/RaptorQ.h
             src/RaptorQ/RaptorQ_v1.hpp
             src/RaptorQ/RFC6330.h
@@ -246,6 +250,11 @@ SET(HEADERS
             src/RaptorQ/v1/wrapper/CPP_RFC_API_void.hpp
             src/RaptorQ/v1/wrapper/CPP_RAW_API.hpp
             src/RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp
+            )
+
+SET(HEADERS_ONLY
+            src/RaptorQ/RaptorQ_v1_hdr.hpp
+            src/RaptorQ/RFC6330_v1_hdr.hpp
             )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows")
@@ -306,7 +315,7 @@ CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/API_Wrapper_C.cpp.gcda)
     endif()
 
     # PRE-run: build a library, generate the profile.
-    add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS})
+    add_library(RaptorQ_Static_Profiling STATIC ${SOURCES} ${HEADERS} ${HEADERS_LINKED})
     target_link_libraries(RaptorQ_Static_Profiling ${STDLIB} ${RQ_LZ4_DEP} ${RQ_UBSAN})
     add_dependencies(RaptorQ_Static_Profiling LZ4)
     target_compile_options(
@@ -368,7 +377,7 @@ endif()
 
 # build the static library
 if(STATIC_LIB MATCHES "ON")
-    add_library(RaptorQ_Static STATIC ${SOURCES} ${HEADERS})
+    add_library(RaptorQ_Static STATIC ${SOURCES} ${HEADERS} ${HEADERS_LINKED})
     add_dependencies(RaptorQ_Static LZ4)
     if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
         set_target_properties(RaptorQ_Static PROPERTIES OUTPUT_NAME RaptorQ.${RQ_ABI})
@@ -426,7 +435,7 @@ if(DYNAMIC_LIB MATCHES "ON")
     add_definitions(-DRAPTORQ_DLL)
     add_definitions(-DRAPTORQ_DLL_EXPORTS)
 
-    add_library(RaptorQ SHARED ${SOURCES} ${HEADERS})
+    add_library(RaptorQ SHARED ${SOURCES} ${HEADERS} ${HEADERS_LINKED})
     add_dependencies(RaptorQ LZ4)
     target_link_libraries(RaptorQ ${RQ_LZ4_DEP})
     target_compile_options(
@@ -459,7 +468,7 @@ endif()
 
 
 # benchamrks (header only)
-add_executable(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp)
+add_executable(libRaptorQ-test EXCLUDE_FROM_ALL test/rfc_test.cpp ${HEADERS_ONLY} ${HEADERS})
 target_compile_options(
     libRaptorQ-test PRIVATE
     ${CXX_COMPILER_FLAGS}
@@ -473,6 +482,7 @@ target_compile_options(
     test_c PRIVATE
     ${C_COMPILER_FLAGS}
 )
+
 add_dependencies(test_c RaptorQ)
 if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
     # Linux, *BSD
@@ -483,7 +493,7 @@ else()
 endif()
 
 # CPP interface - RFC interface (header only)
-add_executable(test_cpp_rfc EXCLUDE_FROM_ALL test/test_cpp_rfc.cpp)
+add_executable(test_cpp_rfc EXCLUDE_FROM_ALL test/test_cpp_rfc.cpp ${HEADERS_ONLY} ${HEADERS})
 target_compile_options(
     test_cpp_rfc PRIVATE
     ${CXX_COMPILER_FLAGS}
@@ -491,7 +501,7 @@ target_compile_options(
 target_link_libraries(test_cpp_rfc ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
 # CPP interface - RAW interface (header only)
-add_executable(test_cpp_raw EXCLUDE_FROM_ALL test/test_cpp_raw.cpp)
+add_executable(test_cpp_raw EXCLUDE_FROM_ALL test/test_cpp_raw.cpp ${HEADERS_ONLY} ${HEADERS})
 target_compile_options(
     test_cpp_raw PRIVATE
     ${CXX_COMPILER_FLAGS}
@@ -500,7 +510,7 @@ target_link_libraries(test_cpp_raw ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INI
 add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw libRaptorQ-test)
 
 # CLI tool - RAW API interface (header only)
-set(CLI_raw_sources src/cli/RaptorQ.cpp external/optionparser-1.4/optionparser.h)
+set(CLI_raw_sources src/cli/RaptorQ.cpp external/optionparser-1.4/optionparser.h ${HEADERS} ${HEADERS_ONLY})
 if(CLI MATCHES "ON")
     add_executable(CLI_raw ${CLI_raw_sources})
     add_custom_target(CLI_tools DEPENDS CLI_raw)
@@ -519,7 +529,7 @@ target_link_libraries(CLI_raw ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${
 add_custom_target(everything DEPENDS make_static_deterministic examples docs CLI_tools)
 
 
-install(FILES ${HEADERS} DESTINATION include/RaptorQ/)
+install(FILES ${HEADERS} ${HEADERS_ONLY} ${HEADERS_LINKED} DESTINATION include/RaptorQ/)
 install(TARGETS RaptorQ RaptorQ_Static
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib COMPONENT libraries)

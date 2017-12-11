@@ -26,12 +26,6 @@
     #include "RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp"
 #endif
 
-#ifdef RQ_HEADER_ONLY
-#define RQ_HDR_INLINE inline
-#else
-#define RQ_HDR_INLINE
-#endif
-
 namespace RaptorQ__v1 {
 namespace Impl {
 static Compress compression = Compress::NONE;
