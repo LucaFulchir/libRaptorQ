@@ -102,7 +102,7 @@ template <typename T>
 class RAPTORQ_LOCAL Symbol_Wrap
 {
 public:
-    Symbol_Wrap (const uint8_t *raw, const uint16_t size) : _raw (raw),
+    Symbol_Wrap (uint8_t *const raw, const uint16_t size) : _raw (raw),
                                                                     _size (size)
     {}
     Symbol_Wrap() = delete;
@@ -153,7 +153,7 @@ public:
         return *this;
     }
 private:
-    const uint8_t *_raw = nullptr;
+    uint8_t *const _raw = nullptr;
     const uint16_t _size;
 };
 
