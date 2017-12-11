@@ -124,20 +124,9 @@ Once you have cloned it, it's always a good thing to check the repository gpg
 signatures, so you can import my key with:
 
 \begin{verbatim}
-$ gpg --keyserver pgp.mit.edu --recv-key F61F6137
+$ gpg --keyserver pgp.mit.edu --recv-key 7393DAD255BEB5751DBDA04AB11CD823BA278C85
 \end{verbatim}
 
-please check the full fingerprint, it should be this:
-
-\begin{verbbox}[\footnotesize]
-$ gpg2 --fingerprint F61F6137
-pub   rsa2048/F61F6137 2016-01-11 [SC] [expires: 2017-01-25]
-      Key fingerprint = 95EB 6FA4 03D7 29A7 13C2  FC9F F85A DA1C F61F 6137
-uid         [ultimate] Luca Fulchir (2016 key) <luker@fenrirproject.org>
-sub   rsa2048/0B37F4EE 2016-01-11 [E] [expires: 2017-01-25]
-\end{verbbox}
-\theverbbox
- 
 
 Now you have the source, and the key, it's enough to check the signature of the
 last commit:
@@ -149,13 +138,13 @@ $ git log -n 1 --show-signature
 The important part is that you get something like this:
 
 \begin{verbbox}[\footnotesize]
-gpg: Signature made Mon 30 May 2016 18:38:43 CEST using RSA key ID F61F6137
-gpg: Good signature from "Luca Fulchir (2016 key) <luker@fenrirproject.org>"
- [unknown]
+gpg: Signature made Mon 11 Dec 2017 21:55:28 CET
+gpg:                using RSA key 8F7474044095B405D0F042F0A2CCA134BC7C8572
+    gpg: Good signature from "Luca Fulchir <luker@fenrirproject.org>" [unknown]
+gpg:                 aka "Luca Fulchir <luca@fulchir.it>" [unknown]
  gpg: WARNING: This key is not certified with a trusted signature!
  gpg:          There is no indication that the signature belongs to the owner.
- Primary key fingerprint: 95EB 6FA4 03D7 29A7 13C2  FC9F F85A DA1C F61F 6137
- Author: Luca Fulchir (2016 key) <luker@fenrirproject.org>
+ Primary key fingerprint: 7393 DAD2 55BE B575 1DBD A04A B11C D823 BA27 8C85
 \end{verbbox}
 \theverbbox
 
