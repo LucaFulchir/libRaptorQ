@@ -64,9 +64,7 @@ extern "C"
         RFC6330_Compress (*const supported_compressions) (void);
         RFC6330_Compress (*const get_compression) (void);
         bool (*const set_compression) (const RFC6330_Compress);
-        size_t (*const shared_cache_size) (const size_t);
         size_t  (*const local_cache_size) (const size_t);
-        size_t (*const get_shared_cache_size) (void);
         size_t  (*const get_local_cache_size) (void);
 
 

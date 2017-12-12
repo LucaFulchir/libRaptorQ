@@ -55,9 +55,7 @@ struct RAPTORQ_LOCAL RFC6330_future
 static RFC6330_Compress v1_supported_compressions();
 static RFC6330_Compress v1_get_compression();
 static bool v1_set_compression (const RFC6330_Compress compression);
-static size_t v1_shared_cache_size (const size_t shared_cache);
 static size_t v1_local_cache_size (const size_t local_cache);
-static size_t v1_get_shared_cache_size ();
 static size_t v1_get_local_cache_size ();
 // constructors
 static struct RFC6330_ptr* v1_Encoder (RFC6330_type type,
@@ -173,9 +171,7 @@ RFC6330_v1::RFC6330_v1()
     supported_compressions (&v1_supported_compressions),
     get_compression (&v1_get_compression),
     set_compression (&v1_set_compression),
-    shared_cache_size (&v1_shared_cache_size),
     local_cache_size (&v1_local_cache_size),
-    get_shared_cache_size (&v1_get_shared_cache_size),
     get_local_cache_size (&v1_get_local_cache_size),
 
     // constructors
@@ -238,14 +234,8 @@ static bool v1_set_compression (const RFC6330_Compress compression)
                             static_cast<RaptorQ__v1::Compress> (compression)));
 }
 
-static size_t v1_shared_cache_size (const size_t shared_cache)
-    { return RFC6330__v1::shared_cache_size (shared_cache); }
-
 static size_t v1_local_cache_size (const size_t local_cache)
     { return RFC6330__v1::local_cache_size (local_cache); }
-
-static size_t v1_get_shared_cache_size ()
-    { return RFC6330__v1::get_shared_cache_size(); }
 
 static size_t v1_get_local_cache_size ()
     { return RFC6330__v1::get_local_cache_size(); }

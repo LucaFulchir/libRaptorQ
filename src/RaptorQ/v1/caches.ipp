@@ -60,18 +60,12 @@ RQ_HDR_INLINE bool set_compression (const Compress _compression)
     return false;
 }
 
-RQ_HDR_INLINE size_t shared_cache_size (const size_t shared_cache)
-    { return 0; }
-
 RQ_HDR_INLINE size_t local_cache_size (const size_t local_cache)
 {
     return RaptorQ__v1::Impl::DLF<std::vector<uint8_t>,
                                     RaptorQ__v1::Impl::Cache_Key>::
                                                 get()->resize (local_cache);
 }
-
-RQ_HDR_INLINE size_t get_shared_cache_size()
-    { return 0; }
 
 RQ_HDR_INLINE size_t get_local_cache_size()
 {
