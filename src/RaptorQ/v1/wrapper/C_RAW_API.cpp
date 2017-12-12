@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -100,6 +100,7 @@ static RaptorQ_Error v1_future_wait_for (struct RaptorQ_future *const f,
 static void v1_future_wait (struct RaptorQ_future *const f);
 static void v1_future_free (struct RaptorQ_future **f);
 static void v1_free (struct RaptorQ_ptr **ptr);
+static bool v1_ready (const RaptorQ_ptr *ptr);
 
 // encoder-specific
 static uint32_t v1_max_repair  (const RaptorQ_ptr *enc);
@@ -169,6 +170,7 @@ RaptorQ_v1::RaptorQ_v1()
     future_wait (&v1_future_wait),
     future_free (&v1_future_free),
     free (&v1_free),
+    ready (&v1_ready),
 
     // encoder-specific functions
     max_repair (&v1_max_repair),
@@ -669,6 +671,49 @@ static void v1_free (struct RaptorQ_ptr **ptr)
     case RaptorQ_type::RQ_NONE:
         break;
     }
+}
+
+static bool v1_ready (const RaptorQ_ptr *ptr)
+{
+    if (ptr == nullptr || ptr->ptr == nullptr)
+        return false;
+    switch (ptr->type) {
+    case RaptorQ_type::RQ_ENC_8:
+        return static_cast<bool> (reinterpret_cast<const
+                            RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
+                                                            ptr->ptr)->ready());
+    case RaptorQ_type::RQ_ENC_16:
+        return static_cast<bool> (reinterpret_cast<const
+                            RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
+                                                            ptr->ptr)->ready());
+    case RaptorQ_type::RQ_ENC_32:
+        return static_cast<bool> (reinterpret_cast<const
+                            RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
+                                                            ptr->ptr)->ready());
+    case RaptorQ_type::RQ_ENC_64:
+        return static_cast<bool> (reinterpret_cast<const
+                            RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
+                                                            ptr->ptr)->ready());
+    case RaptorQ_type::RQ_DEC_8:
+        return static_cast<bool> (reinterpret_cast<const
+                            RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
+                                                            ptr->ptr)->ready());
+    case RaptorQ_type::RQ_DEC_16:
+        return static_cast<bool> (reinterpret_cast<const
+                            RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
+                                                            ptr->ptr)->ready());
+    case RaptorQ_type::RQ_DEC_32:
+        return static_cast<bool> (reinterpret_cast<const
+                            RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
+                                                            ptr->ptr)->ready());
+    case RaptorQ_type::RQ_DEC_64:
+        return static_cast<bool> (reinterpret_cast<const
+                            RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
+                                                            ptr->ptr)->ready());
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return false;
 }
 
 //////////////////////////////

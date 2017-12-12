@@ -37,9 +37,9 @@
 // This is ugly. I know. no other way?
 
 #if __cplusplus >= 201103L || _MSC_VER > 1900
-#define EXPLICIT explicit
+#define RQ_EXPLICIT explicit
 #else
-#define EXPLICIT
+#define RQ_EXPLICIT
 #endif
 
 namespace RaptorQ__v1 {
@@ -55,7 +55,7 @@ public:
     Encoder& operator= (const Encoder&) = delete;
     Encoder (Encoder &&) = default;
     Encoder& operator= (Encoder &&) = default;
-    EXPLICIT operator bool() const;
+    RQ_EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;
@@ -71,6 +71,7 @@ public:
     bool has_data() const;
     size_t set_data (const Rnd_It &from, const Rnd_It &to);
     void clear_data();
+    bool read() const;
     void stop();
 
     bool precompute_sync();
@@ -98,7 +99,7 @@ public:
     Decoder& operator= (const Decoder&) = delete;
     Decoder (Decoder &&) = default;
     Decoder& operator= (Decoder &&) = default;
-    EXPLICIT operator bool() const;
+    RQ_EXPLICIT operator bool() const;
 
     uint16_t symbols() const;
     size_t symbol_size() const;
@@ -111,6 +112,7 @@ public:
     void end_of_input();
 
     bool can_decode() const;
+    bool ready() const;
     void stop();
     uint16_t needed_symbols() const;
 
@@ -290,6 +292,14 @@ void Encoder<Rnd_It, Fwd_It>::clear_data()
     if (_encoder == nullptr)
         return;
     _encoder->clear_data();
+}
+
+template <typename Rnd_It, typename Fwd_It>
+bool Encoder<Rnd_It, Fwd_It>::ready() const
+{
+    if (_encoder == nullptr)
+        return false;
+    _encoder->ready();
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -544,6 +554,14 @@ bool Decoder<In_It, Fwd_It>::can_decode() const
     return _decoder->can_decode();
 }
 #endif
+
+template <typename In_It, typename Fwd_It>
+bool Decoder<In_It, Fwd_It>::ready() const
+{
+    if (_decoder == nullptr)
+        return false;
+    return _decoder->ready();
+}
 
 template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::stop()

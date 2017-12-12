@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -20,15 +20,14 @@
 
 #pragma once
 
-#include "RaptorQ/v1/block_sizes.hpp"
-#include "RaptorQ/v1/common.hpp"
-#include "RaptorQ/v1/wrapper/C_common.h"
 #ifdef __cplusplus
 #include <cstdbool>
 #else
 #include <stdbool.h>
 #endif
-#include <stddef.h>
+#include "RaptorQ/v1/block_sizes.hpp"
+#include "RaptorQ/v1/common.hpp"
+#include "RaptorQ/v1/wrapper/C_common.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -91,6 +90,7 @@ extern "C"
         void (*const future_wait) (struct RaptorQ_future *const f);
         void (*const future_free) (struct RaptorQ_future **f);
         void (*const free) (struct RaptorQ_ptr **ptr);
+        bool (*const ready) (const struct RaptorQ_ptr *ptr);
 
         // encoder-specific
         uint32_t (*const max_repair)  (const RaptorQ_ptr *enc);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -91,6 +91,7 @@ public:
     bool has_data() const;
     size_t set_data (const Rnd_It &from, const Rnd_It &to);
     void clear_data();
+    bool ready() const;
     void stop();
 
     bool precompute_sync();
@@ -155,6 +156,7 @@ public:
     void end_of_input();
 
     bool can_decode() const;
+    bool ready() const;
     void stop();
     uint16_t needed_symbols() const;
 
@@ -319,6 +321,14 @@ void Encoder<Rnd_It, Fwd_It>::clear_data()
         return;
     _state = Enc_State::NEED_DATA;
     encoder.clear_data();
+}
+
+template <typename Rnd_It, typename Fwd_It>
+bool Encoder<Rnd_It, Fwd_It>::ready() const
+{
+    if (_state == Enc_State::INIT_ERROR)
+        return false;
+    return encoder.ready();
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -794,6 +804,14 @@ Decoder_Result Decoder<In_It, Fwd_It>::decode_once()
         lock.unlock();
     }
     return res;
+}
+
+template <typename In_It, typename Fwd_It>
+bool Decoder<In_It, Fwd_It>::ready() const
+{
+    if (symbols_tracker.size() == 0)
+        return false;
+    return dec.ready();
 }
 
 template <typename In_It, typename Fwd_It>

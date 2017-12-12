@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2016-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -290,6 +290,28 @@ void Encoder_void::clear_data()
     case RaptorQ_type::RQ_NONE:
         break;
     }
+}
+
+bool Encoder_void::ready() const
+{
+    const cast_enc _enc (_encoder);
+    switch (_type) {
+    case RaptorQ_type::RQ_ENC_8:
+        return _enc._8->ready();
+    case RaptorQ_type::RQ_ENC_16:
+        return _enc._16->ready();
+    case RaptorQ_type::RQ_ENC_32:
+        return _enc._32->ready();
+    case RaptorQ_type::RQ_ENC_64:
+        return _enc._64->ready();
+    case RaptorQ_type::RQ_DEC_8:
+    case RaptorQ_type::RQ_DEC_16:
+    case RaptorQ_type::RQ_DEC_32:
+    case RaptorQ_type::RQ_DEC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return false;
 }
 
 void Encoder_void::stop()
@@ -678,6 +700,28 @@ bool Decoder_void::can_decode() const
         return _dec._32->can_decode();
     case RaptorQ_type::RQ_DEC_64:
         return _dec._64->can_decode();
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return false;
+}
+
+bool Decoder_void::ready() const
+{
+    const cast_dec _dec (_decoder);
+    switch (_type) {
+    case RaptorQ_type::RQ_DEC_8:
+        return _dec._8->ready();
+    case RaptorQ_type::RQ_DEC_16:
+        return _dec._16->ready();
+    case RaptorQ_type::RQ_DEC_32:
+        return _dec._32->ready();
+    case RaptorQ_type::RQ_DEC_64:
+        return _dec._64->ready();
     case RaptorQ_type::RQ_ENC_8:
     case RaptorQ_type::RQ_ENC_16:
     case RaptorQ_type::RQ_ENC_32:

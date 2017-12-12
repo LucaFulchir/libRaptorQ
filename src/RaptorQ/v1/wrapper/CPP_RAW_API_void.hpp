@@ -66,6 +66,7 @@ public:
     bool has_data() const;
     size_t set_data (const void* from, const void* to);
     void clear_data();
+    bool ready() const;
     void stop();
 
     bool precompute_sync();
@@ -103,6 +104,7 @@ public:
     void end_of_input();
 
     bool can_decode() const;
+    bool ready() const;
     void stop();
     uint16_t needed_symbols() const;
 
