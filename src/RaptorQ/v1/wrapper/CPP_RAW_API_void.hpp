@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -22,7 +22,6 @@
 
 #include "RaptorQ/v1/block_sizes.hpp"
 #include "RaptorQ/v1/common.hpp"
-#include "RaptorQ/v1/RaptorQ.hpp"
 #include "RaptorQ/v1/wrapper/C_common.h"
 #if __cplusplus >= 201103L || _MSC_VER > 1900
 #include <future>
@@ -73,11 +72,12 @@ public:
     bool compute_sync();
     #if __cplusplus >= 201103L || _MSC_VER > 1900
     // not even going to try and make this C++98
-    std::future<Error> precompute();
-    std::future<Error> compute();
+    std::shared_future<Error> precompute();
+    std::shared_future<Error> compute();
     #endif
 
-    size_t encode (void* &output, const void* end, const uint32_t id);
+    // void* will be casted to the right type depending on RaptorQ_type
+    size_t encode (void** output, const void* end, const uint32_t id);
 
 private:
     RaptorQ_type _type;
@@ -88,7 +88,7 @@ class RAPTORQ_API Decoder_void
 {
 public:
     Decoder_void (const RaptorQ_type type, const RaptorQ_Block_Size symbols,
-                const size_t symbol_size, const RaptorQ_Compute computation);
+                        const size_t symbol_size, const Dec_Report computation);
     ~Decoder_void();
     Decoder_void() = delete;
     Decoder_void (const Decoder_void&) = delete;
@@ -100,7 +100,7 @@ public:
     uint16_t symbols() const;
     size_t symbol_size() const;
 
-    Error add_symbol (void* &from, const void* to, const uint32_t esi);
+    Error add_symbol (void** from, const void* to, const uint32_t esi);
     void end_of_input();
 
     bool can_decode() const;
@@ -109,27 +109,18 @@ public:
     uint16_t needed_symbols() const;
 
     void set_max_concurrency (const uint16_t max_threads);
-    RaptorQ_Decoder_Result decode_once();
-    struct wait_res
-    {
-        const Error err;
-        const uint16_t symbol;
-    };
+    Decoder_Result decode_once();
 
-    wait_res poll();
-    wait_res wait_sync();
+    struct Decoder_wait_res poll();
+    struct Decoder_wait_res wait_sync();
     #if __cplusplus >= 201103L || _MSC_VER > 1900
     // not even going to try and make this C++98
-    std::future<std::pair<Error, uint16_t>> wait();
+    std::future<Decoder_wait_res> wait();
     #endif
 
-    Error decode_symbol (void* &start, const void* end, const uint16_t esi);
+    Error decode_symbol (void** start, const void* end, const uint16_t esi);
     // returns number of bytes written, offset of data in last iterator
-    struct decode_pair {
-        const size_t written;
-        const size_t offset;
-    };
-    decode_pair decode_bytes (void* &start, const void* end,
+    Decoder_written decode_bytes (void** start, const void* end,
                                     const size_t from_byte, const size_t skip);
 private:
     RaptorQ_type _type;

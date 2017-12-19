@@ -96,8 +96,8 @@ public:
 
     bool precompute_sync();
     bool compute_sync();
-    std::future<Error> precompute();
-    std::future<Error> compute();
+    std::shared_future<Error> precompute();
+    std::shared_future<Error> compute();
 
     size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t id);
 
@@ -113,19 +113,16 @@ private:
     Enc_State _state;
     Raw_Encoder<Rnd_It, Fwd_It, without_interleaver> encoder;
     DenseMtx precomputed;
-    std::thread waiting;
     Rnd_It _from, _to;
+    // avoid launching multiple computations for the encoder.
+    // it is guaranteed to succeed anyway.
+    std::mutex _mtx;
+    std::shared_future<Error> _single_wait;
+    std::thread _waiting;
 
     static void compute_thread (Encoder<Rnd_It, Fwd_It> *obj,
                                                     bool forced_precomputation,
                                                     std::promise<Error> p);
-};
-
-enum class RAPTORQ_LOCAL Dec_Report : uint8_t {
-    NONE = RQ_COMPUTE_NONE,
-    PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
-    PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
-    COMPLETE = RQ_COMPUTE_COMPLETE
 };
 
 template <typename In_It, typename Fwd_It>
@@ -136,7 +133,7 @@ public:
 
     ~Decoder();
     Decoder (const Block_Size symbols, const size_t symbol_size,
-                                                            const Report type);
+                                                        const Dec_Report type);
     Decoder (const Decoder&) = delete;
     Decoder& operator= (const Decoder&) = delete;
     Decoder (Decoder &&) = default;
@@ -162,21 +159,22 @@ public:
 
     void set_max_concurrency (const uint16_t max_threads);
     Decoder_Result decode_once();
-    std::pair<Error, uint16_t> poll();
-    std::pair<Error, uint16_t> wait_sync();
-    std::future<std::pair<Error, uint16_t>> wait();
+
+    struct Decoder_wait_res poll();
+    struct Decoder_wait_res wait_sync();
+    std::future<struct Decoder_wait_res> wait();
 
 
     Error decode_symbol (Fwd_It &start, const Fwd_It end, const uint16_t esi);
     // return number of bytes written
-    std::pair<size_t, size_t> decode_bytes (Fwd_It &start, const Fwd_It end,
+    struct Decoder_written decode_bytes (Fwd_It &start, const Fwd_It end,
                                     const size_t from_byte, const size_t skip);
 private:
     uint16_t _max_threads;
     const uint16_t _symbols;
     const size_t _symbol_size;
     std::atomic<uint32_t> last_reported;
-    const Report _type;
+    const Dec_Report _type;
     RaptorQ__v1::Work_State work;
     Raw_Decoder<In_It> dec;
     // 2* symbols. Actually tracks available and reported symbols.
@@ -187,7 +185,7 @@ private:
     std::vector<std::thread> waiting;
 
     static void waiting_thread (Decoder<In_It, Fwd_It> *obj,
-                                    std::promise<std::pair<Error, uint16_t>> p);
+                                            std::promise<Decoder_wait_res> p);
 };
 
 
@@ -199,8 +197,8 @@ template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::~Encoder()
 {
     encoder.stop();
-    if (waiting.joinable())
-        waiting.join();
+    if (_waiting.joinable())
+        _waiting.join();
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -309,6 +307,7 @@ size_t Encoder<Rnd_It, Fwd_It>::set_data (const Rnd_It &from, const Rnd_It &to)
         return 0;
     _from = from;
     _to = to;
+    encoder.set_data (&_from, &_to);
     _state = Enc_State::FULL;
     return static_cast<size_t>(_to - _from) *
                     sizeof(typename std::iterator_traits<Rnd_It>::value_type);
@@ -319,6 +318,13 @@ void Encoder<Rnd_It, Fwd_It>::clear_data()
 {
     if (_state == Enc_State::INIT_ERROR)
         return;
+    std::lock_guard<std::mutex> lock (_mtx);
+    RQ_UNUSED (lock);
+    if (_waiting.joinable()) {
+        encoder.stop();
+        _waiting.join();
+    }
+    _single_wait = std::shared_future<Error>();
     _state = Enc_State::NEED_DATA;
     encoder.clear_data();
 }
@@ -340,14 +346,20 @@ bool Encoder<Rnd_It, Fwd_It>::precompute_sync()
 {
     if (_state == Enc_State::INIT_ERROR)
         return false;
-    static RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
-    if (precomputed.rows() == 0) {
-        precomputed = encoder.get_precomputed (&work);
-        if (precomputed.rows() == 0)
-            return false; // exit was forced.
+    if (_single_wait.valid()) {
+        _single_wait.wait();
+        return true;
     }
-    if (_state == Enc_State::FULL)
-        encoder.generate_symbols (precomputed, &_from, &_to);
+    std::unique_lock<std::mutex> lock (_mtx);
+    if (_single_wait.valid() &&  _single_wait.get() == Error::NONE)
+        return true;
+    stop();
+    if (_waiting.joinable())
+        _waiting.join();
+    std::promise<Error> p;
+    _single_wait = p.get_future().share();
+    lock.unlock();
+    compute_thread (this, true, std::move(p));
     return true;
 }
 
@@ -356,19 +368,19 @@ bool Encoder<Rnd_It, Fwd_It>::compute_sync()
 {
     if (_state == Enc_State::INIT_ERROR)
         return false;
-    static RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
-    if (encoder.ready())
+    if (_single_wait.valid())
+        _single_wait.wait();
+    std::unique_lock<std::mutex> lock (_mtx);
+    if (_single_wait.valid() && _single_wait.get() == Error::NONE)
         return true;
-    if (_state == Enc_State::FULL) {
-        if (precomputed.rows() != 0)
-            return encoder.generate_symbols (precomputed, &_from, &_to);
-        return encoder.generate_symbols (&work, &_from, &_to);
-    } else {
-        if (precomputed.rows() != 0)
-            return true;
-        precomputed = encoder.get_precomputed (&work);
-        return precomputed.rows() != 0;
-    }
+    stop();
+    if (_waiting.joinable())
+        _waiting.join();
+    std::promise<Error> p;
+    _single_wait = p.get_future().share();
+    lock.unlock();
+    compute_thread (this, false, std::move(p));
+    return true;
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -428,41 +440,44 @@ void Encoder<Rnd_It, Fwd_It>::compute_thread (
 }
 
 template <typename Rnd_It, typename Fwd_It>
-std::future<Error> Encoder<Rnd_It, Fwd_It>::precompute()
+std::shared_future<Error> Encoder<Rnd_It, Fwd_It>::precompute()
 {
-    std::promise<Error> p;
     if (_state == Enc_State::INIT_ERROR) {
+        std::promise<Error> p;
         p.set_value (Error::INITIALIZATION);
-        return p.get_future();
+        return p.get_future().share();
     }
-    auto future = p.get_future();
-
-    // only one waiting thread for the encoder
-    if (waiting.joinable()) {
-        p.set_value (Error::WORKING);
-        return p.get_future();
-    }
-    waiting = std::thread (compute_thread, this, true, std::move(p));
-    return future;
+    std::unique_lock<std::mutex> lock (_mtx);
+    if (_single_wait.valid())
+        return _single_wait;
+    stop();
+    if (_waiting.joinable())
+        _waiting.join();
+    std::promise<Error> p;
+    _single_wait = p.get_future().share();
+    _waiting = std::thread (compute_thread, this, true, std::move(p));
+    lock.unlock();
+    return _single_wait;
 }
 
 template <typename Rnd_It, typename Fwd_It>
-std::future<Error> Encoder<Rnd_It, Fwd_It>::compute()
+std::shared_future<Error> Encoder<Rnd_It, Fwd_It>::compute()
 {
     std::promise<Error> p;
     if (_state == Enc_State::INIT_ERROR) {
         p.set_value (Error::INITIALIZATION);
-        return p.get_future();
+        return p.get_future().share();
     }
-    auto future = p.get_future();
-
-    // only one waiting thread for the encoder
-    if (waiting.joinable()) {
-        p.set_value (Error::WORKING);
-        return p.get_future();
-    }
-    waiting = std::thread (compute_thread, this, false, std::move(p));
-    return future;
+    std::unique_lock<std::mutex> lock (_mtx);
+    if (_single_wait.valid())
+        return _single_wait;
+    stop();
+    if (_waiting.joinable())
+        _waiting.join();
+    _single_wait = p.get_future().share();
+    _waiting = std::thread (compute_thread, this, false, std::move(p));
+    lock.unlock();
+    return _single_wait;
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -473,10 +488,12 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
         return 0;
     // returns number of iterators written
     if (_state == Enc_State::FULL) {
-        if (!encoder.ready()) {
-            if (precomputed.rows() == 0)
-                return 0;
-            encoder.generate_symbols (precomputed, &_from, &_to);
+        if (id >= _symbols) { // repair symbol
+            if (!encoder.ready()) {
+                if (!_single_wait.valid())
+                    _single_wait = compute();
+                _single_wait.wait();
+            }
         }
         return encoder.Enc (id, output, end);
     }
@@ -491,12 +508,16 @@ template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::~Decoder ()
 {
     work = RaptorQ__v1::Work_State::ABORT_COMPUTATION;
+    std::unique_lock<std::mutex> lock (_mtx);
     _cond.notify_all();
+    lock.unlock();
     // wait threads to exit
     do {
-        std::unique_lock<std::mutex> lock (_mtx);
-        if (waiting.size() == 0)
+        lock.lock();
+        if (waiting.size() == 0) {
+            lock.unlock();
             break;
+        }
         _cond.wait (lock);
         lock.unlock();
     } while (waiting.size() != 0);
@@ -504,7 +525,7 @@ Decoder<In_It, Fwd_It>::~Decoder ()
 
 template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::Decoder (const Block_Size symbols,
-                                const size_t symbol_size, const Report type)
+                                const size_t symbol_size, const Dec_Report type)
     :_symbols (static_cast<uint16_t> (symbols)), _symbol_size (symbol_size),
                                     _type (type), dec (symbols, symbol_size)
 {
@@ -517,15 +538,14 @@ Decoder<In_It, Fwd_It>::Decoder (const Block_Size symbols,
             break;
     }
     // check that the user did not try some cast trickery,
-    // and maximum size is ssize_t::max. But ssize_t is not standard,
-    // so we search the maximum ourselves.
-    if (idx == (*blocks).size() || symbol_size >= std::pow (2,
-                                    (sizeof(size_t) == 4 ? 31 : 63))) {
+    // and maximum size is ssize_t::max.
+    if (idx == (*blocks).size() || symbol_size >=
+                                        std::numeric_limits<ssize_t>::max()) {
         return;
     }
-    if (type != Report::PARTIAL_FROM_BEGINNING &&
-            type != Report::PARTIAL_ANY &&
-            type != Report::COMPLETE) {
+    if (type != Dec_Report::PARTIAL_FROM_BEGINNING &&
+            type != Dec_Report::PARTIAL_ANY &&
+            type != Dec_Report::COMPLETE) {
         return; // no cast trickey plz
     }
 
@@ -589,16 +609,17 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
     if (symbols_tracker.size() == 0)
         return Error::INITIALIZATION;
     auto ret = dec.add_symbol (from, to, esi);
-    if (ret == Error::NONE && esi < _symbols) {
-        symbols_tracker [2 * esi].store (true);
+    if (ret == Error::NONE) {
+        if (esi < _symbols)
+            symbols_tracker [2 * esi].store (true);
+        std::unique_lock<std::mutex> lock (_mtx);
         _cond.notify_all();
     }
     return ret;
 }
 
-
 template <typename In_It, typename Fwd_It>
-std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
+Decoder_wait_res Decoder<In_It, Fwd_It>::poll ()
 {
     if (symbols_tracker.size() == 0)
         return {Error::INITIALIZATION, 0};
@@ -606,10 +627,10 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
     uint32_t last;
     bool expected = false;
     switch (_type) {
-    case Report::NONE:
+    case Dec_Report::NONE:
         assert (false && "RQ: Report enum: should not have gotten here!");
         return {Error::INITIALIZATION, 0};
-    case Report::PARTIAL_FROM_BEGINNING:
+    case Dec_Report::PARTIAL_FROM_BEGINNING:
         // report the number of symbols that are known, starting from
         // the beginning.
         last = last_reported.load();
@@ -641,7 +662,7 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
                 }
                 // else we can report the new stuff
             }
-            return {Error::NONE, idx};
+            return {Error::NONE, static_cast<uint16_t>(idx)};
         }
         // nothing to report
         if (dec.ready()) {
@@ -651,7 +672,7 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
         if (dec.threads() > 0)
             return {Error::WORKING, 0};
         return {Error::NEED_DATA, 0};
-    case Report::PARTIAL_ANY:
+    case Dec_Report::PARTIAL_ANY:
         // report the first available, not yet reported.
         // or return {NONE, _symbols} if all have been reported
         if (dec.ready())
@@ -664,7 +685,7 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
                     expected = false;
                     if (symbols_tracker[idx].
                                     compare_exchange_strong (expected, true)) {
-                        return {Error::NONE, idx / 2};
+                        return {Error::NONE, static_cast<uint16_t> (idx / 2)};
                     }   // else some other thread raced us, keep trying other
                         // symbols
                 }
@@ -675,7 +696,7 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
         if (dec.threads() > 0)
             return {Error::WORKING, 0};
         return {Error::NEED_DATA, 0};
-    case Report::COMPLETE:
+    case Dec_Report::COMPLETE:
         auto init = last_reported.load();
         idx = init * 2;
         for (; idx < symbols_tracker.size(); idx += 2) {
@@ -696,15 +717,15 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::poll ()
 
 template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::waiting_thread (Decoder<In_It, Fwd_It> *obj,
-                                    std::promise<std::pair<Error, uint16_t>> p)
+                                        std::promise<struct Decoder_wait_res> p)
 {
+    bool promise_set = false;
     while (obj->work == RaptorQ__v1::Work_State::KEEP_WORKING) {
         bool compute = obj->dec.add_concurrent (obj->_max_threads);
         if (compute) {
             obj->decode_once();
             std::unique_lock<std::mutex> lock (obj->_mtx);
             obj->dec.drop_concurrent();
-            lock.unlock();
             obj->_cond.notify_all(); // notify other waiting threads
         }
         std::unique_lock<std::mutex> lock (obj->_mtx);
@@ -712,18 +733,19 @@ void Decoder<In_It, Fwd_It>::waiting_thread (Decoder<In_It, Fwd_It> *obj,
         // lock-wait mechanism to signal the arrival of new symbols,
         // so that we retry only when we get new data.
         auto res = obj->poll();
-        if (res.first == Error::NONE || (obj->dec.end_of_input == true &&
+        if (res.error == Error::NONE || (obj->dec.end_of_input == true &&
                                             !obj->dec.can_decode()  &&
                                             obj->dec.threads() == 0 &&
-                                                res.first == Error::NEED_DATA)){
+                                                res.error == Error::NEED_DATA)){
             p.set_value (res);
+            promise_set = true;
             break;
         }
         obj->_cond.wait (lock);
         lock.unlock();
     }
 
-    if (obj->work != RaptorQ__v1::Work_State::KEEP_WORKING)
+    if (obj->work != RaptorQ__v1::Work_State::KEEP_WORKING && !promise_set)
         p.set_value ({Error::EXITING, 0});
 
     std::unique_lock<std::mutex> lock (obj->_mtx);
@@ -735,16 +757,16 @@ void Decoder<In_It, Fwd_It>::waiting_thread (Decoder<In_It, Fwd_It> *obj,
             break;
         }
     }
-    lock.unlock();
     obj->_cond.notify_all(); // notify exit to destructor
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::wait_sync ()
+Decoder_wait_res Decoder<In_It, Fwd_It>::wait_sync ()
 {
+    // FIXME: if used, then poll() can not return ERROR::WAITING
     if (symbols_tracker.size() == 0)
         return {Error::INITIALIZATION, 0};
-    std::promise<std::pair<Error, uint16_t>> p;
+    std::promise<struct Decoder_wait_res> p;
     auto fut = p.get_future();
     waiting_thread (this, std::move(p));
     fut.wait();
@@ -752,14 +774,16 @@ std::pair<Error, uint16_t> Decoder<In_It, Fwd_It>::wait_sync ()
 }
 
 template <typename In_It, typename Fwd_It>
-std::future<std::pair<Error, uint16_t>> Decoder<In_It, Fwd_It>::wait ()
+std::future<struct Decoder_wait_res> Decoder<In_It, Fwd_It>::wait ()
 {
-    std::promise<std::pair<Error, uint16_t>> p;
+    std::promise<struct Decoder_wait_res> p;
     if (symbols_tracker.size() == 0) {
         p.set_value ({Error::INITIALIZATION, 0});
         return p.get_future();
     }
     auto f = p.get_future();
+    std::unique_lock<std::mutex> lock (_mtx);
+    RQ_UNUSED (lock);
     waiting.emplace_back (waiting_thread, this, std::move(p));
     return f;
 }
@@ -795,7 +819,7 @@ Decoder_Result Decoder<In_It, Fwd_It>::decode_once()
     if (res == Decoder_Result::DECODED) {
         std::unique_lock<std::mutex> lock (_mtx);
         RQ_UNUSED (lock);
-        if (_type != Report::COMPLETE) {
+        if (_type != Dec_Report::COMPLETE) {
             uint32_t id = last_reported.load();
             for (; id < symbols_tracker.size(); id += 2)
                 symbols_tracker[id].store (true);
@@ -820,14 +844,16 @@ void Decoder<In_It, Fwd_It>::stop()
     if (symbols_tracker.size() == 0)
         return;
     work = RaptorQ__v1::Work_State::ABORT_COMPUTATION;
+    std::unique_lock<std::mutex> lock (_mtx);
+    RQ_UNUSED (lock);
     _cond.notify_all();
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<size_t, size_t> Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
-                                                    const Fwd_It end,
-                                                    const size_t from_byte,
-                                                    const size_t skip)
+Decoder_written Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
+                                                        const Fwd_It end,
+                                                        const size_t from_byte,
+                                                        const size_t skip)
 {
     using T = typename std::iterator_traits<Fwd_It>::value_type;
 
@@ -890,8 +916,8 @@ Error Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
     auto start_copy = start;
     size_t esi_byte = esi * _symbol_size;
 
-    auto pair = decode_bytes (start_copy, end, esi_byte, 0);
-    if (pair.first == _symbol_size) {
+    auto out = decode_bytes (start_copy, end, esi_byte, 0);
+    if (out.written == _symbol_size) {
         start = start_copy;
         return Error::NONE;
     }

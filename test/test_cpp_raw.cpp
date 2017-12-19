@@ -255,7 +255,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 
     dec.end_of_input();
     auto res = dec.wait_sync();
-    if (res.first != RaptorQ::Error::NONE) {
+    if (res.error != RaptorQ::Error::NONE) {
         std::cout << "Couldn't decode.\n";
         return false;
     }
@@ -273,14 +273,14 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     // Also, the decoder has to fill the iterators: if "mysize" is not aligned
     // with the "received" alignment, the last element in "received"
     // will have additional data.
-    if (decoded.first < mysize) {
-        if (decoded.first == 0) {
+    if (decoded.written < mysize) {
+        if (decoded.written == 0) {
             std::cout << "Couldn't decode, RaptorQ Algorithm failure. "
                                                             "Can't Retry.\n";
             return true;
         } else {
             std::cout << "Partial Decoding? This should not have happened: " <<
-                                    decoded.first  << " vs " << mysize << "\n";
+                                    decoded.written  << " vs " << mysize << "\n";
         }
         return false;
     } else {

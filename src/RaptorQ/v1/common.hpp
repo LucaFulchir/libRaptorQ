@@ -195,19 +195,34 @@ inline Compress operator& (const Compress a, const Compress b)
     return static_cast<Compress> (static_cast<uint8_t> (a) &
                                                     static_cast<uint8_t> (b));
 }
-    enum class RAPTORQ_API Error : uint8_t {
-                            NONE = RQ_ERR_NONE,
-                            NOT_NEEDED = RQ_ERR_NOT_NEEDED,
-                            WRONG_INPUT = RQ_ERR_WRONG_INPUT,
-                            NEED_DATA = RQ_ERR_NEED_DATA,
-                            WORKING = RQ_ERR_WORKING,
-                            INITIALIZATION = RQ_ERR_INITIALIZATION,
-                            EXITING = RQ_ERR_EXITING
-                            };
-    enum class RAPTORQ_API Work_State : uint8_t {
-        KEEP_WORKING = RQ_WORK_KEEP_WORKING,
-        ABORT_COMPUTATION = RQ_WORK_ABORT_COMPUTATION,
-    };
+enum class RAPTORQ_API Error : uint8_t {
+                        NONE = RQ_ERR_NONE,
+                        NOT_NEEDED = RQ_ERR_NOT_NEEDED,
+                        WRONG_INPUT = RQ_ERR_WRONG_INPUT,
+                        NEED_DATA = RQ_ERR_NEED_DATA,
+                        WORKING = RQ_ERR_WORKING,
+                        INITIALIZATION = RQ_ERR_INITIALIZATION,
+                        EXITING = RQ_ERR_EXITING
+                        };
+enum class RAPTORQ_API Work_State : uint8_t {
+    KEEP_WORKING = RQ_WORK_KEEP_WORKING,
+    ABORT_COMPUTATION = RQ_WORK_ABORT_COMPUTATION,
+};
+struct RAPTORQ_API Decoder_wait_res {
+    Error error;
+    uint16_t symbol;
+};
+struct RAPTORQ_API Decoder_written {
+    size_t written;
+    size_t offset;
+};
+
+enum class RAPTORQ_API Dec_Report : uint8_t {
+    NONE = RQ_COMPUTE_NONE,
+    PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
+    PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
+    COMPLETE = RQ_COMPUTE_COMPLETE
+};
 } // namespace RaptorQ__v1
 namespace RFC6330__v1 {
 namespace Impl {

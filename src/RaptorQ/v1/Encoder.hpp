@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -64,6 +64,14 @@ public:
     Raw_Encoder& operator= (const Raw_Encoder&) = delete;
     Raw_Encoder (Raw_Encoder&&) = default;
     Raw_Encoder& operator= (Raw_Encoder&&) = default;
+
+    // set data early so we can encode source symbols without
+    // having done any precomputation.
+    // only for NON-INTERLEAVED
+    template <typename R_It = Rnd_It,
+        typename F_It = Fwd_It, typename I = Interleaved,
+        typename std::enable_if<!I::value, int>::type = 0>
+    void set_data (Rnd_It *from, Rnd_It *to);
 
     // "Enc" will have two implementations, depending os whether the
     // interleaver was used or not.
@@ -196,6 +204,17 @@ template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::is_stopped() const
     { return !keep_working; }
 
+// NON-interleaved only
+template <typename Rnd_It, typename Fwd_It, typename Interleaved>
+template <typename R_It, typename F_It, typename I,
+                                typename std::enable_if<!I::value, int>::type>
+void Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::set_data (Rnd_It *from,
+                                                            Rnd_It *to)
+{
+    _from = from;
+    _to = to;
+}
+
 template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 void Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::clear_data()
 {
@@ -296,24 +315,27 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_raw_symbols(
     uint16_t row = S_H;
 
     // now the C[0...K] symbols follow
-    const T padding = static_cast<T> (0);
+    std::vector<uint8_t> padding (sizeof(T), 0);
     Rnd_It it = *_from;
     uint8_t *p = reinterpret_cast<uint8_t*> (&*it);
     if (it >= *_to)
-        p = reinterpret_cast<uint8_t*> (const_cast<T*> (&padding));
+        p = padding.data();
+    bool pad = false;
     size_t in_align = 0;
     for (; row < S_H + _symbols; ++row) {
-        for (int64_t col = 0; col < static_cast<int64_t>(_symbol_size); ++col) {
+        for (ssize_t col = 0; col < static_cast<ssize_t>(_symbol_size); ++col) {
             auto val = *(p++);
             D (row, col) = val;
             ++in_align;
             if (in_align == sizeof(T)) {
                 in_align = 0;
-                ++it;
+                if (!pad) // windows debug: can't  ++iterator past the end()
+                    ++it;
                 if (it < *_to) {
                     p = reinterpret_cast<uint8_t*> (&*it);
                 } else {
-                    p = reinterpret_cast<uint8_t*> (const_cast<T*> (&padding));
+                    pad = true;
+                    p = padding.data();
                 }
             }
         }
@@ -368,6 +390,8 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
 {
     if (precomputed.rows() == 0)
         return false;
+    keep_working = true;
+
     const uint16_t S_H = precode_on->_params.S + precode_on->_params.H;
     const uint16_t K_S_H = precode_on->_params.K_padded + S_H;
     const DenseMtx D = get_raw_symbols (K_S_H, S_H);
@@ -384,7 +408,6 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
 {
     if (encoded_symbols.cols() != 0)
         return true;
-
     keep_working = true;
 
     auto ksh = init_ksh();
@@ -402,6 +425,8 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
 {
     if (precomputed.rows() == 0 || from == nullptr || to == nullptr)
         return false;
+    keep_working = true;
+
     _from = const_cast<Rnd_It*> (from);
     _to = const_cast<Rnd_It*> (to);
     const uint16_t S_H = precode_on->_params.S + precode_on->_params.H;
@@ -425,6 +450,7 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
         return false;
     if (encoded_symbols.cols() != 0)
         return true;
+    keep_working = true;
 
     _from = const_cast<Rnd_It*> (from);
     _to = const_cast<Rnd_It*> (to);
@@ -530,7 +556,7 @@ size_t Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::Enc (const uint32_t ESI,
     // The alignment of "Fwd_It" might *NOT* be the alignment of "Rnd_It"
 
     size_t written = 0;
-    if (_interleaver == nullptr || !ready())
+    if (_interleaver == nullptr)
         return written;
     auto non_repair = _interleaver->source_symbols (_SBN);
 
@@ -584,7 +610,7 @@ size_t Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::Enc (const uint32_t ESI,
     // The alignment of "Fwd_It" might *NOT* be the alignment of "Rnd_It"
 
     size_t written = 0;
-    if (!ready())
+    if (_from == nullptr || _to == nullptr)
         return written;
 
     if (ESI < _symbols) {
@@ -644,8 +670,8 @@ size_t Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::Enc_repair (const uint32_t ESI,
 {
     size_t written = 0;
     // repair symbol requested.
-    if (encoded_symbols.cols() == 0)
-        return false;
+    if (!ready())
+        return written;
     uint16_t K;
     if (_type == Save_Computation::ON) {
         if (precode_on == nullptr)

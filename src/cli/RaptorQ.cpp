@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2016-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -192,17 +192,17 @@ static void print_output (struct write_out_args args)
         }
         lock.unlock();
         auto pair = dec->wait_sync();
-        if (pair.first == RaptorQ__v1::Error::NEED_DATA) {
+        if (pair.error == RaptorQ__v1::Error::NEED_DATA) {
             if (*args.status == Out_Status::GRACEFUL_STOP) {
                 lock.lock();
-                if (dec->poll().first == RaptorQ__v1::Error::NONE)
+                if (dec->poll().error == RaptorQ__v1::Error::NONE)
                     continue;
                 *args.status = Out_Status::ERROR;
                 return;
             }
             continue;
         }
-        if (pair.first != RaptorQ__v1::Error::NONE) {
+        if (pair.error != RaptorQ__v1::Error::NONE) {
             // internal error or interrupted computation
             lock.lock();
             *args.status = Out_Status::ERROR;
@@ -210,7 +210,7 @@ static void print_output (struct write_out_args args)
         }
         size_t sym_size = dec->symbol_size();
         std::vector<uint8_t> buffer (sym_size);;
-        for (; last_symbol < pair.second; ++last_symbol) {
+        for (; last_symbol < pair.symbol; ++last_symbol) {
             buffer.clear();
             buffer.insert (buffer.begin(), sym_size, 0);
             auto buf_start = buffer.begin();

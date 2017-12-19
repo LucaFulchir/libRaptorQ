@@ -39,10 +39,22 @@ extern "C"
     struct RAPTORQ_LOCAL RaptorQ_future_enc;
     struct RAPTORQ_LOCAL RaptorQ_future_dec;
 
-    struct RAPTORQ_API RaptorQ_dec_result {
-        const RaptorQ_Error err;
-        const uint16_t esi;
+    // do NOT mark the members of these structs as const.
+    // MSVC breaks in annoyingly ways.
+    struct RAPTORQ_API RaptorQ_Dec_Result {
+        RaptorQ_Error error;
+        uint16_t esi;
     };
+    struct RAPTORQ_API RaptorQ_Dec_Written {
+        uint64_t written;
+        size_t offset;
+    };
+    typedef enum {
+        RQ_PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
+        RQ_PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
+        RQ_COMPLETE = RQ_COMPUTE_COMPLETE
+    } RAPTORQ_API RQ_Dec_Report;
+
 
     RAPTORQ_API struct RaptorQ_base_api* RaptorQ_api (uint32_t version);
     RAPTORQ_API void RaptorQ_free_api (struct RaptorQ_base_api **api);
@@ -76,13 +88,13 @@ extern "C"
         struct RaptorQ_ptr* (*const Decoder) (RaptorQ_type type,
                                             const RaptorQ_Block_Size symbols,
                                             const size_t symbol_size,
-                                            const RaptorQ_Compute report);
-        bool (*const initialized) (const RaptorQ_ptr *ptr);
+                                            const RQ_Dec_Report report);
+        bool (*const initialized) (const struct RaptorQ_ptr *ptr);
 
         // common functions
-        uint16_t (*const symbols)     (const RaptorQ_ptr *ptr);
-        size_t   (*const symbol_size) (const RaptorQ_ptr *ptr);
-        void (*const stop) (const RaptorQ_ptr *ptr);
+        uint16_t (*const symbols)     (const struct RaptorQ_ptr *ptr);
+        size_t   (*const symbol_size) (const struct RaptorQ_ptr *ptr);
+        void (*const stop) (const struct RaptorQ_ptr *ptr);
         RaptorQ_Error (*const future_state) (struct RaptorQ_future *const f);
         RaptorQ_Error (*const future_wait_for) (struct RaptorQ_future *const f,
                                                 const uint64_t time,
@@ -93,31 +105,36 @@ extern "C"
         bool (*const ready) (const struct RaptorQ_ptr *ptr);
 
         // encoder-specific
-        uint32_t (*const max_repair)  (const RaptorQ_ptr *enc);
-        size_t (*const set_data) (const RaptorQ_ptr *enc, void **from,
+        uint32_t (*const max_repair)  (const struct RaptorQ_ptr *enc);
+        size_t (*const set_data) (const struct RaptorQ_ptr *enc, void **from,
                                                             const size_t size);
-        bool (*const has_data) (const RaptorQ_ptr *enc);
-        void (*const clear_data) (const RaptorQ_ptr *enc);
-        bool (*const precompute_sync) (const RaptorQ_ptr *enc);
-        bool (*const compute_sync) (const RaptorQ_ptr *enc);
-        RaptorQ_future_enc* (*const precompute) (const RaptorQ_ptr *enc);
-        RaptorQ_future_enc* (*const compute) (const RaptorQ_ptr *enc);
+        bool (*const has_data) (const struct RaptorQ_ptr *enc);
+        void (*const clear_data) (const struct RaptorQ_ptr *enc);
+        bool (*const precompute_sync) (const struct RaptorQ_ptr *enc);
+        bool (*const compute_sync) (const struct RaptorQ_ptr *enc);
+        struct RaptorQ_future_enc* (*const precompute) (
+                                                const struct RaptorQ_ptr *enc);
+        struct RaptorQ_future_enc* (*const compute) (
+                                                const struct RaptorQ_ptr *enc);
         RaptorQ_Error (*const enc_future_get) (struct RaptorQ_future_enc *f);
-        size_t (*const encode) (const RaptorQ_ptr *enc, void **from,
-                                            const size_t size, const uint32_t);
+        size_t (*const encode) (const struct RaptorQ_ptr *enc, void **from,
+                                        const size_t size, const uint32_t ESI);
 
         // decoder-specific
-        RaptorQ_Error (*const add_symbol) (const RaptorQ_ptr *dec, void **from,
+        RaptorQ_Error (*const add_symbol) (const struct RaptorQ_ptr *dec,
+                                                            void **from,
                                                             const size_t size,
                                                             const uint32_t esi);
 
-        bool (*const can_decode) (const RaptorQ_ptr *dec);
-        uint16_t (*const needed_symbols) (const RaptorQ_ptr *dec);
+        bool (*const can_decode) (const struct RaptorQ_ptr *dec);
+        uint16_t (*const needed_symbols) (const struct RaptorQ_ptr *dec);
 
-        RaptorQ_dec_result (*const poll) (const RaptorQ_ptr *dec);
-        RaptorQ_dec_result (*const wait_sync) (const RaptorQ_ptr *dec);
-        RaptorQ_future_dec* (*const wait) (const RaptorQ_ptr *dec);
-        RaptorQ_dec_result (*const dec_future_get) (
+        struct RaptorQ_Dec_Result (*const poll) (const struct RaptorQ_ptr *dec);
+        struct RaptorQ_Dec_Result (*const wait_sync) (
+                                                const struct RaptorQ_ptr *dec);
+        struct RaptorQ_future_dec* (*const wait) (
+                                                const struct RaptorQ_ptr *dec);
+        struct RaptorQ_Dec_Result (*const dec_future_get) (
                                                 struct RaptorQ_future_dec *f);
     };
 
