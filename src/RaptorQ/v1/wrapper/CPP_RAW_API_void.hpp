@@ -106,6 +106,7 @@ public:
     bool can_decode() const;
     bool ready() const;
     void stop();
+    void clear_data();
     uint16_t needed_symbols() const;
 
     void set_max_concurrency (const uint16_t max_threads);

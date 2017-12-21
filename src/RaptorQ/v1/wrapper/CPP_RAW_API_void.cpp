@@ -747,6 +747,27 @@ void Decoder_void::stop()
     }
 }
 
+void Decoder_void::clear_data()
+{
+    const cast_dec _dec (_decoder);
+    switch (_type) {
+    case RaptorQ_type::RQ_DEC_8:
+        return _dec._8->clear_data();
+    case RaptorQ_type::RQ_DEC_16:
+        return _dec._16->clear_data();
+    case RaptorQ_type::RQ_DEC_32:
+        return _dec._32->clear_data();
+    case RaptorQ_type::RQ_DEC_64:
+        return _dec._64->clear_data();
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+}
+
 uint16_t Decoder_void::needed_symbols() const
 {
     const cast_dec _dec (_decoder);

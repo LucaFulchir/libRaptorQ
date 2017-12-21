@@ -109,7 +109,7 @@ extern "C"
         size_t (*const set_data) (const struct RaptorQ_ptr *enc, void **from,
                                                             const size_t size);
         bool (*const has_data) (const struct RaptorQ_ptr *enc);
-        void (*const clear_data) (const struct RaptorQ_ptr *enc);
+        void (*const clear_data) (const struct RaptorQ_ptr *ptr);
         bool (*const precompute_sync) (const struct RaptorQ_ptr *enc);
         bool (*const compute_sync) (const struct RaptorQ_ptr *enc);
         struct RaptorQ_future_enc* (*const precompute) (

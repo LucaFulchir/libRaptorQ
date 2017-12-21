@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2016-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -32,7 +32,7 @@ namespace Impl {
 class RAPTORQ_LOCAL Bitmask
 {
 public:
-    const uint16_t _max_nonrepair;
+    uint16_t _max_nonrepair;
 
     Bitmask (const uint16_t symbols)
         : _max_nonrepair(symbols)
@@ -40,6 +40,11 @@ public:
         _holes = _max_nonrepair;
         _mask = std::vector<bool> (_max_nonrepair, false);
     }
+    ~Bitmask() = default;
+    Bitmask (const Bitmask&) = default;
+    Bitmask& operator= (const Bitmask&) = default;
+    Bitmask (Bitmask&&) = default;
+    Bitmask& operator= (Bitmask&&) = default;
 
     void add (const size_t id)
     {

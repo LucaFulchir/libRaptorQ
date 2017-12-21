@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -79,6 +79,7 @@ public:
     bool has_symbol (const uint16_t symbol) const;
 
     void stop();
+    void clear_data();
     bool is_stopped() const;
     // can start a computation (with different data)
     bool can_decode() const;
@@ -148,6 +149,22 @@ template <typename In_It>
 void Raw_Decoder<In_It>::stop()
 {
     keep_working = false;
+}
+
+template <typename In_It>
+void Raw_Decoder<In_It>::clear_data()
+{
+    std::unique_lock<std::mutex> lock_all (lock);
+    RQ_UNUSED (lock_all);
+    stop();
+    // not needed, we will need to reallocate it anyway,
+    // and the bitmask already considers the symbols as unkowns
+    //source_symbols = DenseMtx (_symbols, symbol_size);
+    concurrent = 0;
+    can_retry = false;
+    end_of_input = false;
+    mask = Bitmask (_symbols);
+    received_repair.clear();
 }
 
 template <typename In_It>
@@ -304,6 +321,8 @@ template <typename In_It>
 Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
 {
     // this method can be launched concurrently multiple times.
+    // TODO:  do not build matrices with more than 4 overhead elements,
+    // but don't lose received elements either
 
     // rfc 6330: can decode when received >= K_padded
     // actually: (K_padded - K) are padding and thus constant and NOT

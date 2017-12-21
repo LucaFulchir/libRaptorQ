@@ -155,6 +155,7 @@ public:
     bool can_decode() const;
     bool ready() const;
     void stop();
+    void clear_data();
     uint16_t needed_symbols() const;
 
     void set_max_concurrency (const uint16_t max_threads);
@@ -847,6 +848,19 @@ void Decoder<In_It, Fwd_It>::stop()
     std::unique_lock<std::mutex> lock (_mtx);
     RQ_UNUSED (lock);
     _cond.notify_all();
+}
+
+template <typename In_It, typename Fwd_It>
+void Decoder<In_It, Fwd_It>::clear_data()
+{
+    if (symbols_tracker.size() == 0)
+        return;
+    std::unique_lock<std::mutex> lock (_mtx);
+    RQ_UNUSED (lock);
+    dec.clear_data();
+    last_reported.store(0);
+    for (auto it = symbols_tracker.begin(); it != symbols_tracker.end(); ++it)
+        *it = false;
 }
 
 template <typename In_It, typename Fwd_It>

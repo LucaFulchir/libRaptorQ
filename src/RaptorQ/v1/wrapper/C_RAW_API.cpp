@@ -107,7 +107,7 @@ static uint32_t v1_max_repair  (const RaptorQ_ptr *enc);
 static size_t v1_set_data (const RaptorQ_ptr *enc, void **from,
                                                             const size_t size);
 static bool v1_has_data (const RaptorQ_ptr *enc);
-static void v1_clear_data (const RaptorQ_ptr *enc);
+static void v1_clear_data (const RaptorQ_ptr *ptr);
 static bool v1_precompute_sync (const RaptorQ_ptr *enc);
 static bool v1_compute_sync (const RaptorQ_ptr *enc);
 static RaptorQ_future_enc* v1_precompute (const RaptorQ_ptr *enc);
@@ -833,31 +833,43 @@ static bool v1_has_data (const RaptorQ_ptr *enc)
     return false;
 }
 
-static void v1_clear_data (const RaptorQ_ptr *enc)
+static void v1_clear_data (const RaptorQ_ptr *ptr)
 {
-    if (enc == nullptr || enc->ptr == nullptr)
+    if (ptr == nullptr || ptr->ptr == nullptr)
         return;
-    switch (enc->type) {
+    switch (ptr->type) {
     case RaptorQ_type::RQ_ENC_8:
         return (reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
-                                                    enc->ptr))->clear_data();
+                                                    ptr->ptr))->clear_data();
     case RaptorQ_type::RQ_ENC_16:
         return (reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
-                                                    enc->ptr))->clear_data();
+                                                    ptr->ptr))->clear_data();
     case RaptorQ_type::RQ_ENC_32:
         return (reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
-                                                    enc->ptr))->clear_data();
+                                                    ptr->ptr))->clear_data();
     case RaptorQ_type::RQ_ENC_64:
         return (reinterpret_cast<
                             RaptorQ__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
-                                                    enc->ptr))->clear_data();
+                                                    ptr->ptr))->clear_data();
     case RaptorQ_type::RQ_DEC_8:
+        return (reinterpret_cast<
+                            RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
+                                                    ptr->ptr))->clear_data();
     case RaptorQ_type::RQ_DEC_16:
+        return (reinterpret_cast<
+                            RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
+                                                    ptr->ptr))->clear_data();
     case RaptorQ_type::RQ_DEC_32:
+        return (reinterpret_cast<
+                            RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
+                                                    ptr->ptr))->clear_data();
     case RaptorQ_type::RQ_DEC_64:
+        return (reinterpret_cast<
+                            RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
+                                                    ptr->ptr))->clear_data();
     case RaptorQ_type::RQ_NONE:
         return;
     }

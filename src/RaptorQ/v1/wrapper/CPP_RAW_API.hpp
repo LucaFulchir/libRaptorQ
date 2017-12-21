@@ -114,6 +114,7 @@ public:
     bool can_decode() const;
     bool ready() const;
     void stop();
+    void clear_data();
     uint16_t needed_symbols() const;
 
     void set_max_concurrency (const uint16_t max_threads);
@@ -537,6 +538,27 @@ void Decoder<In_It, Fwd_It>::stop()
 {
     if (_decoder != nullptr)
         _decoder->stop();
+}
+
+void Decoder_void::clear_data()
+{
+    const cast_dec _dec (_decoder);
+    switch (_type) {
+    case RaptorQ_type::RQ_DEC_8:
+        return _dec._8->clear_data();
+    case RaptorQ_type::RQ_DEC_16:
+        return _dec._16->clear_data();
+    case RaptorQ_type::RQ_DEC_32:
+        return _dec._32->clear_data();
+    case RaptorQ_type::RQ_DEC_64:
+        return _dec._64->clear_data();
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
 }
 
 template <typename In_It, typename Fwd_It>
