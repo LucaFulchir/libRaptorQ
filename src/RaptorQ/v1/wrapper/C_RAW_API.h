@@ -136,6 +136,18 @@ extern "C"
                                                 const struct RaptorQ_ptr *dec);
         struct RaptorQ_Dec_Result (*const dec_future_get) (
                                                 struct RaptorQ_future_dec *f);
+        void (*const end_of_input) (struct RaptorQ_ptr *dec);
+        RaptorQ_Error (*const decode_symbol) (struct RaptorQ_ptr *dec,
+                                                            void** start,
+                                                            const size_t size,
+                                                            const uint16_t esi);
+        struct RaptorQ_Dec_Written (*const decode_bytes) (
+                                                        struct RaptorQ_ptr *dec,
+                                                        void **start,
+                                                        const size_t size,
+                                                        const size_t from_byte,
+                                                        const size_t skip);
+
     };
 
 

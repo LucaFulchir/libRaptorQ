@@ -126,6 +126,14 @@ static RaptorQ_Dec_Result v1_poll (const RaptorQ_ptr *dec);
 static RaptorQ_Dec_Result v1_wait_sync (const RaptorQ_ptr *dec);
 static RaptorQ_future_dec* v1_wait (const RaptorQ_ptr *dec);
 static RaptorQ_Dec_Result v1_dec_future_get (struct RaptorQ_future_dec *f);
+static void v1_end_of_input (struct RaptorQ_ptr *dec);
+static RaptorQ_Error v1_decode_symbol (struct RaptorQ_ptr *dec, void** start,
+                                        const size_t size, const uint16_t esi);
+static RaptorQ_Dec_Written v1_decode_bytes (struct RaptorQ_ptr *dec,
+                                                        void **start,
+                                                        const size_t size,
+                                                        const size_t from_byte,
+                                                        const size_t skip);
 
 
 
@@ -191,7 +199,10 @@ RaptorQ_v1::RaptorQ_v1()
     poll (&v1_poll),
     wait_sync (&v1_wait_sync),
     wait (&v1_wait),
-    dec_future_get (&v1_dec_future_get)
+    dec_future_get (&v1_dec_future_get),
+    end_of_input (&v1_end_of_input),
+    decode_symbol (&v1_decode_symbol),
+    decode_bytes (&v1_decode_bytes)
 {}
 
 ///////////////////////////
@@ -1307,4 +1318,141 @@ static RaptorQ_Dec_Result v1_dec_future_get (struct RaptorQ_future_dec *f)
     } else {
         return {RaptorQ_Error::RQ_ERR_WORKING, 0};
     }
+}
+
+static void v1_end_of_input (struct RaptorQ_ptr *dec)
+{
+    if (dec == nullptr || dec->ptr == nullptr)
+        return;
+    auto ret = std::unique_ptr<RaptorQ_future_dec> (new RaptorQ_future_dec());
+    using D_T8 = RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>;
+    using D_T16 = RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>;
+    using D_T32 = RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>;
+    using D_T64 = RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>;
+    switch (dec->type) {
+    case RaptorQ_type::RQ_DEC_8:
+        return reinterpret_cast<D_T8*>(dec->ptr)->end_of_input();
+    case RaptorQ_type::RQ_DEC_16:
+        return reinterpret_cast<D_T16*>(dec->ptr)->end_of_input();
+    case RaptorQ_type::RQ_DEC_32:
+        return reinterpret_cast<D_T32*>(dec->ptr)->end_of_input();
+    case RaptorQ_type::RQ_DEC_64:
+        return reinterpret_cast<D_T64*>(dec->ptr)->end_of_input();
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return;
+}
+
+static RaptorQ_Error v1_decode_symbol (struct RaptorQ_ptr *dec, void** start,
+                                        const size_t size, const uint16_t esi)
+{
+    RaptorQ__v1::Error err = RaptorQ__v1::Error::WRONG_INPUT;
+    if (dec == nullptr || dec->ptr == nullptr || start == nullptr ||
+                                                            *start == nullptr) {
+        return static_cast<RaptorQ_Error> (err);
+    }
+    auto ret = std::unique_ptr<RaptorQ_future_dec> (new RaptorQ_future_dec());
+    using D_T8 = RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>;
+    using D_T16 = RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>;
+    using D_T32 = RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>;
+    using D_T64 = RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>;
+
+    uint8_t *f_8;
+    uint16_t *f_16;
+    uint32_t *f_32;
+    uint64_t *f_64;
+    switch (dec->type) {
+    case RaptorQ_type::RQ_DEC_8:
+        f_8 = reinterpret_cast<uint8_t*> (*start);
+        err = reinterpret_cast<D_T8*>(dec->ptr)->decode_symbol (
+                                                        f_8, f_8 + size, esi);
+         *start = f_8;
+        break;
+    case RaptorQ_type::RQ_DEC_16:
+        f_16 = reinterpret_cast<uint16_t*> (*start);
+        err =  reinterpret_cast<D_T16*>(dec->ptr)->decode_symbol (
+                                                        f_16, f_16 + size, esi);
+        *start = f_16;
+        break;
+    case RaptorQ_type::RQ_DEC_32:
+        f_32 = reinterpret_cast<uint32_t*> (*start);
+        err =  reinterpret_cast<D_T32*>(dec->ptr)->decode_symbol (
+                                                        f_32, f_32 + size, esi);
+        *start = f_32;
+        break;
+    case RaptorQ_type::RQ_DEC_64:
+        f_64 = reinterpret_cast<uint64_t*> (*start);
+        err =  reinterpret_cast<D_T64*>(dec->ptr)->decode_symbol (
+                                                        f_64, f_64 + size, esi);
+        *start = f_64;
+        break;
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return static_cast<RaptorQ_Error> (err);
+}
+
+static RaptorQ_Dec_Written v1_decode_bytes (struct RaptorQ_ptr *dec,
+                                                        void **start,
+                                                        const size_t size,
+                                                        const size_t from_byte,
+                                                        const size_t skip)
+{
+    RaptorQ__v1::Decoder_written out {0, 0};
+    if (dec == nullptr || dec->ptr == nullptr || start == nullptr ||
+                                                            *start == nullptr) {
+        return {out.written, out.offset};
+    }
+    auto ret = std::unique_ptr<RaptorQ_future_dec> (new RaptorQ_future_dec());
+    using D_T8 = RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>;
+    using D_T16 = RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>;
+    using D_T32 = RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>;
+    using D_T64 = RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>;
+
+    uint8_t *f_8;
+    uint16_t *f_16;
+    uint32_t *f_32;
+    uint64_t *f_64;
+    switch (dec->type) {
+    case RaptorQ_type::RQ_DEC_8:
+        f_8 = reinterpret_cast<uint8_t*> (*start);
+        out = reinterpret_cast<D_T8*>(dec->ptr)->decode_bytes (
+                                            f_8, f_8 + size, from_byte, skip);
+         *start = f_8;
+        break;
+    case RaptorQ_type::RQ_DEC_16:
+        f_16 = reinterpret_cast<uint16_t*> (*start);
+        out =  reinterpret_cast<D_T16*>(dec->ptr)->decode_bytes (
+                                            f_16, f_16 + size, from_byte, skip);
+        *start = f_16;
+        break;
+    case RaptorQ_type::RQ_DEC_32:
+        f_32 = reinterpret_cast<uint32_t*> (*start);
+        out =  reinterpret_cast<D_T32*>(dec->ptr)->decode_bytes (
+                                            f_32, f_32 + size, from_byte, skip);
+        *start = f_32;
+        break;
+    case RaptorQ_type::RQ_DEC_64:
+        f_64 = reinterpret_cast<uint64_t*> (*start);
+        out =  reinterpret_cast<D_T64*>(dec->ptr)->decode_bytes (
+                                            f_64, f_64 + size, from_byte, skip);
+        *start = f_64;
+        break;
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return {out.written, out.offset};
 }
