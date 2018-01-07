@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -22,8 +22,11 @@
 
 #include "RaptorQ/v1/wrapper/C_common.h"
 #include "RaptorQ/v1/common.hpp" // includes RaptorQ_Errors
+#ifdef __cplusplus
+#include <cstdbool>
+#else
 #include <stdbool.h>
-#include <stddef.h>
+#endif
 
 #ifdef __cplusplus
 extern "C"
@@ -32,13 +35,15 @@ extern "C"
     struct RAPTORQ_LOCAL RFC6330_ptr;
     struct RAPTORQ_LOCAL RFC6330_future;
 
-    struct RFC6330_Result {
-        const RFC6330_Error error;
-        const uint8_t sbn;
+    // do NOT mark the members of these structs as const.
+    // MSVC breaks in annoyingly ways.
+    struct RAPTORQ_API RFC6330_Result {
+        RFC6330_Error error;
+        uint8_t sbn;
     };
-    struct RFC6330_Dec_Result {
-        const uint64_t written;
-        const uint8_t skip;
+    struct RAPTORQ_API RFC6330_Dec_Result {
+        uint64_t written;
+        uint8_t skip;
     };
 
 
@@ -134,6 +139,15 @@ extern "C"
         void (*const end_of_block_input) (const struct RFC6330_ptr *dec,
                                                         const uint8_t block);
         uint64_t (*const bytes) (const struct RFC6330_ptr *dec);
+        RFC6330_Error (*const add_symbol_id) (const struct RFC6330_ptr *dec,
+                                                            void **data,
+                                                            const uint32_t size,
+                                                            const uint32_t id);
+        RFC6330_Error (*const add_symbol) (const struct RFC6330_ptr *dec,
+                                                            void **data,
+                                                            const uint32_t size,
+                                                            const uint32_t esi,
+                                                            const uint8_t sbn);
         struct RFC6330_Dec_Result (*const decode_aligned) (
                                                 const struct RFC6330_ptr *dec,
                                                 void **data,
@@ -153,15 +167,6 @@ extern "C"
                                                             void **data,
                                                             const size_t size,
                                                             const uint8_t skip,
-                                                            const uint8_t sbn);
-        RFC6330_Error (*const add_symbol_id) (const struct RFC6330_ptr *dec,
-                                                            void **data,
-                                                            const uint32_t size,
-                                                            const uint32_t id);
-        RFC6330_Error (*const add_symbol) (const struct RFC6330_ptr *dec,
-                                                            void **data,
-                                                            const uint32_t size,
-                                                            const uint32_t esi,
                                                             const uint8_t sbn);
     };
 

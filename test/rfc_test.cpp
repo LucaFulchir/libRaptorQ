@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -419,7 +419,7 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     uint64_t micro2 = t.stop();
 
 
-    if (decoded.first != mysize * symbol_size) {
+    if (decoded.written != mysize * symbol_size) {
         std::cout << "NOPE: "<< mysize << " - " << drop_prob << " - " <<
                                             static_cast<int> (overhead) << "\n";
         return 0;

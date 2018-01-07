@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -221,7 +221,7 @@ struct RAPTORQ_API Decoder_written {
     size_t offset;
 };
 
-enum class RAPTORQ_API Dec_Report : uint8_t {
+enum class Dec_Report : uint8_t {
     NONE = RQ_COMPUTE_NONE,
     PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
     PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
@@ -256,6 +256,11 @@ inline Compute operator& (const Compute a, const Compute b)
     return static_cast<Compute> (static_cast<uint8_t> (a) &
                                                     static_cast<uint8_t> (b));
 }
+struct RAPTORQ_API Decoder_aligned_res
+{
+    uint64_t written;
+    uint8_t offset;
+};
 } // namespace RFC6330__v1
 
 namespace RaptorQ__v1 {

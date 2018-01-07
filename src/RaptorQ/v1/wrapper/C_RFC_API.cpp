@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -18,7 +18,6 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "RaptorQ/v1/RFC.hpp"
 #include "RaptorQ/v1/wrapper/C_RFC_API.h"
 #include "RaptorQ/v1/caches.hpp"
 #include "RaptorQ/v1/RFC.hpp"
@@ -119,6 +118,14 @@ static void v1_end_of_input (const struct RFC6330_ptr *dec);
 static void v1_end_of_block_input (const struct RFC6330_ptr *dec,
                                                         const uint8_t block);
 static uint64_t v1_bytes (const struct RFC6330_ptr *dec);
+static RFC6330_Error v1_add_symbol_id (const struct RFC6330_ptr *dec,
+                                                            void **data,
+                                                            const uint32_t size,
+                                                            const uint32_t id);
+static RFC6330_Error v1_add_symbol (const struct RFC6330_ptr *dec, void **data,
+                                                            const uint32_t size,
+                                                            const uint32_t esi,
+                                                            const uint8_t sbn);
 static struct RFC6330_Dec_Result v1_decode_aligned (
                                                 const struct RFC6330_ptr *dec,
                                                 void **data,
@@ -136,14 +143,6 @@ static uint64_t v1_decode_bytes (const struct RFC6330_ptr *dec, void **data,
 static size_t v1_decode_block_bytes (const struct RFC6330_ptr *dec, void **data,
                                                             const size_t size,
                                                             const uint8_t skip,
-                                                            const uint8_t sbn);
-static RFC6330_Error v1_add_symbol_id (const struct RFC6330_ptr *dec,
-                                                            void **data,
-                                                            const uint32_t size,
-                                                            const uint32_t id);
-static RFC6330_Error v1_add_symbol (const struct RFC6330_ptr *dec, void **data,
-                                                            const uint32_t size,
-                                                            const uint32_t esi,
                                                             const uint8_t sbn);
 
 
@@ -207,12 +206,12 @@ RFC6330_v1::RFC6330_v1()
     end_of_input (&v1_end_of_input),
     end_of_block_input (&v1_end_of_block_input),
     bytes (&v1_bytes),
+    add_symbol_id (&v1_add_symbol_id),
+    add_symbol (&v1_add_symbol),
     decode_aligned (&v1_decode_aligned),
     decode_block_aligned (&v1_decode_block_aligned),
     decode_bytes (&v1_decode_bytes),
-    decode_block_bytes (&v1_decode_block_bytes),
-    add_symbol_id (&v1_add_symbol_id),
-    add_symbol (&v1_add_symbol)
+    decode_block_bytes (&v1_decode_block_bytes)
 {}
 
 
@@ -1153,7 +1152,7 @@ static struct RFC6330_Dec_Result v1_decode_aligned (
                                         data == nullptr || *data == nullptr) {
         return RFC6330_Dec_Result {0, 0};
     }
-    std::pair<uint64_t, uint8_t> cpp_res {0, 0};
+    RFC6330__v1::Decoder_aligned_res cpp_res {0, 0};
     switch (dec->type) {
     case RFC6330_type::RQ_DEC_8:
         p_8 = reinterpret_cast<uint8_t*> (*data);
@@ -1198,7 +1197,7 @@ static struct RFC6330_Dec_Result v1_decode_aligned (
     case RFC6330_type::RQ_NONE:
         break;
     }
-    return RFC6330_Dec_Result {cpp_res.first, cpp_res.second};
+    return RFC6330_Dec_Result {cpp_res.written, cpp_res.offset};
 }
 
 static struct RFC6330_Dec_Result v1_decode_block_aligned(
@@ -1216,7 +1215,7 @@ static struct RFC6330_Dec_Result v1_decode_block_aligned(
                                         data == nullptr || *data == nullptr) {
         return RFC6330_Dec_Result {0, 0};
     }
-    std::pair<uint64_t, uint8_t> ret = {0, 0};
+    RFC6330__v1::Decoder_aligned_res ret = {0, 0};
     switch (dec->type) {
     case RFC6330_type::RQ_DEC_8:
         p_8 = reinterpret_cast<uint8_t*> (*data);
@@ -1261,7 +1260,7 @@ static struct RFC6330_Dec_Result v1_decode_block_aligned(
     case RFC6330_type::RQ_NONE:
         break;
     }
-    return RFC6330_Dec_Result {ret.first, ret.second};
+    return RFC6330_Dec_Result {ret.written, ret.offset};
 }
 static uint64_t v1_decode_bytes (const struct RFC6330_ptr *dec, void **data,
                                                             const uint64_t size,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -853,7 +853,7 @@ size_t Decoder_void::decode_block_bytes (void* &start, const void* end,
     return ret;
 }
 
-Decoder_void::aligned_res Decoder_void::decode_aligned (void* &start,
+Decoder_aligned_res Decoder_void::decode_aligned (void* &start,
                                                             const void* end,
                                                             const uint8_t skip)
 {
@@ -862,7 +862,7 @@ Decoder_void::aligned_res Decoder_void::decode_aligned (void* &start,
     uint16_t *p_16;
     uint32_t *p_32;
     uint64_t *p_64;
-    std::pair<uint64_t, uint8_t> cpp_res {0, 0};
+    Decoder_aligned_res cpp_res {0, 0};
     switch (_type) {
     case RaptorQ_type::RQ_DEC_8:
         p_8 = reinterpret_cast<uint8_t*> (start);
@@ -899,10 +899,10 @@ Decoder_void::aligned_res Decoder_void::decode_aligned (void* &start,
     case RaptorQ_type::RQ_NONE:
         break;
     }
-    return aligned_res {cpp_res.first, cpp_res.second};
+    return cpp_res;
 }
 
-Decoder_void::aligned_res Decoder_void::decode_block_aligned (void* &start,
+Decoder_aligned_res Decoder_void::decode_block_aligned (void* &start,
                                                         const void* end,
                                                         const uint8_t skip,
                                                         const uint8_t sbn)
@@ -912,7 +912,7 @@ Decoder_void::aligned_res Decoder_void::decode_block_aligned (void* &start,
     uint16_t *p_16;
     uint32_t *p_32;
     uint64_t *p_64;
-    std::pair<size_t, uint8_t> cpp_res {0, 0};
+    Decoder_aligned_res cpp_res {0, 0};
     switch (_type) {
     case RaptorQ_type::RQ_DEC_8:
         p_8 = reinterpret_cast<uint8_t*> (start);
@@ -949,7 +949,7 @@ Decoder_void::aligned_res Decoder_void::decode_block_aligned (void* &start,
     case RaptorQ_type::RQ_NONE:
         break;
     }
-    return aligned_res {cpp_res.first, cpp_res.second};
+    return cpp_res;
 }
 
 Error Decoder_void::add_symbol (void* &start, const void* end,const uint32_t id)

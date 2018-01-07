@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -312,9 +312,9 @@ public:
     // result in ITERATORS
     // last *might* be half written depending on data alignments
     // NOTE: skip = uint8_t to avoid problems with _alignment
-    std::pair<uint64_t, uint8_t> decode_aligned (Fwd_It &start,const Fwd_It end,
+    Decoder_aligned_res decode_aligned (Fwd_It &start,const Fwd_It end,
                                                             const uint8_t skip);
-    std::pair<size_t, uint8_t> decode_block_aligned (Fwd_It &start,
+    Decoder_aligned_res decode_block_aligned (Fwd_It &start,
                                                             const Fwd_It end,
                                                             const uint8_t skip,
                                                             const uint8_t sbn);
@@ -1324,7 +1324,7 @@ size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<uint64_t, uint8_t> Decoder<In_It, Fwd_It>::decode_aligned (
+Decoder_aligned_res Decoder<In_It, Fwd_It>::decode_aligned (
                                                         Fwd_It &start,
                                                         const Fwd_It end,
                                                         const uint8_t skip)
@@ -1339,7 +1339,7 @@ std::pair<uint64_t, uint8_t> Decoder<In_It, Fwd_It>::decode_aligned (
 }
 
 template <typename In_It, typename Fwd_It>
-std::pair<size_t, uint8_t> Decoder<In_It, Fwd_It>::decode_block_aligned (
+Decoder_aligned_res Decoder<In_It, Fwd_It>::decode_block_aligned (
                                                         Fwd_It &start,
                                                         const Fwd_It end,
                                                         const uint8_t skip,

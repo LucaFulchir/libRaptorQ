@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2016-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -127,14 +127,9 @@ public:
     size_t decode_block_bytes (void* &start, const void* end,
                                                             const uint8_t skip,
                                                             const uint8_t sbn);
-    struct aligned_res
-    {
-        uint64_t written;
-        uint8_t offset;
-    };
-    struct aligned_res decode_aligned (void* &start,const void* end,
+    Decoder_aligned_res decode_aligned (void* &start,const void* end,
                                                             const uint8_t skip);
-    struct aligned_res decode_block_aligned (void* &start, const void* end,
+    Decoder_aligned_res decode_block_aligned (void* &start, const void* end,
                                                             const uint8_t skip,
                                                             const uint8_t sbn);
     Error add_symbol (void* &start, const void* end, const uint32_t id);
