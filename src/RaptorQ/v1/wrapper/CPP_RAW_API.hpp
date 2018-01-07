@@ -48,7 +48,7 @@ template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder
 {
 public:
-    Encoder (const RaptorQ_Block_Size symbols, const size_t symbol_size);
+    Encoder (const Block_Size symbols, const size_t symbol_size);
     ~Encoder();
     Encoder() = delete;
     Encoder (const Encoder&) = delete;
@@ -93,7 +93,7 @@ class RAPTORQ_API Decoder
 public:
 
     ~Decoder();
-    Decoder (const RaptorQ_Block_Size symbols, const size_t symbol_size,
+    Decoder (const Block_Size symbols, const size_t symbol_size,
                                                         const Dec_Report type);
     Decoder (const Decoder&) = delete;
     Decoder& operator= (const Decoder&) = delete;
@@ -141,7 +141,7 @@ private:
 
 
 template <>
-inline Encoder<uint8_t*, uint8_t*>::Encoder (const RaptorQ_Block_Size symbols,
+inline Encoder<uint8_t*, uint8_t*>::Encoder (const Block_Size symbols,
                                                     const size_t symbol_size)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_8,
@@ -149,7 +149,7 @@ inline Encoder<uint8_t*, uint8_t*>::Encoder (const RaptorQ_Block_Size symbols,
 }
 
 template <>
-inline Encoder<uint16_t*, uint16_t*>::Encoder (const RaptorQ_Block_Size symbols,
+inline Encoder<uint16_t*, uint16_t*>::Encoder (const Block_Size symbols,
                                                     const size_t symbol_size)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_16,
@@ -157,7 +157,7 @@ inline Encoder<uint16_t*, uint16_t*>::Encoder (const RaptorQ_Block_Size symbols,
 }
 
 template <>
-inline Encoder<uint32_t*, uint32_t*>::Encoder (const RaptorQ_Block_Size symbols,
+inline Encoder<uint32_t*, uint32_t*>::Encoder (const Block_Size symbols,
                                                     const size_t symbol_size)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_32,
@@ -165,7 +165,7 @@ inline Encoder<uint32_t*, uint32_t*>::Encoder (const RaptorQ_Block_Size symbols,
 }
 
 template <>
-inline Encoder<uint64_t, uint64_t*>::Encoder (const RaptorQ_Block_Size symbols,
+inline Encoder<uint64_t, uint64_t*>::Encoder (const Block_Size symbols,
                                                     const size_t symbol_size)
 {
     _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_64,
@@ -357,7 +357,7 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 
 
 template <>
-inline Decoder<uint8_t*, uint8_t*>::Decoder (const RaptorQ_Block_Size symbols,
+inline Decoder<uint8_t*, uint8_t*>::Decoder (const Block_Size symbols,
                                                     const size_t symbol_size,
                                                     const Dec_Report type)
 {
@@ -366,7 +366,7 @@ inline Decoder<uint8_t*, uint8_t*>::Decoder (const RaptorQ_Block_Size symbols,
 }
 
 template <>
-inline Decoder<uint16_t*, uint16_t*>::Decoder (const RaptorQ_Block_Size symbols,
+inline Decoder<uint16_t*, uint16_t*>::Decoder (const Block_Size symbols,
                                                      const size_t symbol_size,
                                                      const Dec_Report type)
 {
@@ -375,7 +375,7 @@ inline Decoder<uint16_t*, uint16_t*>::Decoder (const RaptorQ_Block_Size symbols,
 }
 
 template <>
-inline Decoder<uint32_t*, uint32_t*>::Decoder (const RaptorQ_Block_Size symbols,
+inline Decoder<uint32_t*, uint32_t*>::Decoder (const Block_Size symbols,
                                                      const size_t symbol_size,
                                                      const Dec_Report type)
 {
@@ -384,7 +384,7 @@ inline Decoder<uint32_t*, uint32_t*>::Decoder (const RaptorQ_Block_Size symbols,
 }
 
 template <>
-inline Decoder<uint64_t*, uint64_t*>::Decoder (const RaptorQ_Block_Size symbols,
+inline Decoder<uint64_t*, uint64_t*>::Decoder (const Block_Size symbols,
                                                      const size_t symbol_size,
                                                      const Dec_Report type)
 {
@@ -540,25 +540,12 @@ void Decoder<In_It, Fwd_It>::stop()
         _decoder->stop();
 }
 
-void Decoder_void::clear_data()
+template <typename In_It, typename Fwd_It>
+void Decoder<In_It, Fwd_It>::clear_data()
 {
-    const cast_dec _dec (_decoder);
-    switch (_type) {
-    case RaptorQ_type::RQ_DEC_8:
-        return _dec._8->clear_data();
-    case RaptorQ_type::RQ_DEC_16:
-        return _dec._16->clear_data();
-    case RaptorQ_type::RQ_DEC_32:
-        return _dec._32->clear_data();
-    case RaptorQ_type::RQ_DEC_64:
-        return _dec._64->clear_data();
-    case RaptorQ_type::RQ_ENC_8:
-    case RaptorQ_type::RQ_ENC_16:
-    case RaptorQ_type::RQ_ENC_32:
-    case RaptorQ_type::RQ_ENC_64:
-    case RaptorQ_type::RQ_NONE:
-        break;
-    }
+    if (_decoder == nullptr)
+        return;
+    _decoder->clear_data();
 }
 
 template <typename In_It, typename Fwd_It>

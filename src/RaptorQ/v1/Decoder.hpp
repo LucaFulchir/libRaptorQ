@@ -254,6 +254,8 @@ Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
             return Error::WRONG_INPUT;
     }
 
+    // TODO: move this on the interface, so the RAW API can use
+    // the full 32 bits
     if (esi >= std::pow (2, 20))
         return Error::WRONG_INPUT;
 

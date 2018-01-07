@@ -48,7 +48,7 @@ namespace Impl {
 class RAPTORQ_API Encoder_void final
 {
 public:
-    Encoder_void (const RaptorQ_type type, const RaptorQ_Block_Size symbols,
+    Encoder_void (const RaptorQ_type type, const Block_Size symbols,
                                                     const size_t symbol_size);
     ~Encoder_void();
     Encoder_void() = delete;
@@ -87,7 +87,7 @@ private:
 class RAPTORQ_API Decoder_void
 {
 public:
-    Decoder_void (const RaptorQ_type type, const RaptorQ_Block_Size symbols,
+    Decoder_void (const RaptorQ_type type, const Block_Size symbols,
                         const size_t symbol_size, const Dec_Report computation);
     ~Decoder_void();
     Decoder_void() = delete;

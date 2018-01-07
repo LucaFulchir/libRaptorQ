@@ -186,7 +186,7 @@ private:
     std::vector<std::thread> waiting;
 
     static void waiting_thread (Decoder<In_It, Fwd_It> *obj,
-                                            std::promise<Decoder_wait_res> p);
+                                    std::promise<struct Decoder_wait_res> p);
 };
 
 

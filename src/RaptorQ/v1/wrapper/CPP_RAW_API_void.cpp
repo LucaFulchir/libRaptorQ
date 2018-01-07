@@ -73,27 +73,22 @@ static RaptorQ_type init_t (const RaptorQ_type type, const bool is_encoder)
 //// Encoder
 /////////////////
 
-Encoder_void::Encoder_void (const RaptorQ_type type,
-                                            const RaptorQ_Block_Size symbols,
+Encoder_void::Encoder_void (const RaptorQ_type type, const Block_Size symbols,
                                                     const size_t symbol_size)
     : _type (init_t (type, true))
 {
     switch (_type) {
     case RaptorQ_type::RQ_ENC_8:
-        _encoder = new Encoder<uint8_t*, uint8_t*> (
-                            static_cast<Block_Size> (symbols), symbol_size);
+        _encoder = new Encoder<uint8_t*, uint8_t*> (symbols, symbol_size);
         return;
     case RaptorQ_type::RQ_ENC_16:
-        _encoder = new Encoder<uint16_t*, uint16_t*> (
-                            static_cast<Block_Size> (symbols), symbol_size);
+        _encoder = new Encoder<uint16_t*, uint16_t*> (symbols, symbol_size);
         return;
     case RaptorQ_type::RQ_ENC_32:
-        _encoder = new Encoder<uint32_t*, uint32_t*> (
-                            static_cast<Block_Size> (symbols), symbol_size);
+        _encoder = new Encoder<uint32_t*, uint32_t*> (symbols, symbol_size);
         return;
     case RaptorQ_type::RQ_ENC_64:
-        _encoder = new Encoder<uint64_t*, uint64_t*> (
-                            static_cast<Block_Size> (symbols), symbol_size);
+        _encoder = new Encoder<uint64_t*, uint64_t*> (symbols, symbol_size);
         return;
     case RaptorQ_type::RQ_DEC_8:
     case RaptorQ_type::RQ_DEC_16:
@@ -481,9 +476,9 @@ size_t Encoder_void::encode (void** output, const void* end, const uint32_t id)
 /////////////////
 
 Decoder_void::Decoder_void (const RaptorQ_type type,
-                                            const RaptorQ_Block_Size symbols,
-                                            const size_t symbol_size,
-                                            const Dec_Report computation)
+                                                const Block_Size symbols,
+                                                const size_t symbol_size,
+                                                const Dec_Report computation)
     : _type (init_t (type, false))
 {
     _decoder = nullptr;
@@ -495,23 +490,19 @@ Decoder_void::Decoder_void (const RaptorQ_type type,
 
     switch (_type) {
     case RaptorQ_type::RQ_DEC_8:
-        _decoder = new Decoder<uint8_t*, uint8_t*> (
-                                            static_cast<Block_Size> (symbols),
+        _decoder = new Decoder<uint8_t*, uint8_t*> (symbols,
                                                         symbol_size, report);
         return;
     case RaptorQ_type::RQ_DEC_16:
-        _decoder = new Decoder<uint16_t*, uint16_t*> (
-                                            static_cast<Block_Size> (symbols),
+        _decoder = new Decoder<uint16_t*, uint16_t*> (symbols,
                                                         symbol_size, report);
         return;
     case RaptorQ_type::RQ_DEC_32:
-        _decoder = new Decoder<uint32_t*, uint32_t*> (
-                                            static_cast<Block_Size> (symbols),
+        _decoder = new Decoder<uint32_t*, uint32_t*> (symbols,
                                                         symbol_size, report);
         return;
     case RaptorQ_type::RQ_DEC_64:
-        _decoder = new Decoder<uint64_t*, uint64_t*> (
-                                            static_cast<Block_Size> (symbols),
+        _decoder = new Decoder<uint64_t*, uint64_t*> (symbols,
                                                         symbol_size, report);
         return;
     case RaptorQ_type::RQ_ENC_8:

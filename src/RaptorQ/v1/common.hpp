@@ -137,9 +137,14 @@ typedef enum {
 
 
 #ifndef __cplusplus
+#include <stddef.h>
 #include <stdint.h>
 #else
+#include <cstddef>
 #include <cstdint>
+#include <type_traits>
+//windows does not have ssize_t
+typedef std::conditional<sizeof(size_t) == 4, int32_t, int64_t>::type ssize_t;
 #endif
 
 #define RQ_UNUSED(x)    ((void)x)
@@ -159,8 +164,7 @@ static const uint64_t RFC6330_max_data = 946270874880;  // ~881 GB
 typedef uint64_t RFC6330_OTI_Common_Data;
 typedef uint32_t RFC6330_OTI_Scheme_Specific_Data;
 
-
-#if __cplusplus >= 201103L || _MSC_VER > 1900
+#if defined(__cplusplus)&& ( __cplusplus >= 201103L || _MSC_VER > 1900 )
 // C++ version. keep the enum synced
 #include <memory>
 #include <utility>
@@ -174,7 +178,7 @@ std::unique_ptr<T> RAPTORQ_LOCAL make_unique (Ts&&... params)
     { return std::unique_ptr<T> (new T(std::forward<Ts> (params)...)); }
 } // namespace Impl
 
-enum class RAPTORQ_API Decoder_Result : uint8_t {
+enum class Decoder_Result : uint8_t {
     DECODED = RQ_DEC_DECODED,
     STOPPED = RQ_DEC_STOPPED,
     CAN_RETRY = RQ_DEC_CAN_RETRY,
@@ -195,7 +199,7 @@ inline Compress operator& (const Compress a, const Compress b)
     return static_cast<Compress> (static_cast<uint8_t> (a) &
                                                     static_cast<uint8_t> (b));
 }
-enum class RAPTORQ_API Error : uint8_t {
+enum class Error : uint8_t {
                         NONE = RQ_ERR_NONE,
                         NOT_NEEDED = RQ_ERR_NOT_NEEDED,
                         WRONG_INPUT = RQ_ERR_WRONG_INPUT,
@@ -204,7 +208,7 @@ enum class RAPTORQ_API Error : uint8_t {
                         INITIALIZATION = RQ_ERR_INITIALIZATION,
                         EXITING = RQ_ERR_EXITING
                         };
-enum class RAPTORQ_API Work_State : uint8_t {
+enum class Work_State : uint8_t {
     KEEP_WORKING = RQ_WORK_KEEP_WORKING,
     ABORT_COMPUTATION = RQ_WORK_ABORT_COMPUTATION,
 };
@@ -225,13 +229,14 @@ enum class RAPTORQ_API Dec_Report : uint8_t {
 };
 } // namespace RaptorQ__v1
 namespace RFC6330__v1 {
+    using RaptorQ__v1::Work_State;
 namespace Impl {
     using RaptorQ__v1::Impl::make_unique;
 } // namespace Impl
 
 using Error = RaptorQ__v1::Error; // easier
 using Compress = RaptorQ__v1::Compress; // easier
-enum class RAPTORQ_API Compute : uint8_t {
+enum class Compute : uint8_t {
     NONE = RQ_COMPUTE_NONE,
     PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
     PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
@@ -254,6 +259,7 @@ inline Compute operator& (const Compute a, const Compute b)
 } // namespace RFC6330__v1
 
 namespace RaptorQ__v1 {
+    using RFC6330__v1::Compute;
 namespace Impl {
 #ifndef RQ_DEBUG
     #define RQ_DEBUG false
