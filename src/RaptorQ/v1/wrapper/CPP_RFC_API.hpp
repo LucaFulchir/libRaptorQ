@@ -43,7 +43,7 @@ namespace RFC6330__v1 {
 //// Encoder
 ////////////////////
 
-template <typename Rnd_It, typename Fwd_It = Rnd_It>
+template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Encoder
 {
 public:
@@ -87,7 +87,7 @@ private:
 //// Decoder
 ////////////////////
 
-template <typename In_It, typename Fwd_It = In_It>
+template <typename In_It, typename Fwd_It>
 class RAPTORQ_API Decoder
 {
 public:
@@ -154,7 +154,8 @@ private:
 
 
 template <>
-Encoder<uint8_t*>::Encoder (uint8_t* const data_from, uint8_t* const data_to,
+inline Encoder<uint8_t*, uint8_t*>::Encoder (uint8_t* const data_from,
+                                            uint8_t* const data_to,
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
                                             const size_t max_sub_block)
@@ -165,65 +166,53 @@ Encoder<uint8_t*>::Encoder (uint8_t* const data_from, uint8_t* const data_to,
 }
 
 template <>
-Encoder<uint16_t*>::Encoder (uint16_t* const data_from, uint16_t* const data_to,
-                                             const uint16_t min_subsymbol_size,
-                                             const uint16_t symbol_size,
-                                             const size_t max_sub_block)
-{
-    _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_16, data_from,
-                                                 data_to, min_subsymbol_size,
-                                                 symbol_size, max_sub_block);
-}
-
-template <>
-Encoder<uint32_t*>::Encoder (uint32_t* const data_from, uint32_t* const data_to,
-                                             const uint16_t min_subsymbol_size,
-                                             const uint16_t symbol_size,
-                                             const size_t max_sub_block)
-{
-    _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_32, data_from,
-                                                 data_to, min_subsymbol_size,
-                                                 symbol_size, max_sub_block);
-}
-
-template <>
-Encoder<uint64_t*>::Encoder (uint64_t* const data_from, uint64_t* const data_to,
-                                             const uint16_t min_subsymbol_size,
-                                             const uint16_t symbol_size,
-                                             const size_t max_sub_block)
-{
-    _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_64, data_from,
-                                                 data_to, min_subsymbol_size,
-                                                 symbol_size, max_sub_block);
-}
-
-template <typename Rnd_It, typename Fwd_It>
-Encoder<Rnd_It, Fwd_It>::Encoder (const Rnd_It data_from, const Rnd_It data_to,
+inline Encoder<uint16_t*, uint16_t*>::Encoder (uint16_t* const data_from,
+                                            uint16_t* const data_to,
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
                                             const size_t max_sub_block)
 {
-    RQ_UNUSED (data_from);
-    RQ_UNUSED (data_to);
-    RQ_UNUSED (min_subsymbol_size);
-    RQ_UNUSED (symbol_size);
-    RQ_UNUSED (max_sub_block);
-    static_assert (false,
-            "RaptorQ: sorry, only uint8_t*, uint16_t*, uint32_t*, uint64_t*, "
-                "supported for the linked library. For more please use the "
-                                                        "header-only version");
+    _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_16, data_from,
+                                                    data_to, min_subsymbol_size,
+                                                    symbol_size, max_sub_block);
+}
+
+template <>
+inline Encoder<uint32_t*, uint32_t*>::Encoder (uint32_t* const data_from,
+                                            uint32_t* const data_to,
+                                            const uint16_t min_subsymbol_size,
+                                            const uint16_t symbol_size,
+                                            const size_t max_sub_block)
+{
+    _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_32, data_from,
+                                                    data_to, min_subsymbol_size,
+                                                    symbol_size, max_sub_block);
+}
+
+template <>
+inline Encoder<uint64_t*, uint64_t*>::Encoder (uint64_t* const data_from,
+                                            uint64_t* const data_to,
+                                            const uint16_t min_subsymbol_size,
+                                            const uint16_t symbol_size,
+                                            const size_t max_sub_block)
+{
+    _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_64, data_from,
+                                                    data_to, min_subsymbol_size,
+                                                    symbol_size, max_sub_block);
 }
 
 template <typename Rnd_It, typename Fwd_It>
-Encoder<Rnd_It, Fwd_It>::~Encoder()
+inline Encoder<Rnd_It, Fwd_It>::~Encoder()
     { delete _encoder; }
 
 template <typename Rnd_It, typename Fwd_It>
-It::Encoder::Block_Iterator<Rnd_It, Fwd_It> Encoder<Rnd_It, Fwd_It>::begin()
+inline It::Encoder::Block_Iterator<Rnd_It, Fwd_It>
+                                                Encoder<Rnd_It, Fwd_It>::begin()
     { return It::Encoder::Block_Iterator<Rnd_It, Fwd_It> (_encoder, 0); }
 
 template <typename Rnd_It, typename Fwd_It>
-const It::Encoder::Block_Iterator<Rnd_It, Fwd_It> Encoder<Rnd_It, Fwd_It>::end()
+inline const It::Encoder::Block_Iterator<Rnd_It, Fwd_It>
+                                                Encoder<Rnd_It, Fwd_It>::end()
 {
     if (_encoder == nullptr)
         return It::Encoder::Block_Iterator<Rnd_It, Fwd_It> (nullptr, 0);
@@ -231,7 +220,7 @@ const It::Encoder::Block_Iterator<Rnd_It, Fwd_It> Encoder<Rnd_It, Fwd_It>::end()
 }
 
 template <typename Rnd_It, typename Fwd_It>
-Encoder<Rnd_It, Fwd_It>::operator bool() const
+inline Encoder<Rnd_It, Fwd_It>::operator bool() const
 {
     if (_encoder == nullptr)
         return false;
@@ -239,7 +228,7 @@ Encoder<Rnd_It, Fwd_It>::operator bool() const
 }
 
 template <typename Rnd_It, typename Fwd_It>
-RFC6330_OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
+inline RFC6330_OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
 {
     if (_encoder == nullptr)
         return 0;
@@ -247,7 +236,7 @@ RFC6330_OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
 }
 
 template <typename Rnd_It, typename Fwd_It>
-RFC6330_OTI_Scheme_Specific_Data
+inline RFC6330_OTI_Scheme_Specific_Data
                             Encoder<Rnd_It, Fwd_It>::OTI_Scheme_Specific() const
 {
     if (_encoder == nullptr)
@@ -257,7 +246,7 @@ RFC6330_OTI_Scheme_Specific_Data
 
 #if __cplusplus >= 201103L
 template <typename Rnd_It, typename Fwd_It>
-std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
+inline std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
                                                             const Compute flags)
 {
     if (_encoder != nullptr)
@@ -269,7 +258,7 @@ std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
 #endif
 
 template <typename Rnd_It, typename Fwd_It>
-size_t Encoder<Rnd_It, Fwd_It>::precompute_max_memory ()
+inline size_t Encoder<Rnd_It, Fwd_It>::precompute_max_memory ()
 {
     if (_encoder == nullptr)
         return 0;
@@ -277,26 +266,34 @@ size_t Encoder<Rnd_It, Fwd_It>::precompute_max_memory ()
 }
 
 template <typename Rnd_It, typename Fwd_It>
-size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
+inline size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
                                                             const uint32_t esi,
                                                             const uint8_t sbn)
 {
     if (_encoder == nullptr)
         return 0;
-    return _encoder->encode (output, end, esi, sbn);
+    void **_from = reinterpret_cast<void**> (&output);
+    void *_to = reinterpret_cast<void*> (end);
+    auto ret = _encoder->encode (_from, _to, esi, sbn);
+    output = *reinterpret_cast<Fwd_It*> (_from);
+    return ret;
 }
 
 template <typename Rnd_It, typename Fwd_It>
-size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
+inline size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
                                                             const uint32_t &id)
 {
     if (_encoder == nullptr)
         return 0;
-    return _encoder->encode (output, end, id);
+    void **_from = reinterpret_cast<void**> (&output);
+    void *_to = reinterpret_cast<void*> (end);
+    auto ret = _encoder->encode (_from, _to, id);
+    output = *reinterpret_cast<Fwd_It*> (_from);
+    return ret;
 }
 
 template <typename Rnd_It, typename Fwd_It>
-void Encoder<Rnd_It, Fwd_It>::free (const uint8_t sbn)
+inline void Encoder<Rnd_It, Fwd_It>::free (const uint8_t sbn)
 {
     if (_encoder == nullptr)
         return;
@@ -304,7 +301,7 @@ void Encoder<Rnd_It, Fwd_It>::free (const uint8_t sbn)
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint8_t Encoder<Rnd_It, Fwd_It>::blocks() const
+inline uint8_t Encoder<Rnd_It, Fwd_It>::blocks() const
 {
     if (_encoder == nullptr)
         return 0;
@@ -312,7 +309,7 @@ uint8_t Encoder<Rnd_It, Fwd_It>::blocks() const
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint32_t Encoder<Rnd_It, Fwd_It>::block_size (const uint8_t sbn) const
+inline uint32_t Encoder<Rnd_It, Fwd_It>::block_size (const uint8_t sbn) const
 {
     if (_encoder == nullptr)
         return 0;
@@ -320,7 +317,7 @@ uint32_t Encoder<Rnd_It, Fwd_It>::block_size (const uint8_t sbn) const
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint16_t Encoder<Rnd_It, Fwd_It>::symbol_size() const
+inline uint16_t Encoder<Rnd_It, Fwd_It>::symbol_size() const
 {
     if (_encoder == nullptr)
         return 0;
@@ -328,7 +325,7 @@ uint16_t Encoder<Rnd_It, Fwd_It>::symbol_size() const
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint16_t Encoder<Rnd_It, Fwd_It>::symbols (const uint8_t sbn) const
+inline uint16_t Encoder<Rnd_It, Fwd_It>::symbols (const uint8_t sbn) const
 {
     if (_encoder == nullptr)
         return 0;
@@ -336,7 +333,7 @@ uint16_t Encoder<Rnd_It, Fwd_It>::symbols (const uint8_t sbn) const
 }
 
 template <typename Rnd_It, typename Fwd_It>
-uint32_t Encoder<Rnd_It, Fwd_It>::max_repair (const uint8_t sbn) const
+inline uint32_t Encoder<Rnd_It, Fwd_It>::max_repair (const uint8_t sbn) const
 {
     if (_encoder == nullptr)
         return 0;
@@ -350,47 +347,40 @@ uint32_t Encoder<Rnd_It, Fwd_It>::max_repair (const uint8_t sbn) const
 ////////////////////
 
 template <>
-Decoder<uint8_t*>::Decoder (const RFC6330_OTI_Common_Data common,
-                        const RFC6330_OTI_Scheme_Specific_Data scheme)
+inline Decoder<uint8_t*, uint8_t*>::Decoder (
+                                const RFC6330_OTI_Common_Data common,
+                                const RFC6330_OTI_Scheme_Specific_Data scheme)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_8, common, scheme);
 }
 
 template <>
-Decoder<uint16_t*>::Decoder (const RFC6330_OTI_Common_Data common,
-                        const RFC6330_OTI_Scheme_Specific_Data scheme)
+inline Decoder<uint16_t*, uint16_t*>::Decoder (
+                                const RFC6330_OTI_Common_Data common,
+                                const RFC6330_OTI_Scheme_Specific_Data scheme)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_16, common, scheme);
 }
 
 template <>
-Decoder<uint32_t*>::Decoder (const RFC6330_OTI_Common_Data common,
-                        const RFC6330_OTI_Scheme_Specific_Data scheme)
+inline Decoder<uint32_t*, uint32_t*>::Decoder (
+                                const RFC6330_OTI_Common_Data common,
+                                const RFC6330_OTI_Scheme_Specific_Data scheme)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_32, common, scheme);
 }
 
 template <>
-Decoder<uint64_t*>::Decoder (const RFC6330_OTI_Common_Data common,
-                        const RFC6330_OTI_Scheme_Specific_Data scheme)
+inline Decoder<uint64_t*, uint64_t*>::Decoder (
+                                const RFC6330_OTI_Common_Data common,
+                                const RFC6330_OTI_Scheme_Specific_Data scheme)
 {
     _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_64, common, scheme);
 }
 
-template <typename In_It, typename Fwd_It>
-Decoder<In_It, Fwd_It>::Decoder (const RFC6330_OTI_Common_Data common,
-                        const RFC6330_OTI_Scheme_Specific_Data scheme)
-{
-    RQ_UNUSED (common);
-    RQ_UNUSED (scheme);;
-    static_assert (false,
-            "RaptorQ: sorry, only uint8_t*, uint16_t*, uint32_t*, uint64_t*, "
-                "supported for the linked library. For more please use the "
-                                                        "header-only version");
-}
-
 template <>
-Decoder<uint8_t*>::Decoder (const uint64_t size,const uint16_t symbol_size,
+inline Decoder<uint8_t*, uint8_t*>::Decoder (const uint64_t size,
+                                                    const uint16_t symbol_size,
                                                     const uint16_t sub_blocks,
                                                     const uint8_t blocks,
                                                     const uint8_t alignment)
@@ -400,7 +390,8 @@ Decoder<uint8_t*>::Decoder (const uint64_t size,const uint16_t symbol_size,
 }
 
 template <>
-Decoder<uint16_t*>::Decoder (const uint64_t size,const uint16_t symbol_size,
+inline Decoder<uint16_t*, uint16_t*>::Decoder (const uint64_t size,
+                                                    const uint16_t symbol_size,
                                                     const uint16_t sub_blocks,
                                                     const uint8_t blocks,
                                                     const uint8_t alignment)
@@ -410,7 +401,8 @@ Decoder<uint16_t*>::Decoder (const uint64_t size,const uint16_t symbol_size,
 }
 
 template <>
-Decoder<uint32_t*>::Decoder (const uint64_t size,const uint16_t symbol_size,
+inline Decoder<uint32_t*, uint32_t*>::Decoder (const uint64_t size,
+                                                    const uint16_t symbol_size,
                                                     const uint16_t sub_blocks,
                                                     const uint8_t blocks,
                                                     const uint8_t alignment)
@@ -420,7 +412,8 @@ Decoder<uint32_t*>::Decoder (const uint64_t size,const uint16_t symbol_size,
 }
 
 template <>
-Decoder<uint64_t*>::Decoder (const uint64_t size,const uint16_t symbol_size,
+inline Decoder<uint64_t*, uint64_t*>::Decoder (const uint64_t size,
+                                                    const uint16_t symbol_size,
                                                     const uint16_t sub_blocks,
                                                     const uint8_t blocks,
                                                     const uint8_t alignment)
@@ -429,34 +422,18 @@ Decoder<uint64_t*>::Decoder (const uint64_t size,const uint16_t symbol_size,
                                     symbol_size, sub_blocks, blocks, alignment);
 }
 
-
-template <typename In_It, typename Fwd_It>
-Decoder<In_It, Fwd_It>::Decoder (const uint64_t size, const uint16_t symbol_size,
-                                                     const uint16_t sub_blocks,
-                                                     const uint8_t blocks,
-                                                     const uint8_t alignment)
-{
-    RQ_UNUSED (size);
-    RQ_UNUSED (symbol_size);
-    RQ_UNUSED (sub_blocks);
-    RQ_UNUSED (blocks);
-    RQ_UNUSED (alignment);
-    static_assert (false,
-            "RaptorQ: sorry, only uint8_t*, uint16_t*, uint32_t*, uint64_t*, "
-                "supported for the linked library. For more please use the "
-                                                        "header-only version");
-}
-
 template <typename Rnd_It, typename Fwd_It>
-Decoder<Rnd_It, Fwd_It>::~Decoder()
+inline Decoder<Rnd_It, Fwd_It>::~Decoder()
     { delete _decoder; }
 
 template <typename Rnd_It, typename Fwd_It>
-It::Decoder::Block_Iterator<Rnd_It, Fwd_It> Decoder<Rnd_It, Fwd_It>::begin()
+inline It::Decoder::Block_Iterator<Rnd_It, Fwd_It>
+                                                Decoder<Rnd_It, Fwd_It>::begin()
     { return It::Encoder::Block_Iterator<Rnd_It, Fwd_It> (_decoder, 0); }
 
 template <typename Rnd_It, typename Fwd_It>
-const It::Decoder::Block_Iterator<Rnd_It, Fwd_It> Decoder<Rnd_It, Fwd_It>::end()
+inline const It::Decoder::Block_Iterator<Rnd_It, Fwd_It>
+                                                Decoder<Rnd_It, Fwd_It>::end()
 {
     if (_decoder == nullptr)
         return It::Encoder::Block_Iterator<Rnd_It, Fwd_It> (nullptr, 0);
@@ -464,7 +441,7 @@ const It::Decoder::Block_Iterator<Rnd_It, Fwd_It> Decoder<Rnd_It, Fwd_It>::end()
 }
 
 template <typename In_It, typename Fwd_It>
-Decoder<In_It, Fwd_It>::operator bool() const
+inline Decoder<In_It, Fwd_It>::operator bool() const
 {
     if (_decoder == nullptr)
         return false;
@@ -473,7 +450,7 @@ Decoder<In_It, Fwd_It>::operator bool() const
 
 #if __cplusplus >= 201103L
 template <typename In_It, typename Fwd_It>
-std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
+inline std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
                                                             const Compute flags)
 {
     if (_decoder != nullptr)
@@ -486,21 +463,22 @@ std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
 #endif
 
 template <typename In_It, typename Fwd_It>
-void Decoder<In_It, Fwd_It>::end_of_input (const uint8_t block)
+inline void Decoder<In_It, Fwd_It>::end_of_input (const uint8_t block)
 {
     if (_decoder != nullptr)
         return _decoder->end_of_input (block);
 }
 
 template <typename In_It, typename Fwd_It>
-void Decoder<In_It, Fwd_It>::end_of_input()
+inline void Decoder<In_It, Fwd_It>::end_of_input()
 {
     if (_decoder != nullptr)
         return _decoder->end_of_input();
 }
 
 template <typename In_It, typename Fwd_It>
-uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
+inline uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
+                                                            const Fwd_It end,
                                                             const uint8_t skip)
 {
     if (_decoder == nullptr)
@@ -509,18 +487,22 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
 }
 
 template <typename In_It, typename Fwd_It>
-size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
+inline size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
                                                             const Fwd_It end,
                                                             const uint8_t skip,
                                                             const uint8_t sbn)
 {
     if (_decoder == nullptr)
         return 0;
-    return _decoder->decode_block_bytes (start, end, skip, sbn);
+    void **_from = reinterpret_cast<void**> (&start);
+    void *_to = reinterpret_cast<void*> (end);
+    auto ret = _decoder->decode_block_bytes (_from, _to, skip, sbn);
+    start = *reinterpret_cast<Fwd_It*> (_from);
+    return ret;
 }
 
 template <typename In_It, typename Fwd_It>
-typename Decoder<In_It, Fwd_It>::aligned_res
+inline typename Decoder<In_It, Fwd_It>::aligned_res
                                         Decoder<In_It, Fwd_It>::decode_aligned (
                                                             Fwd_It &start,
                                                             const Fwd_It end,
@@ -528,11 +510,15 @@ typename Decoder<In_It, Fwd_It>::aligned_res
 {
     if (_decoder == nullptr)
         return {0, 0};
-    return _decoder->decode_aligned (start, end, skip);
+    void **_from = reinterpret_cast<void**> (&start);
+    void *_to = reinterpret_cast<void*> (end);
+    auto ret = _decoder->decode_aligned (_from, _to, skip);
+    start = *reinterpret_cast<Fwd_It*> (_from);
+    return {ret.written, ret.offset};
 }
 
 template <typename In_It, typename Fwd_It>
-typename Decoder<In_It, Fwd_It>::aligned_res
+inline typename Decoder<In_It, Fwd_It>::aligned_res
                                 Decoder<In_It, Fwd_It>::decode_block_aligned (
                                                             Fwd_It &start,
                                                             const Fwd_It end,
@@ -541,37 +527,50 @@ typename Decoder<In_It, Fwd_It>::aligned_res
 {
     if (_decoder == nullptr)
         return {0, 0};
-    return _decoder->decode_block_aligned (start, end, skip, sbn);
+    void **_from = reinterpret_cast<void**> (&start);
+    void *_to = reinterpret_cast<void*> (end);
+    auto ret = _decoder->decode_block_aligned (_from, _to, skip, sbn);
+    start = *reinterpret_cast<Fwd_It*> (_from);
+    return {ret.written, ret.offset};
 }
 
 template <typename In_It, typename Fwd_It>
-Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
+inline Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
                                                             const uint32_t id)
 {
     if (_decoder == nullptr)
         return Error::INITIALIZATION;
-    return _decoder->add_symbol (start, end, id);
+    void **_from = reinterpret_cast<void**> (&start);
+    void *_to = reinterpret_cast<void*> (end);
+    auto ret = _decoder->add_symbol (_from, _to, id);
+    start = *reinterpret_cast<Fwd_It*> (_from);
+    return ret;
 }
 
 template <typename In_It, typename Fwd_It>
-Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
+inline Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
                                                             const uint32_t esi,
                                                             const uint8_t sbn)
 {
     if (_decoder == nullptr)
         return Error::INITIALIZATION;
-    return _decoder->add_symbol (start, end, esi, sbn);
+    void **_from = reinterpret_cast<void**> (&start);
+    void *_to = reinterpret_cast<void*> (end);
+    auto ret = _decoder->add_symbol (_from, _to, esi, sbn);
+    start = *reinterpret_cast<Fwd_It*> (_from);
+    return ret;
 }
 
 template <typename In_It, typename Fwd_It>
-uint8_t Decoder<In_It, Fwd_It>::blocks_ready()
+inline uint8_t Decoder<In_It, Fwd_It>::blocks_ready()
 {
     if (_decoder == nullptr)
         return 0;
     return _decoder->blocks_ready();
 }
+
 template <typename In_It, typename Fwd_It>
-bool Decoder<In_It, Fwd_It>::is_ready()
+inline bool Decoder<In_It, Fwd_It>::is_ready()
 {
     if (_decoder == nullptr)
         return false;
@@ -579,7 +578,7 @@ bool Decoder<In_It, Fwd_It>::is_ready()
 }
 
 template <typename In_It, typename Fwd_It>
-bool Decoder<In_It, Fwd_It>::is_block_ready (const uint8_t sbn)
+inline bool Decoder<In_It, Fwd_It>::is_block_ready (const uint8_t sbn)
 {
     if (_decoder == nullptr)
         return false;
@@ -587,14 +586,14 @@ bool Decoder<In_It, Fwd_It>::is_block_ready (const uint8_t sbn)
 }
 
 template <typename In_It, typename Fwd_It>
-void Decoder<In_It, Fwd_It>::free (const uint8_t sbn)
+inline void Decoder<In_It, Fwd_It>::free (const uint8_t sbn)
 {
     if (_decoder != nullptr)
         return _decoder->free (sbn);
 }
 
 template <typename In_It, typename Fwd_It>
-uint64_t Decoder<In_It, Fwd_It>::bytes() const
+inline uint64_t Decoder<In_It, Fwd_It>::bytes() const
 {
     if (_decoder == nullptr)
         return 0;
@@ -602,7 +601,7 @@ uint64_t Decoder<In_It, Fwd_It>::bytes() const
 }
 
 template <typename In_It, typename Fwd_It>
-uint8_t Decoder<In_It, Fwd_It>::blocks() const
+inline uint8_t Decoder<In_It, Fwd_It>::blocks() const
 {
     if (_decoder == nullptr)
         return 0;
@@ -610,7 +609,7 @@ uint8_t Decoder<In_It, Fwd_It>::blocks() const
 }
 
 template <typename In_It, typename Fwd_It>
-uint32_t Decoder<In_It, Fwd_It>::block_size (const uint8_t sbn) const
+inline uint32_t Decoder<In_It, Fwd_It>::block_size (const uint8_t sbn) const
 {
     if (_decoder == nullptr)
         return 0;
@@ -618,7 +617,7 @@ uint32_t Decoder<In_It, Fwd_It>::block_size (const uint8_t sbn) const
 }
 
 template <typename In_It, typename Fwd_It>
-uint16_t Decoder<In_It, Fwd_It>::symbol_size() const
+inline uint16_t Decoder<In_It, Fwd_It>::symbol_size() const
 {
     if (_decoder == nullptr)
         return 0;
@@ -626,7 +625,7 @@ uint16_t Decoder<In_It, Fwd_It>::symbol_size() const
 }
 
 template <typename In_It, typename Fwd_It>
-uint16_t Decoder<In_It, Fwd_It>::symbols (const uint8_t sbn) const
+inline uint16_t Decoder<In_It, Fwd_It>::symbols (const uint8_t sbn) const
 {
     if (_decoder == nullptr)
         return 0;

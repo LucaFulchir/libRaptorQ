@@ -75,9 +75,9 @@ public:
     result compute_sync (const Compute flags);
 
     size_t precompute_max_memory ();
-    size_t encode (void* &output, const void* end, const uint32_t esi,
+    size_t encode (void** output, const void* end, const uint32_t esi,
                                                             const uint8_t sbn);
-    size_t encode (void* &output, const void* end, const uint32_t &id);
+    size_t encode (void** output, const void* end, const uint32_t &id);
     void free (const uint8_t sbn);
     uint8_t blocks() const;
     uint32_t block_size (const uint8_t sbn) const;
@@ -121,19 +121,19 @@ public:
 
     void end_of_input();
 
-    uint64_t decode_symbol (void* &start, const void* end, const uint16_t esi,
+    uint64_t decode_symbol (void** start, const void* end, const uint16_t esi,
                                                             const uint8_t sbn);
-    uint64_t decode_bytes (void* &start, const void* end, const uint8_t skip);
-    size_t decode_block_bytes (void* &start, const void* end,
+    uint64_t decode_bytes (void** start, const void* end, const uint8_t skip);
+    size_t decode_block_bytes (void** start, const void* end,
                                                             const uint8_t skip,
                                                             const uint8_t sbn);
-    Decoder_aligned_res decode_aligned (void* &start,const void* end,
+    Decoder_aligned_res decode_aligned (void** start, const void* end,
                                                             const uint8_t skip);
-    Decoder_aligned_res decode_block_aligned (void* &start, const void* end,
+    Decoder_aligned_res decode_block_aligned (void** start, const void* end,
                                                             const uint8_t skip,
                                                             const uint8_t sbn);
-    Error add_symbol (void* &start, const void* end, const uint32_t id);
-    Error add_symbol (void* &start, const void* end, const uint32_t esi,
+    Error add_symbol (void** start, const void* end, const uint32_t id);
+    Error add_symbol (void** start, const void* end, const uint32_t esi,
                                                             const uint8_t sbn);
     uint8_t blocks_ready();
     bool is_ready();

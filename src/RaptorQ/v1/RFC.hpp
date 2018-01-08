@@ -312,7 +312,7 @@ public:
     // result in ITERATORS
     // last *might* be half written depending on data alignments
     // NOTE: skip = uint8_t to avoid problems with _alignment
-    Decoder_aligned_res decode_aligned (Fwd_It &start,const Fwd_It end,
+    Decoder_aligned_res decode_aligned (Fwd_It &start, const Fwd_It end,
                                                             const uint8_t skip);
     Decoder_aligned_res decode_block_aligned (Fwd_It &start,
                                                             const Fwd_It end,
