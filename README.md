@@ -8,9 +8,7 @@
 
 
 stable  release: **v0.1.9**  
-current release: **v1.0.0-prealpha**  
-**CURRENTLY BREAKING APIs, stick with the stable release**  
-UPDATE: **almost finished the brakage, things should be stable enough**
+current release: **v1.0.0-alpha1**  
 
 RaptorQ is a **Forward Error Correction** algorithm designed to deliver your data
 efficiently and without retransmissions for lost packets.
@@ -49,7 +47,6 @@ so you can not compile it with Visual Studio 2015.
   - compiled, C
   - compiled, C++98
 - cached precomputations (configurable)
-- shared precomputations between processes
 
 
 ## Developers ##
@@ -76,44 +73,22 @@ you can also get it from our main server:
 Once you have cloned it, it's always a good thing to check the repository gpg
 signatures, so you can import my key with:
 
+new long term key: **7393 DAD2 55BE B575 1DBD A04A B11C D823 BA27 8C85**  
+``$ gpg --keyserver pgp.mit.edu --recv-key 7393DAD255BEB5751DBDA04AB11CD823BA278C85``  
 2016 key:  
 ``$ gpg --keyserver pgp.mit.edu --recv-key F61F6137``  
 2015 key:  
 ``$ gpg --keyserver pgp.mit.edu --recv-key D42DDF0A``  
 
-please check the full fingerprint, it should be like this:
-
-```bash
- $ gpg2 --fingerprint F61F6137
- pub   rsa2048/F61F6137 2016-01-11 [expires: 2017-01-25]
-       Key fingerprint = 95EB 6FA4 03D7 29A7 13C2  FC9F F85A DA1C F61F 6137
- uid         [ultimate] Luca Fulchir (2016 key) <luker@fenrirproject.org>
- full 2015 fingerprint:
- Key fingerprint = AB35 E45F 5CA5 E35B 8B55  818F 0157 D133 D42D DF0A
-```
+please check the full fingerprint.
 
 Now you have the source, and the key, it's enough to check the signature of the
 last commit:
 
 ``$ git log -n 1 --show-signature``
 
-The important part is that you get something like this:
-
-```bash
- gpg: Signature made Mon 11 Jan 2016 14:19:21 CET using RSA key ID F61F6137
- gpg: Good signature from "Luca Fulchir (2016 key) <luker@fenrirproject.org>"
- [unknown]
- gpg: WARNING: This key is not certified with a trusted signature!
- gpg:          There is no indication that the signature belongs to the owner.
- Primary key fingerprint: 95EB 6FA4 03D7 29A7 13C2  FC9F F85A DA1C F61F 6137
- Author: Luca Fulchir <luker@fenrirproject.org>
-```
-
-And as long as you got the right key, and you find the "gpg: Goog signature",
+As long as you got the right key, and you find the "gpg: Goog signature",
 you can be sure you have the right code.
-
-TDB: The repository is using the maintainer private key for now,
-it will start using a dedicated key in the (near) future.
 
 
 ## Install ##
