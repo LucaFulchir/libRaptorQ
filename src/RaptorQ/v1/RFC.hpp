@@ -312,9 +312,9 @@ public:
     // result in ITERATORS
     // last *might* be half written depending on data alignments
     // NOTE: skip = uint8_t to avoid problems with _alignment
-    Decoder_aligned_res decode_aligned (Fwd_It &start, const Fwd_It end,
+    Decoder_written decode_aligned (Fwd_It &start, const Fwd_It end,
                                                             const uint8_t skip);
-    Decoder_aligned_res decode_block_aligned (Fwd_It &start,
+    Decoder_written decode_block_aligned (Fwd_It &start,
                                                             const Fwd_It end,
                                                             const uint8_t skip,
                                                             const uint8_t sbn);
@@ -1326,7 +1326,7 @@ size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
 }
 
 template <typename In_It, typename Fwd_It>
-Decoder_aligned_res Decoder<In_It, Fwd_It>::decode_aligned (
+Decoder_written Decoder<In_It, Fwd_It>::decode_aligned (
                                                         Fwd_It &start,
                                                         const Fwd_It end,
                                                         const uint8_t skip)
@@ -1341,7 +1341,7 @@ Decoder_aligned_res Decoder<In_It, Fwd_It>::decode_aligned (
 }
 
 template <typename In_It, typename Fwd_It>
-Decoder_aligned_res Decoder<In_It, Fwd_It>::decode_block_aligned (
+Decoder_written Decoder<In_It, Fwd_It>::decode_block_aligned (
                                                         Fwd_It &start,
                                                         const Fwd_It end,
                                                         const uint8_t skip,

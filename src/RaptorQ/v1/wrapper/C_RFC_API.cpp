@@ -1253,7 +1253,7 @@ static struct RFC6330_Dec_Result v1_decode_aligned (
                                         data == nullptr || *data == nullptr) {
         return RFC6330_Dec_Result {0, 0};
     }
-    RFC6330__v1::Decoder_aligned_res cpp_res {0, 0};
+    RFC6330__v1::Decoder_written cpp_res {0, 0};
     switch (dec->type) {
     case RFC6330_type::RQ_DEC_8:
         p_8 = reinterpret_cast<uint8_t*> (*data);
@@ -1316,7 +1316,7 @@ static struct RFC6330_Dec_Result v1_decode_block_aligned(
                                         data == nullptr || *data == nullptr) {
         return RFC6330_Dec_Result {0, 0};
     }
-    RFC6330__v1::Decoder_aligned_res ret = {0, 0};
+    RFC6330__v1::Decoder_written ret = {0, 0};
     switch (dec->type) {
     case RFC6330_type::RQ_DEC_8:
         p_8 = reinterpret_cast<uint8_t*> (*data);

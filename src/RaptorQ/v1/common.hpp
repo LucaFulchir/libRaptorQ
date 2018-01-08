@@ -67,7 +67,7 @@
 #pragma clang diagnostic ignored "-Wunused-variable"
 #ifndef RQ_VERSION
     // let's see if I remember to update this...
-    static char RaptorQ_version[] = "1.0.0-prealpha";
+    static char RaptorQ_version[] = "1.0.0-alpha1";
 #else
     static char RaptorQ_version[] = RQ_VERSION;
 #endif
@@ -216,6 +216,8 @@ struct RAPTORQ_API Decoder_wait_res {
     Error error;
     uint16_t symbol;
 };
+// different than RFC6330_v1::Decoder_written
+// the sizes are *not* forced from the RFC
 struct RAPTORQ_API Decoder_written {
     size_t written;
     size_t offset;
@@ -256,7 +258,9 @@ inline Compute operator& (const Compute a, const Compute b)
     return static_cast<Compute> (static_cast<uint8_t> (a) &
                                                     static_cast<uint8_t> (b));
 }
-struct RAPTORQ_API Decoder_aligned_res
+// dieffrent than RaptorQ_v1::Decoder_written
+// the sizes are forced from the RFC
+struct RAPTORQ_API Decoder_written
 {
     uint64_t written;
     uint8_t offset;

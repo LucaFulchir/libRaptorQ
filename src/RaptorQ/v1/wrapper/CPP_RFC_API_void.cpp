@@ -863,7 +863,7 @@ size_t Decoder_void::decode_block_bytes (void** start, const void* end,
     return ret;
 }
 
-Decoder_aligned_res Decoder_void::decode_aligned (void** start,
+Decoder_written Decoder_void::decode_aligned (void** start,
                                                             const void* end,
                                                             const uint8_t skip)
 {
@@ -872,7 +872,7 @@ Decoder_aligned_res Decoder_void::decode_aligned (void** start,
     uint16_t *p_16;
     uint32_t *p_32;
     uint64_t *p_64;
-    Decoder_aligned_res cpp_res {0, 0};
+    Decoder_written cpp_res {0, 0};
     if (start == nullptr || *start == nullptr || end == nullptr)
         return cpp_res;
     switch (_type) {
@@ -914,7 +914,7 @@ Decoder_aligned_res Decoder_void::decode_aligned (void** start,
     return cpp_res;
 }
 
-Decoder_aligned_res Decoder_void::decode_block_aligned (void** start,
+Decoder_written Decoder_void::decode_block_aligned (void** start,
                                                         const void* end,
                                                         const uint8_t skip,
                                                         const uint8_t sbn)
@@ -924,7 +924,7 @@ Decoder_aligned_res Decoder_void::decode_block_aligned (void** start,
     uint16_t *p_16;
     uint32_t *p_32;
     uint64_t *p_64;
-    Decoder_aligned_res cpp_res {0, 0};
+    Decoder_written cpp_res {0, 0};
     if (start == nullptr || *start == nullptr || end == nullptr)
         return cpp_res;
     switch (_type) {

@@ -127,9 +127,9 @@ public:
     size_t decode_block_bytes (void** start, const void* end,
                                                             const uint8_t skip,
                                                             const uint8_t sbn);
-    Decoder_aligned_res decode_aligned (void** start, const void* end,
+    Decoder_written decode_aligned (void** start, const void* end,
                                                             const uint8_t skip);
-    Decoder_aligned_res decode_block_aligned (void** start, const void* end,
+    Decoder_written decode_block_aligned (void** start, const void* end,
                                                             const uint8_t skip,
                                                             const uint8_t sbn);
     Error add_symbol (void** start, const void* end, const uint32_t id);
