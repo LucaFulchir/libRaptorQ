@@ -139,6 +139,10 @@ extern "C"
         void (*const end_of_block_input) (const struct RFC6330_ptr *dec,
                                                         const uint8_t block);
         uint64_t (*const bytes) (const struct RFC6330_ptr *dec);
+        uint8_t (*blocks_ready) (const struct RFC6330_ptr *dec);
+        bool (*is_ready) (const struct RFC6330_ptr *dec);
+        bool (*is_block_ready) (const struct RFC6330_ptr *dec,
+                                                        const uint8_t block);
         RFC6330_Error (*const add_symbol_id) (const struct RFC6330_ptr *dec,
                                                             void **data,
                                                             const uint32_t size,

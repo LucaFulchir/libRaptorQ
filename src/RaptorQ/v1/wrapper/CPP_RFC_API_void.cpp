@@ -1044,6 +1044,72 @@ Error Decoder_void::add_symbol (void* &start, const void* end,
     return err;
 }
 
+uint8_t Decoder_void::blocks_ready ()
+{
+    const cast_dec _dec (_decoder);
+    switch (_type) {
+    case RaptorQ_type::RQ_DEC_8:
+        return _dec._8->blocks_ready();
+    case RaptorQ_type::RQ_DEC_16:
+        return _dec._16->blocks_ready();
+    case RaptorQ_type::RQ_DEC_32:
+        return _dec._32->blocks_ready();
+    case RaptorQ_type::RQ_DEC_64:
+        return _dec._64->blocks_ready();
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return 0;
+}
+
+bool Decoder_void::is_ready ()
+{
+    const cast_dec _dec (_decoder);
+    switch (_type) {
+    case RaptorQ_type::RQ_DEC_8:
+        return _dec._8->is_ready();
+    case RaptorQ_type::RQ_DEC_16:
+        return _dec._16->is_ready();
+    case RaptorQ_type::RQ_DEC_32:
+        return _dec._32->is_ready();
+    case RaptorQ_type::RQ_DEC_64:
+        return _dec._64->is_ready();
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return false;
+}
+
+bool Decoder_void::is_block_ready (const uint8_t sbn)
+{
+    const cast_dec _dec (_decoder);
+    switch (_type) {
+    case RaptorQ_type::RQ_DEC_8:
+        return _dec._8->is_block_ready (sbn);
+    case RaptorQ_type::RQ_DEC_16:
+        return _dec._16->is_block_ready (sbn);
+    case RaptorQ_type::RQ_DEC_32:
+        return _dec._32->is_block_ready (sbn);
+    case RaptorQ_type::RQ_DEC_64:
+        return _dec._64->is_block_ready (sbn);
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return false;
+}
+
 void Decoder_void::free (const uint8_t sbn)
 {
     const cast_dec _dec (_decoder);

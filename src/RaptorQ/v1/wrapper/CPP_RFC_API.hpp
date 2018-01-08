@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -134,6 +134,9 @@ public:
     Error add_symbol (In_It &start, const In_It end, const uint32_t id);
     Error add_symbol (In_It &start, const In_It end, const uint32_t esi,
                                                             const uint8_t sbn);
+    uint8_t blocks_ready();
+    bool is_ready();
+    bool is_block_ready (const uint8_t block);
     void free (const uint8_t sbn);
     uint64_t bytes() const;
     uint8_t blocks() const;
@@ -558,6 +561,29 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
     if (_decoder == nullptr)
         return Error::INITIALIZATION;
     return _decoder->add_symbol (start, end, esi, sbn);
+}
+
+template <typename In_It, typename Fwd_It>
+uint8_t Decoder<In_It, Fwd_It>::blocks_ready()
+{
+    if (_decoder == nullptr)
+        return 0;
+    return _decoder->blocks_ready();
+}
+template <typename In_It, typename Fwd_It>
+bool Decoder<In_It, Fwd_It>::is_ready()
+{
+    if (_decoder == nullptr)
+        return false;
+    return _decoder->is_ready();
+}
+
+template <typename In_It, typename Fwd_It>
+bool Decoder<In_It, Fwd_It>::is_block_ready (const uint8_t sbn)
+{
+    if (_decoder == nullptr)
+        return false;
+    return _decoder->is_block_ready (sbn);
 }
 
 template <typename In_It, typename Fwd_It>

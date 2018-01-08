@@ -135,6 +135,9 @@ public:
     Error add_symbol (void* &start, const void* end, const uint32_t id);
     Error add_symbol (void* &start, const void* end, const uint32_t esi,
                                                             const uint8_t sbn);
+    uint8_t blocks_ready();
+    bool is_ready();
+    bool is_block_ready (const uint8_t block);
     void free (const uint8_t sbn);
     uint64_t bytes() const;
     uint8_t blocks() const;

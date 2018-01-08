@@ -118,6 +118,10 @@ static void v1_end_of_input (const struct RFC6330_ptr *dec);
 static void v1_end_of_block_input (const struct RFC6330_ptr *dec,
                                                         const uint8_t block);
 static uint64_t v1_bytes (const struct RFC6330_ptr *dec);
+static uint8_t v1_blocks_ready (const struct RFC6330_ptr *dec);
+static bool v1_is_ready (const struct RFC6330_ptr *dec);
+static bool v1_is_block_ready (const struct RFC6330_ptr *dec,
+                                                        const uint8_t block);
 static RFC6330_Error v1_add_symbol_id (const struct RFC6330_ptr *dec,
                                                             void **data,
                                                             const uint32_t size,
@@ -206,6 +210,9 @@ RFC6330_v1::RFC6330_v1()
     end_of_input (&v1_end_of_input),
     end_of_block_input (&v1_end_of_block_input),
     bytes (&v1_bytes),
+    blocks_ready (&v1_blocks_ready),
+    is_ready (&v1_is_ready),
+    is_block_ready (&v1_is_block_ready),
     add_symbol_id (&v1_add_symbol_id),
     add_symbol (&v1_add_symbol),
     decode_aligned (&v1_decode_aligned),
@@ -1136,6 +1143,100 @@ static uint64_t v1_bytes (const struct RFC6330_ptr *dec)
         break;
     }
     return 0;
+}
+
+static uint8_t v1_blocks_ready (const struct RFC6330_ptr *dec)
+{
+    if (dec == nullptr || dec->ptr == nullptr)
+        return 0;
+    switch (dec->type) {
+    case RFC6330_type::RQ_DEC_8:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
+                                                    dec->ptr))->blocks_ready();
+    case RFC6330_type::RQ_DEC_16:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
+                                                    dec->ptr))->blocks_ready();
+    case RFC6330_type::RQ_DEC_32:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
+                                                    dec->ptr))->blocks_ready();
+    case RFC6330_type::RQ_DEC_64:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
+                                                    dec->ptr))->blocks_ready();
+    case RFC6330_type::RQ_ENC_8:
+    case RFC6330_type::RQ_ENC_16:
+    case RFC6330_type::RQ_ENC_32:
+    case RFC6330_type::RQ_ENC_64:
+    case RFC6330_type::RQ_NONE:
+        break;
+    }
+    return 0;
+}
+
+static bool v1_is_ready (const struct RFC6330_ptr *dec)
+{
+    if (dec == nullptr || dec->ptr == nullptr)
+        return false;
+    switch (dec->type) {
+    case RFC6330_type::RQ_DEC_8:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
+                                                        dec->ptr))->is_ready();
+    case RFC6330_type::RQ_DEC_16:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
+                                                        dec->ptr))->is_ready();
+    case RFC6330_type::RQ_DEC_32:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
+                                                        dec->ptr))->is_ready();
+    case RFC6330_type::RQ_DEC_64:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
+                                                        dec->ptr))->is_ready();
+    case RFC6330_type::RQ_ENC_8:
+    case RFC6330_type::RQ_ENC_16:
+    case RFC6330_type::RQ_ENC_32:
+    case RFC6330_type::RQ_ENC_64:
+    case RFC6330_type::RQ_NONE:
+        break;
+    }
+    return false;
+}
+
+static bool v1_is_block_ready (const struct RFC6330_ptr *dec,
+                                                        const uint8_t block)
+{
+    if (dec == nullptr || dec->ptr == nullptr)
+        return false;
+    switch (dec->type) {
+    case RFC6330_type::RQ_DEC_8:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
+                                            dec->ptr))->is_block_ready (block);
+    case RFC6330_type::RQ_DEC_16:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
+                                            dec->ptr))->is_block_ready (block);
+    case RFC6330_type::RQ_DEC_32:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
+                                            dec->ptr))->is_block_ready (block);
+    case RFC6330_type::RQ_DEC_64:
+        return (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
+                                            dec->ptr))->is_block_ready (block);
+    case RFC6330_type::RQ_ENC_8:
+    case RFC6330_type::RQ_ENC_16:
+    case RFC6330_type::RQ_ENC_32:
+    case RFC6330_type::RQ_ENC_64:
+    case RFC6330_type::RQ_NONE:
+        break;
+    }
+    return false;
 }
 
 static struct RFC6330_Dec_Result v1_decode_aligned (

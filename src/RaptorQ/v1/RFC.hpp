@@ -322,6 +322,9 @@ public:
     Error add_symbol (In_It &start, const In_It end, const uint32_t id);
     Error add_symbol (In_It &start, const In_It end, const uint32_t esi,
                                                             const uint8_t sbn);
+    uint8_t blocks_ready();
+    bool is_ready();
+    bool is_block_ready (const uint8_t block);
     void free (const uint8_t sbn);
     uint64_t bytes() const;
     uint8_t blocks() const;
@@ -576,7 +579,7 @@ std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
     } else {
         std::unique_lock<std::mutex> pool_wait_lock (*_pool_mtx);
         RQ_UNUSED(pool_wait_lock);
-        pool_wait.emplace_back(wait_threads, this, flags, std::move(p));
+        pool_wait.emplace_back (wait_threads, this, flags, std::move(p));
     }
     return future;
 }
@@ -1352,6 +1355,36 @@ Decoder_aligned_res Decoder<In_It, Fwd_It>::decode_block_aligned (
     const uint8_t new_skip = skip_and_bytes %
                     sizeof(typename std::iterator_traits<Fwd_It>::value_type);
     return {iterators, new_skip};
+}
+
+template <typename In_It, typename Fwd_It>
+uint8_t Decoder<In_It, Fwd_It>::blocks_ready()
+{
+    uint8_t blocks_ready = 0;
+    for (uint8_t sbn = 0; sbn < blocks(); ++sbn) {
+        if (is_block_ready (sbn))
+            ++blocks_ready;
+    }
+    return blocks_ready;
+}
+
+template <typename In_It, typename Fwd_It>
+bool Decoder<In_It, Fwd_It>::is_ready()
+    { return blocks_ready() == blocks(); }
+
+template <typename In_It, typename Fwd_It>
+bool Decoder<In_It, Fwd_It>::is_block_ready (const uint8_t block)
+{
+    std::unique_lock<std::mutex> block_lock (_mtx);
+    auto it = decoders.find (block);
+    if (it == decoders.end())
+        return false;
+    auto dec_ptr = it->second.dec;
+    block_lock.unlock();
+
+    if (dec_ptr->ready())
+        return true;
+    return false;
 }
 
 template <typename In_It, typename Fwd_It>
