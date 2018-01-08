@@ -526,8 +526,7 @@ std::future<std::pair<Error, uint8_t>> Encoder<Rnd_It, Fwd_It>::compute (
             error = true;
     } else if (Compute::NONE != (flags & Compute::COMPLETE) &&
                     Compute::NONE != (flags &(Compute::PARTIAL_FROM_BEGINNING |
-                                                Compute::PARTIAL_ANY |
-                                                Compute::NO_POOL))) {
+                                                Compute::PARTIAL_ANY))) {
             error = true;
     }
 
