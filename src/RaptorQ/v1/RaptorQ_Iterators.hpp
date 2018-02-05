@@ -88,7 +88,7 @@ private:
 };
 
 
-template <typename Rnd_It, typename Fwd_It = Rnd_It>
+template <typename Rnd_It, typename Fwd_It>
 class RAPTORQ_API Symbol_Iterator :
         public std::iterator<std::input_iterator_tag, Symbol<Rnd_It, Fwd_It>>
 {
@@ -111,7 +111,8 @@ public:
     }
     Symbol_Iterator operator++ (const int i) const
     {
-        return Symbol_Iterator<Rnd_It, Fwd_It>(_esi + static_cast<uint32_t>(i));
+        return Symbol_Iterator<Rnd_It, Fwd_It>(_enc,
+                                            _esi + static_cast<uint32_t> (i));
     }
     bool operator== (const Symbol_Iterator<Rnd_It, Fwd_It> &it) const
         { return it._esi == _esi; }
@@ -153,7 +154,7 @@ private:
     const uint16_t _esi;
 };
 
-template <typename In_It, typename Fwd_It = In_It>
+template <typename In_It, typename Fwd_It>
 class RAPTORQ_API Symbol_Iterator :
         public std::iterator<std::input_iterator_tag, Symbol<In_It, Fwd_It>>
 {
@@ -176,7 +177,8 @@ public:
     }
     Symbol_Iterator operator++ (const int i) const
     {
-        return Symbol_Iterator<In_It, Fwd_It>(_esi + static_cast<uint16_t> (i));
+        return Symbol_Iterator<In_It, Fwd_It>(_dec,
+                                            _esi + static_cast<uint16_t> (i));
     }
     bool operator== (const Symbol_Iterator<In_It, Fwd_It> &it) const
         { return it._esi == _esi; }
