@@ -507,7 +507,6 @@ target_compile_options(
     ${CXX_COMPILER_FLAGS}
 )
 target_link_libraries(test_cpp_raw ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
-add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw libRaptorQ-test)
 
 # CLI tool - RAW API interface (header only)
 set(CLI_raw_sources src/cli/RaptorQ.cpp external/optionparser-1.4/optionparser.h ${HEADERS} ${HEADERS_ONLY})
@@ -526,8 +525,20 @@ set_target_properties(CLI_raw PROPERTIES OUTPUT_NAME RaptorQ
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
 target_link_libraries(CLI_raw ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
-add_custom_target(everything DEPENDS make_static_deterministic examples docs CLI_tools)
+#### EXAMPLES
 
+# CPP interface - RAW interface (header only)
+add_executable(example_cpp_raw EXCLUDE_FROM_ALL examples/example_cpp_raw.cpp ${HEADERS_ONLY} ${HEADERS})
+target_compile_options(
+    example_cpp_raw PRIVATE
+    ${CXX_COMPILER_FLAGS}
+)
+target_link_libraries(example_cpp_raw ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw libRaptorQ-test)
+
+
+
+add_custom_target(everything DEPENDS make_static_deterministic examples docs CLI_tools)
 
 install(FILES ${HEADERS} ${HEADERS_ONLY} ${HEADERS_LINKED} DESTINATION include/RaptorQ/)
 install(TARGETS RaptorQ RaptorQ_Static
