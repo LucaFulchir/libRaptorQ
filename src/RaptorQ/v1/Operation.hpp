@@ -23,13 +23,17 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/Parameters.hpp"
 #include "RaptorQ/v1/Octet.hpp"
+#include "RaptorQ/v1/DenseOctetMatrix.hpp"
+#include "RaptorQ/v1/util/Matrix.hpp"
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
 
 namespace RaptorQ__v1 {
 namespace Impl {
 
 using DenseMtx = Eigen::Matrix<Octet, Eigen::Dynamic, Eigen::Dynamic,
                                                             Eigen::RowMajor>;
+using SparseMtx = Eigen::SparseMatrix<Octet, Eigen::RowMajor>;
 
 
 class RAPTORQ_LOCAL Operation
@@ -153,7 +157,7 @@ public:
                                             { assert (type == _t::ADD_MUL); }
     Operation (const _t type, const uint16_t row, const Octet scalar)
         : _type (type), div (row, scalar) { assert (type == _t::DIV); }
-    Operation (const _t type, const DenseMtx &mtx)
+    Operation (const _t type, const SparseMtx &mtx)
         : _type (type), block (mtx) { assert (type == _t::BLOCK); }
     Operation (const _t type, const std::vector<uint16_t> &order)
         : _type (type), reorder (order) { assert (type == _t::REORDER); }
@@ -166,7 +170,7 @@ public:
             reorder.clear();
     }
 
-    void build_mtx (DenseMtx &mtx) const
+    void build_mtx (DenseOctetMatrix &mtx) const
     {
         switch (_type)
         {
@@ -184,6 +188,53 @@ public:
             break;
         }
     }
+
+    void serialize (std::vector<uint8_t> &vec) const
+    {
+        switch (_type)
+        {
+        case _t::SWAP:
+            return swap.serialize (vec);
+        case _t::ADD_MUL:
+            return add_mul.serialize (vec);
+        case _t::DIV:
+            return div.serialize (vec);
+        case _t::BLOCK:
+            return block.serialize (vec);
+        case _t::REORDER:
+            return reorder.serialize (vec);
+        case _t::NONE:
+            break;
+        }
+    }
+
+    static uint16_t deserialize_uint16(const std::vector<uint8_t> &vec,
+                                                                int32_t index)
+    {
+        return vec[index] + (vec[index + 1] << 8);
+    }
+
+    static void serialize_uint16(std::vector<uint8_t> &vec, uint16_t number)
+    {
+        vec.emplace_back(number & 0xff);
+        vec.emplace_back(number >> 8);
+    }
+
+    static uint32_t deserialize_uint32(const std::vector<uint8_t> &vec,
+                                                                int32_t index)
+    {
+        return vec[index] + (vec[index + 1] << 8) + (vec[index + 2] << 16) +
+                                                        (vec[index + 3] << 24);
+    }
+
+    static void serialize_uint32(std::vector<uint8_t> &vec, uint32_t number)
+    {
+        vec.emplace_back(number & 0xff);
+        vec.emplace_back((number >> 8)  & 0xff);
+        vec.emplace_back((number >> 16)  & 0xff);
+        vec.emplace_back(number >> 24);
+    }
+
 private:
     Operation (const _t type)
         :_type (type) {}
@@ -197,8 +248,16 @@ private:
         Swap (Swap &&) = default;
         Swap& operator= (Swap &&) = default;
         ~Swap() {}
-        void build_mtx (DenseMtx &mtx) const
-            { mtx.row(_row_1).swap (mtx.row(_row_2)); }
+        void build_mtx (DenseOctetMatrix &mtx) const
+        {
+            Matrix::row_swap(mtx, _row_1, _row_2);
+        }
+        void serialize (std::vector<uint8_t> &vec) const
+        {
+            vec.emplace_back(static_cast<uint8_t> (_t::SWAP));
+            serialize_uint16(vec, _row_1);
+            serialize_uint16(vec, _row_2);
+        }
     private:
         uint16_t _row_1, _row_2;
     };
@@ -213,10 +272,17 @@ private:
         Add_Mul (Add_Mul&&) = default;
         Add_Mul& operator= (Add_Mul&&) = default;
         ~Add_Mul() {}
-        void build_mtx (DenseMtx &mtx) const
+        void build_mtx (DenseOctetMatrix &mtx) const
         {
-            const auto row = mtx.row (_row_2) * _scalar;
-            mtx.row (_row_1) += row;
+            Matrix::row_multiply_add(mtx, _row_1, mtx, _row_2,
+                                                static_cast<uint8_t> (_scalar));
+        }
+        void serialize (std::vector<uint8_t> &vec) const
+        {
+            vec.emplace_back(static_cast<uint8_t> (_t::ADD_MUL));
+            serialize_uint16(vec, _row_1);
+            serialize_uint16(vec, _row_2);
+            vec.emplace_back(static_cast<uint8_t> (_scalar));
         }
     private:
         uint16_t _row_1, _row_2;
@@ -233,8 +299,16 @@ private:
         Div (Div&&) = default;
         Div& operator= (Div&&) = default;
         ~Div() {}
-        void build_mtx (DenseMtx &mtx) const
-            { mtx.row (_row_1) /= _scalar; }
+        void build_mtx (DenseOctetMatrix &mtx) const
+        {
+            Matrix::row_div(mtx, _row_1, static_cast<uint8_t> (_scalar));
+        }
+        void serialize (std::vector<uint8_t> &vec) const
+        {
+            vec.emplace_back(static_cast<uint8_t> (_t::DIV));
+            serialize_uint16(vec, _row_1);
+            vec.emplace_back(static_cast<uint8_t> (_scalar));
+        }
     private:
         uint16_t _row_1;
         Octet _scalar;
@@ -243,22 +317,41 @@ private:
     class RAPTORQ_LOCAL Block
     {
     public:
-        Block (const DenseMtx &block)
+        Block (const SparseMtx &block)
             : _block (block) {}
         Block (const Block&) = default;
         Block& operator= (const Block&) = default;
         Block (Block&&) = default;
         Block& operator= (Block&&) = default;
         ~Block() {}
-        void build_mtx (DenseMtx &mtx) const
+        void build_mtx (DenseOctetMatrix &mtx) const
         {
-            const auto orig = mtx.block (0,0, _block.cols(), mtx.cols());
-            mtx.block (0, 0, _block.cols(), mtx.cols()) = _block * orig;
+            DenseMtx orig = mtx.toEigen(0, 0, _block.cols(), mtx.cols());
+            DenseMtx res = _block * orig; // Sparse * Dense
+            mtx.valuesFromEigen(res, 0, 0, _block.cols(), mtx.cols());
         }
+        void serialize (std::vector<uint8_t> &vec) const
+        {
+            vec.emplace_back(static_cast<uint8_t> (_t::BLOCK));
+            serialize_uint16(vec, _block.rows());
+            serialize_uint16(vec, _block.cols());
+            serialize_uint32(vec, _block.nonZeros());
+
+            for (int32_t k=0; k<_block.outerSize(); ++k) {
+                for (SparseMtx::InnerIterator it(_block,k); it; ++it)
+                {
+                    serialize_uint16(vec, it.row());
+                    serialize_uint16(vec, it.col());
+                    vec.emplace_back(static_cast<uint8_t> (it.value()));
+                }
+            }
+        }
+        // It's not good to call the destructor explicit but no other way is
+        // known. A sparse matrix has memory allocated when it's of size 0x0.
         void clear()
-            { _block = DenseMtx(); }
+            { _block.~SparseMtx(); }
     private:
-        DenseMtx _block;
+        SparseMtx _block;
     };
 
     class RAPTORQ_LOCAL Reorder
@@ -271,18 +364,28 @@ private:
         Reorder (Reorder&&) = default;
         Reorder& operator= (Reorder&&) = default;
         ~Reorder() {}
-        void build_mtx (DenseMtx &mtx) const
+        void build_mtx (DenseOctetMatrix &mtx) const
         {
             uint16_t overhead = static_cast<uint16_t> (
-                                static_cast<uint16_t> (mtx.rows()) - _order.size());
-            DenseMtx ret = DenseMtx (mtx.rows() - overhead , mtx.cols());
+                            static_cast<uint16_t> (mtx.rows()) - _order.size());
+            DenseOctetMatrix ret = DenseOctetMatrix (mtx.rows() - overhead,
+                                                                    mtx.cols());
 
             // reorder some of the lines as requested by the _order vector
             uint16_t row = 0;
-            for (const uint16_t pos : _order)
-                ret.row (pos) = mtx.row (row++);
-            mtx.swap (ret);
+            for (const uint16_t pos : _order) {
+                Matrix::row_assign(ret, pos, mtx, row++);
+            }
+            mtx = std::move(ret);
             // other lines will not influence the computation, ignore them
+        }
+        void serialize (std::vector<uint8_t> &vec) const
+        {
+            vec.emplace_back(static_cast<uint8_t> (_t::REORDER));
+            serialize_uint32(vec, _order.size());
+            for (const uint16_t pos : _order) {
+                serialize_uint16(vec, pos);
+            }
         }
         void clear()
             { _order = std::vector<uint16_t>(); }

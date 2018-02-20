@@ -36,33 +36,85 @@
 namespace RaptorQ__v1 {
 namespace Impl {
 
-
-// easy compress from/to eigen matrix
-std::vector<uint8_t> RAPTORQ_API Mtx_to_raw (const DenseMtx &mtx);
-inline std::vector<uint8_t> RAPTORQ_API Mtx_to_raw (const DenseMtx &mtx)
+std::vector<uint8_t> RAPTORQ_API ops_to_raw (const std::deque<Operation> &ops);
+inline std::vector<uint8_t> RAPTORQ_API ops_to_raw (const std::deque<Operation>
+                                                                        &ops)
 {
     std::vector<uint8_t> ret;
-    ret.reserve (static_cast<size_t> (mtx.rows() * mtx.cols()));
-    for (uint32_t row = 0; row < static_cast<uint32_t> (mtx.rows()); ++row) {
-        for (uint32_t col = 0; col < static_cast<uint32_t> (mtx.cols()); ++col)
-            ret.emplace_back (static_cast<uint8_t> (mtx (row, col)));
+    ret.reserve (10000);
+    for (const auto &op : ops) {
+        op.serialize(ret);
     }
     return ret;
 }
 
-DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
-                                                        const uint32_t cols);
-inline DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
-                                                        const uint32_t cols)
+std::deque<Operation> RAPTORQ_API raw_to_ops (const std::vector<uint8_t> &raw);
+inline std::deque<Operation> RAPTORQ_API raw_to_ops (const std::vector<uint8_t>
+                                                                        &raw)
 {
-    uint16_t rows = static_cast<uint16_t> (raw.size() / cols);
-    DenseMtx ret (rows, cols);
-    auto raw_it = raw.begin();
-    for (uint32_t row = 0; row < rows; ++row) {
-        for (uint32_t col = 0; col < cols; ++col, ++raw_it)
-            ret (row, col) = *raw_it;
+    std::deque<Operation> ops;
+    for(std::vector<uint8_t>::size_type i = 0; i < raw.size(); i++) {
+        if (raw[i] == static_cast<uint8_t> (Operation::_t::SWAP)) {
+            assert ((i + 4) < raw.size());
+            uint16_t row_1 = Operation::deserialize_uint16(raw, i + 1);
+            uint16_t row_2 = Operation::deserialize_uint16(raw, i + 3);
+            i += 4;
+            ops.emplace_back (Operation::_t::SWAP, row_1, row_2);
+        } else if (raw[i] == static_cast<uint8_t> (Operation::_t::DIV)) {
+            assert ((i + 3) < raw.size());
+            uint16_t row_1 = Operation::deserialize_uint16(raw, i + 1);
+            uint8_t scalar = raw[i + 3];
+            i += 3;
+            ops.emplace_back (Operation::_t::DIV, row_1, Octet(scalar));
+        } else if (raw[i] == static_cast<uint8_t> (Operation::_t::ADD_MUL)) {
+            assert ((i + 5) < raw.size());
+            uint16_t row_1 = Operation::deserialize_uint16(raw, i + 1);
+            uint16_t row_2 = Operation::deserialize_uint16(raw, i + 3);
+            uint8_t scalar = raw[i + 5];
+            i += 5;
+            ops.emplace_back (Operation::_t::ADD_MUL, row_1, row_2,
+                                                                Octet(scalar));
+        } else if (raw[i] == static_cast<uint8_t> (Operation::_t::BLOCK)) {
+            assert ((i + 8) < raw.size());
+            uint16_t rows = Operation::deserialize_uint16(raw, i + 1);
+            uint16_t cols = Operation::deserialize_uint16(raw, i + 3);
+            uint32_t nnz  = Operation::deserialize_uint32(raw, i + 5);
+            i += 8;
+
+            assert ((i + nnz * 5) < raw.size());
+            std::vector<Eigen::Triplet<Octet>> tripletList;
+            tripletList.reserve(nnz);
+            for (uint32_t j = 0; j < nnz; j++) {
+                uint16_t row = Operation::deserialize_uint16(raw, i + 1);
+                uint16_t col = Operation::deserialize_uint16(raw, i + 3);
+                tripletList.emplace_back(Eigen::Triplet<Octet>(row, col,
+                                                            Octet(raw[i + 5])));
+                i += 5;
+            }
+            SparseMtx mtx = SparseMtx(rows, cols);
+            mtx.setFromTriplets(tripletList.begin(), tripletList.end());
+            ops.emplace_back (Operation::_t::BLOCK, mtx);
+        } else if (raw[i] == static_cast<uint8_t> (Operation::_t::REORDER)) {
+            assert ((i + 4) < raw.size());
+            uint32_t size  = Operation::deserialize_uint32(raw, i + 1);
+            i += 4;
+
+            assert ((i + size * 2) < raw.size());
+            std::vector<uint16_t> vec;
+            vec.reserve(size);
+            for (uint32_t j = 0; j < size; j++) {
+                uint16_t row = Operation::deserialize_uint16(raw, i + 1);
+                vec.emplace_back(row);
+                i += 2;
+            }
+            ops.emplace_back (Operation::_t::REORDER, vec);
+        } else if (raw[i] == static_cast<uint8_t> (Operation::_t::NONE)) {
+            ;
+        } else {
+            assert ("Invalid instruction!");
+        }
     }
-    return ret;
+    return ops;
 }
 
 

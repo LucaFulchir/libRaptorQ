@@ -112,7 +112,7 @@ private:
     const uint16_t _symbols;
     Enc_State _state;
     Raw_Encoder<Rnd_It, Fwd_It, without_interleaver> encoder;
-    DenseMtx precomputed;
+    std::deque<Operation> ops;
     Rnd_It _from, _to;
     // avoid launching multiple computations for the encoder.
     // it is guaranteed to succeed anyway.
@@ -392,9 +392,9 @@ void Encoder<Rnd_It, Fwd_It>::compute_thread (
     static RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
 
     if (force_precomputation) {
-        if (obj->precomputed.rows() == 0)
-            obj->precomputed = obj->encoder.get_precomputed (&work);
-        if (obj->precomputed.rows() == 0) {
+        if (obj->ops.size() == 0)
+            obj->ops = obj->encoder.get_precomputed (&work);
+        if (obj->ops.size() == 0) {
             // encoder always works. only possible reason:
             p.set_value (Error::EXITING);
             return;
@@ -402,7 +402,7 @@ void Encoder<Rnd_It, Fwd_It>::compute_thread (
         // if we finished getting data by the time the computation
         // finished, update it all.
         if (obj->_state == Enc_State::FULL && !obj->encoder.ready())
-            obj->encoder.generate_symbols (obj->precomputed,
+            obj->encoder.generate_symbols (obj->ops,
                                                     &obj->_from, &obj->_to);
         p.set_value (Error::NONE);
     } else {
@@ -420,9 +420,9 @@ void Encoder<Rnd_It, Fwd_It>::compute_thread (
                 return;
             }
         } else {
-            if (obj->precomputed.rows() == 0) {
-                obj->precomputed = obj->encoder.get_precomputed (&work);
-                if (obj->precomputed.rows() == 0) {
+            if (obj->ops.size() == 0) {
+                obj->ops = obj->encoder.get_precomputed (&work);
+                if (obj->ops.size() == 0) {
                     // only possible reason:
                     p.set_value (Error::EXITING);
                     return;
@@ -431,7 +431,7 @@ void Encoder<Rnd_It, Fwd_It>::compute_thread (
             if (obj->_state == Enc_State::FULL) {
                 // if we finished getting data by the time the computation
                 // finished, update it all.
-                obj->encoder.generate_symbols (obj->precomputed,
+                obj->encoder.generate_symbols (obj->ops,
                                                     &obj->_from, &obj->_to);
             }
             p.set_value (Error::NONE);

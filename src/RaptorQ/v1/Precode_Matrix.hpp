@@ -25,6 +25,7 @@
 #include "RaptorQ/v1/multiplication.hpp"
 #include "RaptorQ/v1/Operation.hpp"
 #include "RaptorQ/v1/Octet.hpp"
+#include "RaptorQ/v1/DenseOctetMatrix.hpp"
 #include "RaptorQ/v1/Parameters.hpp"
 #include "RaptorQ/v1/Thread_Pool.hpp"
 #include <Eigen/Dense>
@@ -37,6 +38,8 @@ namespace Impl {
 
 using DenseMtx = Eigen::Matrix<Octet, Eigen::Dynamic, Eigen::Dynamic,
                                                             Eigen::RowMajor>;
+using SparseMtx = Eigen::SparseMatrix<Octet, Eigen::RowMajor>;
+
 enum class RAPTORQ_API Save_Computation : uint8_t {
     OFF = 0,
     ON = 1
@@ -67,52 +70,61 @@ public:
 
     void gen (const uint32_t repair_overhead);
 
+    void print_matrix_value(const DenseMtx &mtx);
 
-    std::pair<Precode_Result, DenseMtx> intermediate (DenseMtx &D, Op_Vec &ops,
+    std::pair<Precode_Result, DenseOctetMatrix> intermediate (
+                                        DenseOctetMatrix &D, Op_Vec &ops,
                                         bool &keep_working,
                                         const Work_State *thread_keep_working);
-    std::pair<Precode_Result, DenseMtx> intermediate (DenseMtx &D,
+    std::pair<Precode_Result, DenseOctetMatrix> intermediate (
+                                        DenseOctetMatrix &D,
                                         const Bitmask &mask,
                                         const std::vector<uint32_t> &repair_esi,
                                         Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working);
-    DenseMtx get_missing (const DenseMtx &C, const Bitmask &mask) const;
-    DenseMtx encode (const DenseMtx &C, const uint32_t ISI) const;
+    DenseOctetMatrix get_missing (const DenseOctetMatrix &C,
+                                                    const Bitmask &mask) const;
+    DenseOctetMatrix encode (const DenseOctetMatrix &C,
+                                                    const uint32_t ISI) const;
 
 private:
-    DenseMtx A;
+    DenseOctetMatrix A;
     uint32_t _repair_overhead = 0;
 
     // indenting here prepresent which function needs which other.
     // not standard, ask me if I care.
-    void init_LDPC1 (DenseMtx &_A, const uint16_t S, const uint16_t B) const;
-    void init_LDPC2 (DenseMtx &_A, const uint16_t skip, const uint16_t rows,
+    void init_LDPC1 (DenseOctetMatrix &_A, const uint16_t S,
+                                                        const uint16_t B) const;
+    void init_LDPC2 (DenseOctetMatrix &_A, const uint16_t skip,
+                                                    const uint16_t rows,
                                                     const uint16_t cols) const;
-    void add_identity (DenseMtx &_A, const uint16_t size,
+    void add_identity (DenseOctetMatrix &_A, const uint16_t size,
                                                 const uint16_t skip_row,
                                                 const uint16_t skip_col) const;
 
-    void init_HDPC (DenseMtx &_A) const;
-        DenseMtx make_MT() const;       // rfc 6330, pgg 24, used for HDPC
-        DenseMtx make_GAMMA() const;    // rfc 6330, pgg 24, used for HDPC
-    void add_G_ENC (DenseMtx &_A) const;
+    void init_HDPC (DenseOctetMatrix &_A) const;
+        DenseOctetMatrix make_MT() const;     // rfc 6330, pgg 24, used for HDPC
+        DenseOctetMatrix make_GAMMA() const;  // rfc 6330, pgg 24, used for HDPC
+    void add_G_ENC (DenseOctetMatrix &_A) const;
 
-    //DenseMtx intermediate (DenseMtx &D, Op_Vec &ops, bool &keep_working);
+    //DenseOctetMatrix intermediate (DenseOctetMatrix &D, Op_Vec &ops,
+    //                                                      bool &keep_working);
     void decode_phase0 (const Bitmask &mask,
                                     const std::vector<uint32_t> &repair_esi);
-    std::tuple<bool, uint16_t, uint16_t> decode_phase1 (DenseMtx &X,DenseMtx &D,
+    std::tuple<bool, uint16_t, uint16_t> decode_phase1 (DenseOctetMatrix &X,
+                                        DenseOctetMatrix &D,
                                         std::vector<uint16_t> &c,
                                         Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working);
-    bool decode_phase2 (DenseMtx &D, const uint16_t i,const uint16_t u,
+    bool decode_phase2 (DenseOctetMatrix &D, const uint16_t i,const uint16_t u,
                                         Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working);
-    void decode_phase3 (const DenseMtx &X, DenseMtx &D, const uint16_t i,
-                                        Op_Vec &ops);
-    void decode_phase4 (DenseMtx &D, const uint16_t i, const uint16_t u,
+    void decode_phase3 (DenseOctetMatrix &X, DenseOctetMatrix &D,
+                                        const uint16_t i, Op_Vec &ops);
+    void decode_phase4 (DenseOctetMatrix &D, const uint16_t i, const uint16_t u,
                                         Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working);
-    void decode_phase5 (DenseMtx &D, const uint16_t i, Op_Vec &ops,
+    void decode_phase5 (DenseOctetMatrix &D, const uint16_t i, Op_Vec &ops,
                                         bool &keep_working,
                                         const Work_State *thread_keep_working);
 

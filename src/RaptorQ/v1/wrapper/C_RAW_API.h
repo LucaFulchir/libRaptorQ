@@ -129,6 +129,7 @@ extern "C"
         bool (*const can_decode) (const struct RaptorQ_ptr *dec);
         uint16_t (*const needed_symbols) (const struct RaptorQ_ptr *dec);
 
+        RaptorQ_Decoder_Result (*const decode_once) (const struct RaptorQ_ptr *dec);
         struct RaptorQ_Dec_Result (*const poll) (const struct RaptorQ_ptr *dec);
         struct RaptorQ_Dec_Result (*const wait_sync) (
                                                 const struct RaptorQ_ptr *dec);

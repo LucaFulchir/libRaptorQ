@@ -122,6 +122,7 @@ static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec, void **from,
                                                             const uint32_t esi);
 static bool v1_can_decode (const RaptorQ_ptr *dec);
 static uint16_t v1_needed_symbols (const RaptorQ_ptr *dec);
+static RaptorQ_Decoder_Result v1_decode_once (const RaptorQ_ptr *dec);
 static RaptorQ_Dec_Result v1_poll (const RaptorQ_ptr *dec);
 static RaptorQ_Dec_Result v1_wait_sync (const RaptorQ_ptr *dec);
 static RaptorQ_future_dec* v1_wait (const RaptorQ_ptr *dec);
@@ -196,6 +197,7 @@ RaptorQ_v1::RaptorQ_v1()
     add_symbol (&v1_add_symbol),
     can_decode (&v1_can_decode),
     needed_symbols (&v1_needed_symbols),
+    decode_once (&v1_decode_once),
     poll (&v1_poll),
     wait_sync (&v1_wait_sync),
     wait (&v1_wait),
@@ -1212,6 +1214,43 @@ static uint16_t v1_needed_symbols (const RaptorQ_ptr *dec)
         break;
     }
     return 0;
+}
+
+static RaptorQ_Decoder_Result v1_decode_once (const RaptorQ_ptr *dec)
+{
+    if (dec == nullptr || dec->ptr == nullptr)
+        return RQ_DEC_NEED_DATA;
+
+    RaptorQ_Decoder_Result cpp_res = RQ_DEC_STOPPED;
+    switch (dec->type) {
+    case RaptorQ_type::RQ_DEC_8:
+        cpp_res = static_cast<RaptorQ_Decoder_Result>(reinterpret_cast<
+                            RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
+                                                            dec->ptr)->decode_once());
+        break;
+    case RaptorQ_type::RQ_DEC_16:
+        cpp_res = static_cast<RaptorQ_Decoder_Result>(reinterpret_cast<
+                            RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
+                                                            dec->ptr)->decode_once());
+        break;
+    case RaptorQ_type::RQ_DEC_32:
+        cpp_res = static_cast<RaptorQ_Decoder_Result>(reinterpret_cast<
+                            RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
+                                                            dec->ptr)->decode_once());
+        break;
+    case RaptorQ_type::RQ_DEC_64:
+        cpp_res = static_cast<RaptorQ_Decoder_Result>(reinterpret_cast<
+                            RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
+                                                            dec->ptr)->decode_once());
+        break;
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return cpp_res;
 }
 
 static RaptorQ_Dec_Result v1_poll (const RaptorQ_ptr *dec)

@@ -84,7 +84,9 @@ public:
     }
     friend Octet operator* (Octet lhs, const Octet rhs)
     {
-        if (lhs.data != 0 && rhs.data != 0) {
+        if (lhs.data == 1) {
+            lhs.data = rhs.data;
+        } else if (lhs.data != 0 && rhs.data != 0) {
             lhs.data = RaptorQ__v1::Impl::oct_exp[oct_log[lhs.data - 1] +
                                                         oct_log[rhs.data - 1]];
         } else {

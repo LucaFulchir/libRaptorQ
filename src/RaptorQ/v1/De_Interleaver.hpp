@@ -23,6 +23,7 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/Decoder.hpp"
 #include "RaptorQ/v1/Interleaver.hpp"
+#include "RaptorQ/v1/DenseOctetMatrix.hpp"
 
 namespace RFC6330__v1 {
 namespace Impl {
@@ -36,7 +37,7 @@ public:
     De_Interleaver& operator= (const De_Interleaver&) = default;
     De_Interleaver (De_Interleaver&&) = default;
     De_Interleaver& operator= (De_Interleaver &&) = default;
-    De_Interleaver (const RaptorQ__v1::Impl::DenseMtx *symbols,
+    De_Interleaver (const RaptorQ__v1::Impl::DenseOctetMatrix *symbols,
                                                     const Partition sub_blocks,
                                                     const uint8_t alignment)
         :_symbols (symbols), _sub_blocks (sub_blocks), _al (alignment)
@@ -46,7 +47,7 @@ public:
     size_t operator() (Fwd_It &start, const Fwd_It end, const size_t max_bytes,
                             const uint8_t skip, const uint16_t from_esi = 0);
 private:
-    const RaptorQ__v1::Impl::DenseMtx *_symbols;
+    const RaptorQ__v1::Impl::DenseOctetMatrix *_symbols;
     const Partition _sub_blocks;
     const uint8_t _al;
 };

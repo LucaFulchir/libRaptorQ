@@ -24,6 +24,7 @@
 #include "RaptorQ/v1/caches.hpp"
 #include "RaptorQ/v1/Interleaver.hpp"
 #include "RaptorQ/v1/multiplication.hpp"
+#include "RaptorQ/v1/DenseOctetMatrix.hpp"
 #include "RaptorQ/v1/Parameters.hpp"
 #include "RaptorQ/v1/Precode_Matrix.hpp"
 #include "RaptorQ/v1/Rand.hpp"
@@ -86,13 +87,14 @@ public:
 
 
     // for both interleaved and non-interleaved
-    DenseMtx get_precomputed (RaptorQ__v1::Work_State *thread_keep_working);
+    std::deque<Operation> get_precomputed (RaptorQ__v1::Work_State
+                                                        *thread_keep_working);
 
     // interleaver-only, precomputed
     template <typename R_It = Rnd_It,
         typename F_It = Fwd_It, typename I = Interleaved,
         typename std::enable_if<I::value, int>::type = 0>
-    bool generate_symbols (const DenseMtx &precomputed);
+    bool generate_symbols (const std::deque<Operation> &ops);
     // interleaver-only, non precomputed
     template <typename R_It = Rnd_It,
         typename F_It = Fwd_It, typename I = Interleaved,
@@ -105,7 +107,7 @@ public:
     template <typename R_It = Rnd_It,
         typename F_It = Fwd_It, typename I = Interleaved,
         typename std::enable_if<!I::value, int>::type = 0>
-    bool generate_symbols (const DenseMtx &precomputed,
+    bool generate_symbols (const std::deque<Operation> &ops,
                                         const Rnd_It *from, const Rnd_It *to);
     // non-interleaved: requires source symbols. non-precomputed
     template <typename R_It = Rnd_It,
@@ -131,21 +133,23 @@ private:
     RFC6330__v1::Impl::Interleaver<Rnd_It> *_interleaver;
     Rnd_It *_from, *_to;
 
-    DenseMtx encoded_symbols;
+    DenseOctetMatrix encoded_symbols;
 
     // interleaved and non-interleaved functions. same signature, though.
     template <typename R_It = Rnd_It,
         typename F_It = Fwd_It, typename I = Interleaved,
         typename std::enable_if<!I::value, int>::type = 0>
-    DenseMtx get_raw_symbols (const uint16_t K_S_H, const uint16_t S_H) const;
+    DenseOctetMatrix get_raw_symbols (const uint16_t K_S_H,
+                                                    const uint16_t S_H) const;
     template <typename R_It = Rnd_It,
         typename F_It = Fwd_It, typename I = Interleaved,
         typename std::enable_if<I::value, int>::type = 0>
-    DenseMtx get_raw_symbols (const uint16_t K_S_H, const uint16_t S_H) const;
+    DenseOctetMatrix get_raw_symbols (const uint16_t K_S_H,
+                                                    const uint16_t S_H) const;
 
 
     std::pair<uint16_t, uint16_t> init_ksh() const;
-    bool compute_intermediate (DenseMtx &D,
+    bool compute_intermediate (DenseOctetMatrix &D,
                                 RaptorQ__v1::Work_State *thread_keep_working);
 
     size_t Enc_repair (const uint32_t ESI, Fwd_It &output,
@@ -218,7 +222,7 @@ void Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::set_data (Rnd_It *from,
 template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 void Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::clear_data()
 {
-    encoded_symbols = DenseMtx();
+    encoded_symbols = DenseOctetMatrix();
     _interleaver = nullptr;
     _from = nullptr;
     _to = nullptr;
@@ -229,7 +233,7 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::ready() const
     { return encoded_symbols.cols() != 0; }
 
 template <typename Rnd_It, typename Fwd_It, typename Interleaved>
-DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed (
+std::deque<Operation> Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed(
                                 RaptorQ__v1::Work_State *thread_keep_working)
 {
     keep_working = true;
@@ -247,11 +251,8 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed (
                                                             get()->get (key);
         if (compressed.second.size() != 0) {
             auto uncompressed = decompress (compressed.first,compressed.second);
-            DenseMtx precomputed = raw_to_Mtx (uncompressed, key.out_size());
-            if (precomputed.rows() != 0) {
-                return precomputed;
-            }
-            return DenseMtx();
+            std::deque<Operation> ops = raw_to_ops (uncompressed);
+            return ops;
         }
         // else not found, generate one.
     }
@@ -261,39 +262,33 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed (
     S_H = precode_on->_params.S + precode_on->_params.H;
     K_S_H = precode_on->_params.K_padded + S_H;
 
-    // we only want the precomputex matrix.
+    // we only want the precomputed matrix.
     // we can generate that without input data.
     // each symbol now has size '1' and val '0'
-    DenseMtx D;
-    D.setZero (K_S_H, 1);
+    DenseOctetMatrix D = DenseOctetMatrix(K_S_H, 1);
 
     Precode_Result precode_res;
     std::deque<Operation> ops;
-    DenseMtx encoded_no_symbols;
+    DenseOctetMatrix encoded_no_symbols;
     std::tie (precode_res, encoded_no_symbols) = precode_on->intermediate (D,
                                                         ops, keep_working,
                                                         thread_keep_working);
     if (precode_res != Precode_Result::DONE || encoded_no_symbols.cols() == 0)
-        return DenseMtx();
+        return std::deque<Operation>();
 
     // RaptorQ succeded.
-    // build the precomputed matrix.
-    DenseMtx res;
-    // don't save really small matrices.
+    // store the operation vector.
 
     const uint16_t size = precode_on->_params.L;
     const auto tmp_bool = std::vector<bool>();
     const Cache_Key key (size, 0, 0, tmp_bool, tmp_bool);
-    res.setIdentity (size, size);
-    for (const auto &op : ops)
-        op.build_mtx (res);
     if (_type == Save_Computation::ON) {
-        auto raw_mtx = Mtx_to_raw (res);
-        auto compressed = compress (raw_mtx);
+        auto raw_ops = ops_to_raw (ops);
+        auto compressed = compress (raw_ops);
         DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed.first,
                                                         compressed.second, key);
     }
-    return res;
+    return ops;
 }
 
 
@@ -302,13 +297,13 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed (
 template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 template <typename R_It, typename F_It, typename I,
                                 typename std::enable_if<!I::value, int>::type>
-DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_raw_symbols(
+DenseOctetMatrix Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_raw_symbols(
                                  const uint16_t K_S_H, const uint16_t S_H) const
 {
     using T = typename std::iterator_traits<Rnd_It>::value_type;
     assert (_to != nullptr && _from != nullptr && "RQ: get raw what?");
 
-    DenseMtx D = DenseMtx (K_S_H, _symbol_size);
+    DenseOctetMatrix D = DenseOctetMatrix (K_S_H, _symbol_size);
 
     // fill matrix D: full zero for the first S + H symbols
     D.block (0, 0, S_H, D.cols()).setZero();
@@ -349,14 +344,15 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_raw_symbols(
 template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 template <typename R_It, typename F_It, typename I,
                                 typename std::enable_if<I::value, int>::type>
-DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_raw_symbols(
+DenseOctetMatrix Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_raw_symbols(
                                                     const uint16_t K_S_H,
                                                     const uint16_t S_H) const
 {
     using T = typename std::iterator_traits<Rnd_It>::value_type;
     assert (_interleaver != nullptr);
 
-    DenseMtx D = DenseMtx (K_S_H, sizeof(T) * _interleaver->symbol_size());
+    DenseOctetMatrix D = DenseOctetMatrix (K_S_H, sizeof(T) *
+                                                _interleaver->symbol_size());
     auto C = (*_interleaver)[_SBN];
 
     // fill matrix D: full zero for the first S + H symbols
@@ -386,16 +382,18 @@ template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 template <typename R_It, typename F_It, typename I,
                                 typename std::enable_if<I::value, int>::type>
 bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
-                                                    const DenseMtx &precomputed)
+                                            const std::deque<Operation> &ops)
 {
-    if (precomputed.rows() == 0)
+    if (ops.size() == 0)
         return false;
     keep_working = true;
 
     const uint16_t S_H = precode_on->_params.S + precode_on->_params.H;
     const uint16_t K_S_H = precode_on->_params.K_padded + S_H;
-    const DenseMtx D = get_raw_symbols (K_S_H, S_H);
-    encoded_symbols = precomputed * D;
+    encoded_symbols = get_raw_symbols (K_S_H, S_H);
+
+    for (const auto &op : ops)
+        op.build_mtx (encoded_symbols);
     return true;
 }
 
@@ -411,7 +409,7 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
     keep_working = true;
 
     auto ksh = init_ksh();
-    DenseMtx D = get_raw_symbols (ksh.first, ksh.second);
+    DenseOctetMatrix D = get_raw_symbols (ksh.first, ksh.second);
     return compute_intermediate (D, thread_keep_working);
 }
 
@@ -420,10 +418,10 @@ template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 template <typename R_It, typename F_It, typename I,
                                 typename std::enable_if<!I::value, int>::type>
 bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
-                                        const DenseMtx &precomputed,
+                                        const std::deque<Operation> &ops,
                                         const Rnd_It *from, const Rnd_It *to)
 {
-    if (precomputed.rows() == 0 || from == nullptr || to == nullptr)
+    if (ops.size() == 0 || from == nullptr || to == nullptr)
         return false;
     keep_working = true;
 
@@ -432,8 +430,10 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
     const uint16_t S_H = precode_on->_params.S + precode_on->_params.H;
     const uint16_t K_S_H = precode_on->_params.K_padded + S_H;
 
-    const DenseMtx D = get_raw_symbols (K_S_H, S_H);
-    encoded_symbols = precomputed * D;
+    encoded_symbols = get_raw_symbols (K_S_H, S_H);
+
+    for (const auto &op : ops)
+        op.build_mtx (encoded_symbols);
     return true;
 }
 
@@ -457,7 +457,7 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
     keep_working = true;
 
     auto ksh = init_ksh();
-    DenseMtx D = get_raw_symbols (ksh.first, ksh.second);
+    DenseOctetMatrix D = get_raw_symbols (ksh.first, ksh.second);
     return compute_intermediate (D, thread_keep_working);
 }
 
@@ -494,7 +494,8 @@ std::pair<uint16_t, uint16_t> Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::
 
 template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::compute_intermediate (
-                    DenseMtx &D, RaptorQ__v1::Work_State *thread_keep_working)
+                                DenseOctetMatrix &D,
+                                RaptorQ__v1::Work_State *thread_keep_working)
 {
     Precode_Result precode_res;
     std::deque<Operation> ops;
@@ -506,11 +507,13 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::compute_intermediate (
                                                             get()->get (key);
         if (compressed.second.size() != 0) {
             auto decompressed = decompress (compressed.first,compressed.second);
-            DenseMtx precomputed = raw_to_Mtx (decompressed, key.out_size());
-            if (precomputed.rows() != 0) {
-                // we have a precomputed matrix! let's use that!
-                encoded_symbols = precomputed * D;
-                // result is granted. we only save matrices that work
+            ops = raw_to_ops (decompressed);
+            if (ops.size() != 0) {
+                // we have a operation vector! let's use that!
+                encoded_symbols = D;
+                for (const auto &op : ops)
+                    op.build_mtx (encoded_symbols);
+                // result is granted. we only save operation vectors that work
                 return true;
             }
         }
@@ -522,14 +525,10 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::compute_intermediate (
             return false;
 
         // RaptorQ succeded.
-        // build the precomputed matrix.
-        DenseMtx res;
+        // Store the operation vector.
         if (encoded_symbols.cols() != 0) {
-            res.setIdentity (size, size);
-            for (const auto &op : ops)
-                op.build_mtx (res);
-            auto raw_mtx = Mtx_to_raw (res);
-            compressed = compress (raw_mtx);
+            auto raw_ops = ops_to_raw (ops);
+            compressed = compress (raw_ops);
             DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed.first,
                                                         compressed.second, key);
         }
@@ -688,7 +687,7 @@ size_t Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::Enc_repair (const uint32_t ESI,
         }
     }
     auto ISI = ESI + (K - _symbols);
-    DenseMtx tmp;
+    DenseOctetMatrix tmp;
     if (_type == Save_Computation::ON) {
         tmp = precode_on->encode (encoded_symbols, ISI);
     } else {

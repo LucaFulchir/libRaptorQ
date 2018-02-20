@@ -10,6 +10,8 @@ doc/libRaptorQ.pdf
 doc/libRaptorQ.synctex.gz
 doc/libRaptorQ.toc
 CMakeFiles/
+unit_test/bin32
+unit_test/bin64
 CMakeCache.txt
 CMakeLists.txt.user
 cmake_install.cmake
