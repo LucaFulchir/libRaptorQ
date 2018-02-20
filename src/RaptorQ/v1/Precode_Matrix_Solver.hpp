@@ -507,12 +507,12 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase3 (const DenseMtx &X, DenseMtx &D,
     //  A. After this operation, the submatrix of A consisting of the
     //  intersection of the first i rows and columns equals to X, whereas the
     //  matrix U_upper is transformed to a sparse form.
-    const auto sub_X = X.block (0, 0, i, i);
+    const auto sub_X = (X.block (0, 0, i, i)).sparseView();
     if (IS_OFFLINE == Save_Computation::ON)
-        ops.emplace_back (Operation::_t::BLOCK, sub_X);
+        ops.emplace_back (Operation::_t::BLOCK, DenseMtx(sub_X));
 
     auto sub_A = A.block (0, 0, i, A.cols());
-    sub_A = sub_X * sub_A;
+    sub_A = DenseMtx(sub_X * sub_A.sparseView());
 
     // Now fix D, too
     DenseMtx D_2 = D;

@@ -28,6 +28,7 @@
 #include "RaptorQ/v1/Parameters.hpp"
 #include "RaptorQ/v1/Thread_Pool.hpp"
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
 #include <deque>
 #include <memory>
 
