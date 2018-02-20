@@ -21,7 +21,9 @@
 #pragma once
 
 #include "RaptorQ/v1/Precode_Matrix.hpp"
+#include "RaptorQ/v1/DenseOctetMatrix.hpp"
 #include "RaptorQ/v1/util/Graph.hpp"
+#include "RaptorQ/v1/util/Matrix.hpp"
 
 ///////////////////
 //
@@ -37,8 +39,8 @@ namespace Impl {
 // or we can avoid saving it, and thus be faster and more memory efficient.
 
 template <Save_Computation IS_OFFLINE>
-std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
-                                        DenseMtx &D, Op_Vec &ops,
+std::pair<Precode_Result, DenseOctetMatrix> Precode_Matrix<IS_OFFLINE>::intermediate (
+                                        DenseOctetMatrix &D, Op_Vec &ops,
                                         bool &keep_working,
                                         const Work_State *thread_keep_working)
 {
@@ -53,45 +55,47 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
 
     c.clear();
     c.reserve (_params.L);
-    DenseMtx C, X = A;
+    DenseOctetMatrix C;
+    DenseOctetMatrix X = A;
 
     bool success;
     uint16_t i, u;
     for (i = 0; i < _params.L; ++i)
         c.emplace_back (i);
 
-    DenseMtx CP_D;
+    DenseOctetMatrix CP_D;
     if (debug)
         CP_D = D;
+
     std::tie (success, i, u) = decode_phase1 (X, D, c , ops,
                                             keep_working, thread_keep_working);
     if (stop (keep_working, thread_keep_working))
-        return std::make_pair (Precode_Result::STOPPED, DenseMtx());
+        return std::make_pair (Precode_Result::STOPPED, DenseOctetMatrix());
     if (!success)
-        return std::make_pair (Precode_Result::FAILED, DenseMtx());
+        return std::make_pair (Precode_Result::FAILED, DenseOctetMatrix());
 
     success = decode_phase2 (D, i, u, ops, keep_working, thread_keep_working);
     if (stop (keep_working, thread_keep_working))
-        return std::make_pair (Precode_Result::STOPPED, DenseMtx());
+        return std::make_pair (Precode_Result::STOPPED, DenseOctetMatrix());
     if (!success)
-        return std::make_pair (Precode_Result::FAILED, DenseMtx());
+        return std::make_pair (Precode_Result::FAILED, DenseOctetMatrix());
     // A now should be considered as being LxL from now
     decode_phase3 (X, D, i, ops);
     if (stop (keep_working, thread_keep_working))
-        return std::make_pair (Precode_Result::STOPPED, DenseMtx());
+        return std::make_pair (Precode_Result::STOPPED, DenseOctetMatrix());
 
-    X = DenseMtx ();    // free some memory, X is not needed anymore.
+    X = DenseOctetMatrix();    // free some memory, X is not needed anymore.
     decode_phase4 (D, i, u, ops, keep_working, thread_keep_working);
     if (stop (keep_working, thread_keep_working))
-        return std::make_pair (Precode_Result::STOPPED, DenseMtx());
+        return std::make_pair (Precode_Result::STOPPED, DenseOctetMatrix());
     if (!success)
-        return std::make_pair (Precode_Result::FAILED, DenseMtx());
+        return std::make_pair (Precode_Result::FAILED, DenseOctetMatrix());
 
     decode_phase5 (D, i, ops, keep_working, thread_keep_working);
     if (stop (keep_working, thread_keep_working))
-        return std::make_pair (Precode_Result::STOPPED, DenseMtx());
+        return std::make_pair (Precode_Result::STOPPED, DenseOctetMatrix());
     if (!success)
-        return std::make_pair (Precode_Result::FAILED, DenseMtx());
+        return std::make_pair (Precode_Result::FAILED, DenseOctetMatrix());
 
     // A now must be an LxL identity matrix: check it.
     // CHECK DISABLED: phase4  does not modify A, as it's never readed
@@ -103,29 +107,31 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
     //          return C;
     //  }
     //}
-    A = DenseMtx(); // free A memory.
+    A = DenseOctetMatrix();
 
     if (IS_OFFLINE == Save_Computation::ON)
         ops.emplace_back (Operation::_t::REORDER, c);
 
-    C = DenseMtx (_params.L, D.cols());
-    for (i = 0; i < _params.L; ++i)
-        C.row (c[i]) = D.row (i);
+    C = DenseOctetMatrix (_params.L, D.cols());
+    for (i = 0; i < _params.L; ++i) {
+        //C.row (c[i]) = D.row (i);
+        Matrix::row_assign(C, c[i], D, i);
+    }
 
     if (debug && ops.size() != 0) {
-        DenseMtx test_off (D.rows(), D.rows());
-        test_off.setIdentity (CP_D.rows(), CP_D.rows());
+        DenseOctetMatrix test_off (D.rows(), D.rows());
+        test_off.setIdentity ();
         for (const auto &op : ops)
             op.build_mtx (test_off);
-        DenseMtx test_res = test_off * CP_D;
+        DenseOctetMatrix test_res = test_off * CP_D;
         assert (test_res == C && "RQ: I'm different!");
     }
     return std::make_pair (Precode_Result::DONE, C);
 }
 
 template <Save_Computation IS_OFFLINE>
-std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
-                                        DenseMtx &D, const Bitmask &mask,
+std::pair<Precode_Result, DenseOctetMatrix> Precode_Matrix<IS_OFFLINE>::intermediate (
+                                        DenseOctetMatrix &D, const Bitmask &mask,
                                         const std::vector<uint32_t> &repair_esi,
                                         Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working)
@@ -135,19 +141,20 @@ std::pair<Precode_Result, DenseMtx> Precode_Matrix<IS_OFFLINE>::intermediate (
 }
 
 template <Save_Computation IS_OFFLINE>
-DenseMtx Precode_Matrix<IS_OFFLINE>::get_missing (const DenseMtx &C,
+DenseOctetMatrix Precode_Matrix<IS_OFFLINE>::get_missing (const DenseOctetMatrix &C,
                                                       const Bitmask &mask) const
 {
     if (C.rows() == 0)
         return C;
-    DenseMtx missing = DenseMtx (mask.get_holes(), C.cols());
+    DenseOctetMatrix missing = DenseOctetMatrix (mask.get_holes(), C.cols());
     uint16_t holes = mask.get_holes();
     uint16_t row = 0;
     for (uint16_t hole = 0; hole < mask._max_nonrepair && holes > 0; ++hole) {
         if (mask.exists (hole))
             continue;
-        DenseMtx ret = encode (C, hole);
-        missing.row (row) = ret.row (0);
+        DenseOctetMatrix ret = encode (C, hole);
+        //missing.row (row) = ret.row (0);
+        Matrix::row_assign(missing, row, ret, 0);
         ++row;
         --holes;
     }
@@ -216,7 +223,8 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase0 (const Bitmask &mask,
 
 template <Save_Computation IS_OFFLINE>
 std::tuple<bool, uint16_t, uint16_t>
-    Precode_Matrix<IS_OFFLINE>::decode_phase1 (DenseMtx &X, DenseMtx &D,
+    Precode_Matrix<IS_OFFLINE>::decode_phase1 (DenseOctetMatrix &X,
+                                        DenseOctetMatrix &D,
                                         std::vector<uint16_t> &c,
                                         Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working)
@@ -366,9 +374,12 @@ std::tuple<bool, uint16_t, uint16_t>
 
         // swap chosen row and first V row in A (not just in V)
         if (chosen != 0) {
-            A.row (i).swap (A.row (chosen + i));
-            X.row (i).swap (X.row (chosen + i));
-            D.row (i).swap (D.row (chosen + i));
+            //A.row (i).swap (A.row (chosen + i));
+            //X.row (i).swap (X.row (chosen + i));
+            //D.row (i).swap (D.row (chosen + i));
+            Matrix::row_swap(A, i, chosen + i);
+            Matrix::row_swap(X, i, chosen + i);
+            Matrix::row_swap(D, i, chosen + i);
             std::swap (tracking[i], tracking[chosen + i]);
             if (IS_OFFLINE == Save_Computation::ON)
                 ops.emplace_back (Operation::_t::SWAP, i, chosen + i);
@@ -382,8 +393,10 @@ std::tuple<bool, uint16_t, uint16_t>
                 if (static_cast<uint8_t> (V (0, idx)) != 0)
                     break;
             }
-            A.col (i).swap (A.col (i + idx));
-            X.col (i).swap (X.col (i + idx));
+            //A.col (i).swap (A.col (i + idx));
+            //X.col (i).swap (X.col (i + idx));
+            Matrix::col_swap(A, i, i + idx);
+            Matrix::col_swap(X, i, i + idx);
             std::swap (c[i], c[i + idx]);   // rfc6330, pg32
         }
         uint16_t col = static_cast<uint16_t> (V.cols()) - 1;
@@ -400,8 +413,10 @@ std::tuple<bool, uint16_t, uint16_t>
             if (swap >= col)
                 break;  // line full of zeros, nothing to swap
             // now V(0, col) == 0 and V(0, swap != 0. swap them
-            A.col (col + i).swap (A.col (swap + i));
-            X.col (col + i).swap (X.col (swap + i));
+            //A.col (col + i).swap (A.col (swap + i));
+            //X.col (col + i).swap (X.col (swap + i));
+            Matrix::col_swap(A, col + i, swap + i);
+            Matrix::col_swap(X, col + i, swap + i);
             std::swap (c[col + i], c[swap + i]);    //rfc6330, pg32
         }
         if (stop (keep_working, thread_keep_working))
@@ -411,8 +426,10 @@ std::tuple<bool, uint16_t, uint16_t>
         for (uint16_t row = 1; row < V.rows(); ++row) {
             if (static_cast<uint8_t> (V (row, 0)) != 0) {
                 const Octet multiple = V (row, 0) / V (0, 0);
-                A.row (row + i) += A.row (i) * multiple;
-                D.row (row + i) += D.row (i) * multiple;    //rfc6330, pg32
+                //A.row (row + i) += A.row (i) * multiple;
+                //D.row (row + i) += D.row (i) * multiple;    //rfc6330, pg32
+                Matrix::row_multiply_add(A, row + i, A, i, static_cast<uint8_t> (multiple));
+                Matrix::row_multiply_add(D, row + i, D, i, static_cast<uint8_t> (multiple));
                 if (IS_OFFLINE == Save_Computation::ON) {
                     ops.emplace_back (Operation::_t::ADD_MUL, row + i, i,
                                                                     multiple);
@@ -429,9 +446,9 @@ std::tuple<bool, uint16_t, uint16_t>
 }
 
 template<Save_Computation IS_OFFLINE>
-bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
-                                        const uint16_t u, Op_Vec &ops,
-                                        bool &keep_working,
+bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseOctetMatrix &D,
+                                        const uint16_t i, const uint16_t u,
+                                        Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working)
 {
     // rfc 6330, pg 35
@@ -457,8 +474,10 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
             // U_Lower is square, we can return early (rank < u, not solvable)
             return false;
         } else if (row != row_nonzero) {
-            A.row (row).swap (A.row (row_nonzero));
-            D.row (row).swap (D.row (row_nonzero));
+            //A.row (row).swap (A.row (row_nonzero));
+            //D.row (row).swap (D.row (row_nonzero));
+            Matrix::row_swap(A, row, row_nonzero);
+            Matrix::row_swap(D, row, row_nonzero);
             if (IS_OFFLINE == Save_Computation::ON)
                 ops.emplace_back (Operation::_t::SWAP, row, row_nonzero);
         }
@@ -466,10 +485,12 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
         // U_Lower (row, row) != 0. make it 1.
         if (static_cast<uint8_t> (A (row, col_diag)) > 1) {
             const auto divisor = A (row, col_diag);
-            A.row (row) /= divisor;
-            D.row (row) /= divisor;
+            //A.row (row) /= divisor;
+            //D.row (row) /= divisor;
+            Matrix::row_div(A, row, static_cast<uint8_t> (divisor));
+            Matrix::row_div(D, row, static_cast<uint8_t> (divisor));
             if (IS_OFFLINE == Save_Computation::ON)
-                ops.emplace_back (Operation::_t::DIV, row, divisor);
+                ops.emplace_back (Operation::_t::DIV, row, Octet(divisor));
         }
 
         // make U_Lower and identity up to row
@@ -483,8 +504,10 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
             // with "1", so this is easy.
             const auto multiple = A (del_row, col_diag);
             if (static_cast<uint8_t> (multiple) != 0) {
-                A.row (del_row) -= A.row (row) * multiple;
-                D.row (del_row) -= D.row (row) * multiple;
+                //A.row (del_row) -= A.row (row) * multiple;
+                //D.row (del_row) -= D.row (row) * multiple;
+                Matrix::row_multiply_sub(A, del_row, A, row, static_cast<uint8_t> (multiple));
+                Matrix::row_multiply_sub(D, del_row, D, row, static_cast<uint8_t> (multiple));
                 if (IS_OFFLINE == Save_Computation::ON)
                     ops.emplace_back (Operation::_t::ADD_MUL, del_row, row,
                                                                     multiple);
@@ -498,7 +521,7 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::decode_phase3 (const DenseMtx &X, DenseMtx &D,
+void Precode_Matrix<IS_OFFLINE>::decode_phase3 (DenseOctetMatrix &X, DenseOctetMatrix &D,
                                                 const uint16_t i, Op_Vec &ops)
 {
     // rfc 6330, pg 35:
@@ -507,23 +530,24 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase3 (const DenseMtx &X, DenseMtx &D,
     //  A. After this operation, the submatrix of A consisting of the
     //  intersection of the first i rows and columns equals to X, whereas the
     //  matrix U_upper is transformed to a sparse form.
-    const auto sub_X = (X.block (0, 0, i, i)).sparseView();
+    SparseMtx sub_X = X.topLeftSparseView(i, i);
     if (IS_OFFLINE == Save_Computation::ON)
-        ops.emplace_back (Operation::_t::BLOCK, DenseMtx(sub_X));
+        ops.emplace_back (Operation::_t::BLOCK, sub_X);
 
-    auto sub_A = A.block (0, 0, i, A.cols());
-    sub_A = DenseMtx(sub_X * sub_A.sparseView());
+    SparseMtx sub_A = A.topLeftSparseView(i, A.cols());
+
+    SparseMtx res = sub_X * sub_A;
+    A.valuesFromEigenTopLeft(res);
 
     // Now fix D, too
-    DenseMtx D_2 = D;
+    DenseMtx D_2 = D.toEigen(0, 0, sub_X.cols(), D.cols());
 
-    D.block (0, 0, sub_X.cols(), D.cols()) = sub_X *
-                                        D_2.block (0,0, sub_X.cols(), D.cols());
-
+    D_2 = sub_X * D_2;
+    D.valuesFromEigen(D_2, 0, 0, sub_X.cols(), D.cols());
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseMtx &D, const uint16_t i,
+void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseOctetMatrix &D, const uint16_t i,
                                         const uint16_t u, Op_Vec &ops,
                                         bool &keep_working,
                                         const Work_State *thread_keep_working)
@@ -541,15 +565,16 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseMtx &D, const uint16_t i,
             return;
         for (uint16_t col = 0; col < U_upper.cols(); ++col) {
             // col == j
-            auto multiple = U_upper (row, col);
-            if (static_cast<uint8_t> (multiple) != 0) {
+            uint8_t multiple = U_upper (row, col);
+            if (multiple != 0) {
                 // U_upper is never read again, so we can avoid some writes
                 //U_upper (row, col) = 0;
 
                 // "b times row j of I_u" => row "j" in U_lower.
                 // aka: U_upper.rows() + j
                 uint16_t row_2 = static_cast<uint16_t> (U_upper.rows()) + col;
-                D.row (row) += D.row (row_2) * multiple;
+                //D.row (row) += D.row (row_2) * multiple;
+                Matrix::row_multiply_add(D, row, D, row_2, multiple);
                 if (IS_OFFLINE == Save_Computation::ON) {
                     ops.emplace_back (Operation::_t::ADD_MUL, row, row_2,
                                                                     multiple);
@@ -560,7 +585,7 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseMtx &D, const uint16_t i,
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
+void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseOctetMatrix &D, const uint16_t i,
                                         Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working)
 {
@@ -571,16 +596,20 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
         if (static_cast<uint8_t> (A (j, j)) != 1) {
             // A(j, j) is actually never 0, by construction.
             const auto multiple = A (j, j);
-            A.row (j) /= multiple;
-            D.row (j) /= multiple;
+            //A.row (j) /= multiple;
+            //D.row (j) /= multiple;
+            Matrix::row_div(A, j, static_cast<uint8_t> (multiple));
+            Matrix::row_div(D, j, static_cast<uint8_t> (multiple));
             if (IS_OFFLINE == Save_Computation::ON)
-                ops.emplace_back (Operation::_t::DIV, j, multiple);
+                ops.emplace_back (Operation::_t::DIV, j, Octet(multiple));
         }
         for (uint16_t tmp = 0; tmp < j; ++tmp) {    //tmp == "l" in rfc6330
             const auto multiple = A (j, tmp);
             if (static_cast<uint8_t> (multiple) != 0) {
-                A.row (j) += A.row (tmp) * multiple;
-                D.row (j) += D.row (tmp) * multiple;
+                //A.row (j) += A.row (tmp) * multiple;
+                //D.row (j) += D.row (tmp) * multiple;
+                Matrix::row_multiply_add(A, j, A, tmp, static_cast<uint8_t> (multiple)); //TODO change to A
+                Matrix::row_multiply_add(D, j, D, tmp, static_cast<uint8_t> (multiple));
                 if (IS_OFFLINE == Save_Computation::ON)
                     ops.emplace_back (Operation::_t::ADD_MUL, j, tmp, multiple);
             }
@@ -589,32 +618,36 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
 }
 
 template<Save_Computation IS_OFFLINE>
-DenseMtx Precode_Matrix<IS_OFFLINE>::encode (const DenseMtx &C,
+DenseOctetMatrix Precode_Matrix<IS_OFFLINE>::encode (const DenseOctetMatrix &C,
                                                     const uint32_t ISI) const
 {
     // Generate repair symbols. same algorithm as "get_idxs"
     // rfc6330, pg29
 
-    DenseMtx ret;
+    DenseOctetMatrix ret;
 
-    ret = DenseMtx (1, C.cols());
+    ret = DenseOctetMatrix (1, C.cols());
     Tuple t = _params.tuple (ISI);
 
-    ret.row (0) = C.row (t.b);
+    //ret.row (0) = C.row (t.b);
+    Matrix::row_assign(ret, 0, C, t.b);
 
     for (uint16_t j = 1; j < t.d; ++j) {
         t.b = (t.b + t.a) % _params.W;
-        ret.row (0) += C.row (t.b);
+        // ret.row (0) += C.row (t.b);
+        Matrix::row_add(ret, 0, C, t.b);
     }
     while (t.b1 >= _params.P)
         t.b1 = (t.b1 + t.a1) % _params.P1;
 
-    ret.row (0) += C.row (_params.W + t.b1);
+    // ret.row (0) += C.row (_params.W + t.b1);
+    Matrix::row_add(ret, 0, C, _params.W + t.b1);
     for (uint16_t j = 1; j < t.d1; ++j) {
         t.b1 = (t.b1 + t.a1) % _params.P1;
         while (t.b1 >= _params.P)
             t.b1 = (t.b1 + t.a1) % _params.P1;
-        ret.row (0) += C.row (_params.W + t.b1);
+        // ret.row (0) += C.row (_params.W + t.b1);
+        Matrix::row_add(ret, 0, C, _params.W + t.b1);
     }
 
     return ret;

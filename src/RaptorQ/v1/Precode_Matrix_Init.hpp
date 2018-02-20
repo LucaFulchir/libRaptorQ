@@ -41,7 +41,7 @@ template<Save_Computation IS_OFFLINE>
 void Precode_Matrix<IS_OFFLINE>::gen (const uint32_t repair_overhead)
 {
     _repair_overhead = repair_overhead;
-    DenseMtx _A = DenseMtx (_params.L + repair_overhead, _params.L);
+    DenseOctetMatrix _A = DenseOctetMatrix (_params.L + repair_overhead, _params.L);
 
     init_LDPC1 (_A, _params.S, _params.B);
     add_identity (_A, _params.S, 0, _params.B);
@@ -59,7 +59,7 @@ void Precode_Matrix<IS_OFFLINE>::gen (const uint32_t repair_overhead)
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::init_LDPC1 (DenseMtx &_A, const uint16_t S,
+void Precode_Matrix<IS_OFFLINE>::init_LDPC1 (DenseOctetMatrix &_A, const uint16_t S,
                                                         const uint16_t B) const
 {
     // The first LDPC1 submatrix is a SxB matrix of SxS submatrixes
@@ -89,7 +89,7 @@ void Precode_Matrix<IS_OFFLINE>::init_LDPC1 (DenseMtx &_A, const uint16_t S,
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::add_identity (DenseMtx &_A,
+void Precode_Matrix<IS_OFFLINE>::add_identity (DenseOctetMatrix &_A,
                                                 const uint16_t size,
                                                 const uint16_t skip_row,
                                                 const uint16_t skip_col) const
@@ -102,7 +102,7 @@ void Precode_Matrix<IS_OFFLINE>::add_identity (DenseMtx &_A,
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::init_LDPC2 (DenseMtx &_A, const uint16_t skip,
+void Precode_Matrix<IS_OFFLINE>::init_LDPC2 (DenseOctetMatrix &_A, const uint16_t skip,
                                                     const uint16_t rows,
                                                     const uint16_t cols) const
 {
@@ -126,11 +126,11 @@ void Precode_Matrix<IS_OFFLINE>::init_LDPC2 (DenseMtx &_A, const uint16_t skip,
 }
 
 template<Save_Computation IS_OFFLINE>
-DenseMtx Precode_Matrix<IS_OFFLINE>::make_MT() const
+DenseOctetMatrix Precode_Matrix<IS_OFFLINE>::make_MT() const
 {
     // rfc 6330, pg 24
 
-    DenseMtx MT = DenseMtx (_params.H, _params.K_padded + _params.S);
+    DenseOctetMatrix MT = DenseOctetMatrix (_params.H, _params.K_padded + _params.S);
 
     for (uint16_t row = 0; row < MT.rows(); ++row) {
         uint16_t col;
@@ -151,10 +151,10 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::make_MT() const
 }
 
 template<Save_Computation IS_OFFLINE>
-DenseMtx Precode_Matrix<IS_OFFLINE>::make_GAMMA() const
+DenseOctetMatrix Precode_Matrix<IS_OFFLINE>::make_GAMMA() const
 {
     // rfc 6330, pg 24
-    DenseMtx GAMMA = DenseMtx (_params.K_padded + _params.S,
+    DenseOctetMatrix GAMMA = DenseOctetMatrix (_params.K_padded + _params.S,
                                                 _params.K_padded + _params.S);
 
     for (uint16_t row = 0; row < GAMMA.rows(); ++row) {
@@ -177,17 +177,18 @@ DenseMtx Precode_Matrix<IS_OFFLINE>::make_GAMMA() const
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::init_HDPC (DenseMtx &_A) const
+void Precode_Matrix<IS_OFFLINE>::init_HDPC (DenseOctetMatrix &_A) const
 {
     // rfc 6330, pg 25
-    DenseMtx MT = make_MT();
-    DenseMtx GAMMA = make_GAMMA();
+    DenseOctetMatrix MT = make_MT();
+    DenseOctetMatrix GAMMA = make_GAMMA();
 
-    _A.block(_params.S, 0, _params.H, GAMMA.rows()) = MT * GAMMA;
+    DenseOctetMatrix res = MT * GAMMA;
+    _A.valuesFromMatrix(res, _params.S, 0, _params.H, GAMMA.rows());
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::add_G_ENC (DenseMtx &_A) const
+void Precode_Matrix<IS_OFFLINE>::add_G_ENC (DenseOctetMatrix &_A) const
 {
     // rfc 6330, pg 26
     for (uint16_t row = _params.S + _params.H; row < _params.L; ++row) {

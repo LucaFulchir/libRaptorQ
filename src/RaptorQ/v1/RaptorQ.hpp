@@ -112,14 +112,14 @@ private:
     const uint16_t _symbols;
     Enc_State _state;
     Raw_Encoder<Rnd_It, Fwd_It, without_interleaver> encoder;
-    DenseMtx precomputed;
+    std::deque<Operation> ops;
     Rnd_It _from, _to;
     // avoid launching multiple computations for the encoder.
     // it is guaranteed to succeed anyway.
     std::mutex _mtx;
     std::shared_future<Error> _single_wait;
     std::thread _waiting;
-
+    
     static void compute_thread (Encoder<Rnd_It, Fwd_It> *obj,
                                                     bool forced_precomputation,
                                                     std::promise<Error> p);
@@ -353,7 +353,7 @@ bool Encoder<Rnd_It, Fwd_It>::precompute_sync()
     }
     std::unique_lock<std::mutex> lock (_mtx);
     if (_single_wait.valid() &&  _single_wait.get() == Error::NONE)
-        return true;
+    return true;
     stop();
     if (_waiting.joinable())
         _waiting.join();
@@ -381,8 +381,8 @@ bool Encoder<Rnd_It, Fwd_It>::compute_sync()
     _single_wait = p.get_future().share();
     lock.unlock();
     compute_thread (this, false, std::move(p));
-    return true;
-}
+            return true;
+    }
 
 template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::compute_thread (
@@ -392,9 +392,9 @@ void Encoder<Rnd_It, Fwd_It>::compute_thread (
     static RaptorQ__v1::Work_State work = RaptorQ__v1::Work_State::KEEP_WORKING;
 
     if (force_precomputation) {
-        if (obj->precomputed.rows() == 0)
-            obj->precomputed = obj->encoder.get_precomputed (&work);
-        if (obj->precomputed.rows() == 0) {
+        if (obj->ops.size() == 0)
+            obj->ops = obj->encoder.get_precomputed (&work);
+        if (obj->ops.size() == 0) {
             // encoder always works. only possible reason:
             p.set_value (Error::EXITING);
             return;
@@ -402,7 +402,7 @@ void Encoder<Rnd_It, Fwd_It>::compute_thread (
         // if we finished getting data by the time the computation
         // finished, update it all.
         if (obj->_state == Enc_State::FULL && !obj->encoder.ready())
-            obj->encoder.generate_symbols (obj->precomputed,
+            obj->encoder.generate_symbols (obj->ops,
                                                     &obj->_from, &obj->_to);
         p.set_value (Error::NONE);
     } else {
@@ -420,9 +420,9 @@ void Encoder<Rnd_It, Fwd_It>::compute_thread (
                 return;
             }
         } else {
-            if (obj->precomputed.rows() == 0) {
-                obj->precomputed = obj->encoder.get_precomputed (&work);
-                if (obj->precomputed.rows() == 0) {
+            if (obj->ops.size() == 0) {
+                obj->ops = obj->encoder.get_precomputed (&work);
+                if (obj->ops.size() == 0) {
                     // only possible reason:
                     p.set_value (Error::EXITING);
                     return;
@@ -431,7 +431,7 @@ void Encoder<Rnd_It, Fwd_It>::compute_thread (
             if (obj->_state == Enc_State::FULL) {
                 // if we finished getting data by the time the computation
                 // finished, update it all.
-                obj->encoder.generate_symbols (obj->precomputed,
+                obj->encoder.generate_symbols (obj->ops,
                                                     &obj->_from, &obj->_to);
             }
             p.set_value (Error::NONE);
@@ -444,7 +444,7 @@ template <typename Rnd_It, typename Fwd_It>
 std::shared_future<Error> Encoder<Rnd_It, Fwd_It>::precompute()
 {
     if (_state == Enc_State::INIT_ERROR) {
-        std::promise<Error> p;
+    std::promise<Error> p;
         p.set_value (Error::INITIALIZATION);
         return p.get_future().share();
     }
@@ -459,7 +459,7 @@ std::shared_future<Error> Encoder<Rnd_It, Fwd_It>::precompute()
     _waiting = std::thread (compute_thread, this, true, std::move(p));
     lock.unlock();
     return _single_wait;
-}
+    }
 
 template <typename Rnd_It, typename Fwd_It>
 std::shared_future<Error> Encoder<Rnd_It, Fwd_It>::compute()
@@ -479,7 +479,7 @@ std::shared_future<Error> Encoder<Rnd_It, Fwd_It>::compute()
     _waiting = std::thread (compute_thread, this, false, std::move(p));
     lock.unlock();
     return _single_wait;
-}
+    }
 
 template <typename Rnd_It, typename Fwd_It>
 size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
@@ -490,11 +490,11 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
     // returns number of iterators written
     if (_state == Enc_State::FULL) {
         if (id >= _symbols) { // repair symbol
-            if (!encoder.ready()) {
+        if (!encoder.ready()) {
                 if (!_single_wait.valid())
                     _single_wait = compute();
                 _single_wait.wait();
-            }
+        }
         }
         return encoder.Enc (id, output, end);
     }
@@ -612,7 +612,7 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
     auto ret = dec.add_symbol (from, to, esi);
     if (ret == Error::NONE) {
         if (esi < _symbols)
-            symbols_tracker [2 * esi].store (true);
+        symbols_tracker [2 * esi].store (true);
         std::unique_lock<std::mutex> lock (_mtx);
         _cond.notify_all();
     }
@@ -865,9 +865,9 @@ void Decoder<In_It, Fwd_It>::clear_data()
 
 template <typename In_It, typename Fwd_It>
 Decoder_written Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
-                                                        const Fwd_It end,
-                                                        const size_t from_byte,
-                                                        const size_t skip)
+                                                    const Fwd_It end,
+                                                    const size_t from_byte,
+                                                    const size_t skip)
 {
     using T = typename std::iterator_traits<Fwd_It>::value_type;
 

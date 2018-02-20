@@ -48,7 +48,7 @@ class RAPTORQ_LOCAL Raw_Decoder
     // decode () can be launched multiple times,
     // But each time the list of source and repair symbols might
     // change.
-    using Vect = Eigen::Matrix<Impl::Octet, 1, Eigen::Dynamic, Eigen::RowMajor>;
+    using Vect = DenseOctetMatrix;
     using T_in = typename std::iterator_traits<In_It>::value_type;
 public:
 
@@ -61,7 +61,7 @@ public:
         IS_INPUT(In_It, "RaptorQ__v1::Impl::Decoder");
         // symbol size is in octets, but we save it in "T" sizes.
         // so be aware that "symbol_size" != "_symbol_size" for now
-        source_symbols = DenseMtx (_symbols, symbol_size);
+        source_symbols = DenseOctetMatrix (_symbols, symbol_size);
         concurrent = 0;
         can_retry = false;
         end_of_input = false;
@@ -75,7 +75,7 @@ public:
 
     Error add_symbol (In_It &start, const In_It end, const uint32_t esi);
     Decoder_Result decode (Work_State *thread_keep_working);
-    DenseMtx* get_symbols();
+    DenseOctetMatrix* get_symbols();
     bool has_symbol (const uint16_t symbol) const;
 
     void stop();
@@ -99,7 +99,7 @@ private:
     const uint16_t _symbols;
     uint16_t concurrent;    // currently running decoders retry
     Bitmask mask;
-    DenseMtx source_symbols;
+    DenseOctetMatrix source_symbols;
     std::vector<std::pair<uint32_t, Vect>> received_repair;
 
     // to help making things const
@@ -228,7 +228,7 @@ void Raw_Decoder<In_It>::drop_concurrent()
 }
 
 template <typename In_It>
-DenseMtx* Raw_Decoder<In_It>::get_symbols()
+DenseOctetMatrix* Raw_Decoder<In_It>::get_symbols()
 {
     return &source_symbols;
 }
@@ -280,13 +280,13 @@ Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
         if (col != source_symbols.cols())
             return Error::WRONG_INPUT;
     } else {
-        Vect v = Vect (source_symbols.cols());
+        Vect v = Vect (1, source_symbols.cols());
         for (; start != end && col != source_symbols.cols(); ++start) {
             T_in al = *start;
             for (uint8_t *p = reinterpret_cast<uint8_t *> (&al);
                         p != reinterpret_cast<uint8_t *> (&al) + sizeof(T_in)
                                         && col != source_symbols.cols(); ++p) {
-                v (col++) = *p;
+                v (0, col++) = *p;
             }
         }
         // input iterator might reach end before we get enough data
@@ -376,7 +376,7 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
                                 static_cast<uint32_t> (received_repair.size()),
                                             mask.get_bitmask(), bitmask_repair);
 
-    DenseMtx D = DenseMtx (L_rows + overhead, source_symbols.cols());
+    DenseOctetMatrix D = DenseOctetMatrix (L_rows + overhead, source_symbols.cols());
 
     // initialize D: first S_H rows == 0
     D.block(0, 0, S_H, D.cols()).setZero();
@@ -385,7 +385,7 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
         // other thread completed its work before us?
         return Decoder_Result::DECODED;
     }
-    D.block (S_H, 0, source_symbols.rows(), D.cols()) = source_symbols;
+    D.valuesFromMatrix(source_symbols, S_H, 0, source_symbols.rows(), D.cols());
 
     // mask must be copied to avoid threading problems, same with tracking
     // the repair esi.
@@ -404,7 +404,8 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
             continue;
         }
         const uint16_t row = S_H + hole;
-        D.row (row) = symbol->second;
+        //D.row (row) = symbol->second;
+        Matrix::row_assign(D, row, symbol->second, 0);
         ++symbol;
         ++hole;
     }
@@ -412,7 +413,8 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
     D.block (S_H + _symbols, 0, (L_rows - S_H) - _symbols, D.cols()).setZero();
     // fill the remaining (redundant) repair symbols
     for (uint16_t row = L_rows; symbol != received_repair.end(); ++symbol) {
-        D.row (row) = symbol->second;
+        //D.row (row) = symbol->second;
+        Matrix::row_assign(D, row, symbol->second, 0);
         ++row;
     }
 
@@ -422,15 +424,18 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
     std::deque<Operation> ops;
 
     Precode_Result precode_res = Precode_Result::DONE;
-    DenseMtx missing;
+    DenseOctetMatrix missing;
     if (type == Save_Computation::ON) {
         auto compressed = DLF<std::vector<uint8_t>, Cache_Key>::
                                                             get()->get (key);
         auto decompressed = decompress (compressed.first, compressed.second);
-        DenseMtx precomputed = raw_to_Mtx (decompressed, key.out_size());
-        if (precomputed.rows() != 0) {
+        ops = raw_to_ops (decompressed);
+        if (ops.size() != 0) {
             DO_NOT_SAVE = true;
-            missing = precomputed * D;
+            missing = D;
+            for (const auto &op : ops)
+                    op.build_mtx (missing);
+
             missing = precode_on->get_missing (std::move(missing), mask_safe);
         } else {
             std::tie (precode_res, missing) = precode_on->intermediate (D,
@@ -451,18 +456,13 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
         return Decoder_Result::STOPPED;
     }
 
-    D = DenseMtx(); // free some memory;
+    D = DenseOctetMatrix(); // free some memory;
     if (type == Save_Computation::ON && !DO_NOT_SAVE &&
                                         precode_res == Precode_Result::DONE) {
-        DenseMtx res;
         if (missing.rows() != 0) {
-            const int32_t mt_size = static_cast<int32_t>(L_rows + overhead);
-            res.setIdentity (mt_size, mt_size);
-            for (const auto &op : ops)
-                op.build_mtx (res);
             // TODO: lots of wasted ram? how to compress things directly?
-            auto raw_mtx = Mtx_to_raw (res);
-            auto compressed = compress (raw_mtx);
+            auto raw_ops = ops_to_raw (ops);
+            auto compressed = compress (raw_ops);
             DLF<std::vector<uint8_t>, Cache_Key>::get()->add (compressed.first,
                                                         compressed.second, key);
         }
@@ -489,7 +489,8 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
         ++miss_row;
         if (mask.exists (row))
             continue;
-        source_symbols.row (row) = missing.row (miss_row - 1);
+        //source_symbols.row (row) = missing.row (miss_row - 1);
+        Matrix::row_assign(source_symbols, row, missing, miss_row - 1);
         mask.add (row);
     }
 

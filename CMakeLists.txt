@@ -218,6 +218,7 @@ SET(HEADERS
             src/RaptorQ/v1/degree.hpp
             src/RaptorQ/v1/Encoder.hpp
             src/RaptorQ/v1/Interleaver.hpp
+            src/RaptorQ/v1/gf256.hpp
             src/RaptorQ/v1/multiplication.hpp
             src/RaptorQ/v1/Octet.hpp
             src/RaptorQ/v1/Operation.hpp
@@ -228,6 +229,8 @@ SET(HEADERS
             src/RaptorQ/v1/Rand.hpp
             src/RaptorQ/v1/RaptorQ.hpp
             src/RaptorQ/v1/RaptorQ_Iterators.hpp
+            src/RaptorQ/v1/DenseOctetMatrix.hpp
+            src/RaptorQ/v1/DenseOctetMatrixBlock.hpp
             src/RaptorQ/v1/RFC.hpp
             src/RaptorQ/v1/RFC_Iterators.hpp
             src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
@@ -236,6 +239,10 @@ SET(HEADERS
             src/RaptorQ/v1/util/Bitmask.hpp
             src/RaptorQ/v1/util/div.hpp
             src/RaptorQ/v1/util/Graph.hpp
+            src/RaptorQ/v1/util/CPU_Info.hpp
+            src/RaptorQ/v1/util/Matrix.hpp
+            src/RaptorQ/v1/util/Matrix_SSSE3.hpp
+            src/RaptorQ/v1/util/Matrix_AVX2.hpp
             )
 
 SET(HEADERS_LINKED
