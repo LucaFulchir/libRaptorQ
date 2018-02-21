@@ -37,7 +37,7 @@ public:
     {
 #ifdef __SSSE3__
         uint32_t abcd[4];
-        uint32_t mask = ((int)1 <<  0) | ((int)1 <<  9); //SSE3 and SSSE3
+        uint32_t mask = ((uint32_t)1 <<  0) | ((uint32_t)1 <<  9); //SSE3, SSSE3
         run_cpuid( 1, 0, abcd );
         if ((abcd[2] & mask) == mask )
             return true;
@@ -49,7 +49,7 @@ public:
     {
 #ifdef __AVX2__
         uint32_t abcd[4];
-        uint32_t mask = ((int)1 <<  5);
+        uint32_t mask = ((uint32_t)1 <<  5);
         run_cpuid( 7, 0, abcd );
         if ((abcd[1] & mask) == mask )
             return true;
@@ -57,9 +57,8 @@ public:
         return false;
     }
 private:
-    /* From Intel: How to detect New Instruction support in the 4th generation
-     * Intel® Core™ processor family
-     */
+    /// From Intel: How to detect New Instruction support in the 4th generation
+    // Intel® Core™ processor family
     static void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t* abcd)
     {
 #if defined(_MSC_VER)
@@ -69,7 +68,7 @@ private:
         ebx = 0;
         edx = 0;
 # if defined( __i386__ ) && defined ( __PIC__ )
-         /* in case of PIC under 32-bit EBX cannot be clobbered */
+        // in case of PIC under 32-bit EBX cannot be clobbered
         __asm__ ( "movl %%ebx, %%edi \n\t cpuid \n\t xchgl %%ebx, %%edi" : "=D" (ebx),
 # else
         __asm__ ( "cpuid" : "+b" (ebx),

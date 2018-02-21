@@ -39,10 +39,11 @@ namespace Impl {
 // or we can avoid saving it, and thus be faster and more memory efficient.
 
 template <Save_Computation IS_OFFLINE>
-std::pair<Precode_Result, DenseOctetMatrix> Precode_Matrix<IS_OFFLINE>::intermediate (
-                                        DenseOctetMatrix &D, Op_Vec &ops,
-                                        bool &keep_working,
-                                        const Work_State *thread_keep_working)
+std::pair<Precode_Result, DenseOctetMatrix>
+                                    Precode_Matrix<IS_OFFLINE>::intermediate (
+                                    DenseOctetMatrix &D, Op_Vec &ops,
+                                    bool &keep_working,
+                                    const Work_State *thread_keep_working)
 {
     // rfc 6330, pg 32
     // "c" and "d" are used to track row and columns exchange.
@@ -130,19 +131,21 @@ std::pair<Precode_Result, DenseOctetMatrix> Precode_Matrix<IS_OFFLINE>::intermed
 }
 
 template <Save_Computation IS_OFFLINE>
-std::pair<Precode_Result, DenseOctetMatrix> Precode_Matrix<IS_OFFLINE>::intermediate (
-                                        DenseOctetMatrix &D, const Bitmask &mask,
-                                        const std::vector<uint32_t> &repair_esi,
-                                        Op_Vec &ops, bool &keep_working,
-                                        const Work_State *thread_keep_working)
+std::pair<Precode_Result, DenseOctetMatrix>
+                                    Precode_Matrix<IS_OFFLINE>::intermediate (
+                                    DenseOctetMatrix &D, const Bitmask &mask,
+                                    const std::vector<uint32_t> &repair_esi,
+                                    Op_Vec &ops, bool &keep_working,
+                                    const Work_State *thread_keep_working)
 {
     decode_phase0 (mask, repair_esi);
     return intermediate (D, ops, keep_working, thread_keep_working);
 }
 
 template <Save_Computation IS_OFFLINE>
-DenseOctetMatrix Precode_Matrix<IS_OFFLINE>::get_missing (const DenseOctetMatrix &C,
-                                                      const Bitmask &mask) const
+DenseOctetMatrix Precode_Matrix<IS_OFFLINE>::get_missing (
+                                                    const DenseOctetMatrix &C,
+                                                    const Bitmask &mask) const
 {
     if (C.rows() == 0)
         return C;
@@ -428,8 +431,10 @@ std::tuple<bool, uint16_t, uint16_t>
                 const Octet multiple = V (row, 0) / V (0, 0);
                 //A.row (row + i) += A.row (i) * multiple;
                 //D.row (row + i) += D.row (i) * multiple;    //rfc6330, pg32
-                Matrix::row_multiply_add(A, row + i, A, i, static_cast<uint8_t> (multiple));
-                Matrix::row_multiply_add(D, row + i, D, i, static_cast<uint8_t> (multiple));
+                Matrix::row_multiply_add(A, row + i, A, i,
+                                            static_cast<uint8_t> (multiple));
+                Matrix::row_multiply_add(D, row + i, D, i,
+                                            static_cast<uint8_t> (multiple));
                 if (IS_OFFLINE == Save_Computation::ON) {
                     ops.emplace_back (Operation::_t::ADD_MUL, row + i, i,
                                                                     multiple);
@@ -506,8 +511,10 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseOctetMatrix &D,
             if (static_cast<uint8_t> (multiple) != 0) {
                 //A.row (del_row) -= A.row (row) * multiple;
                 //D.row (del_row) -= D.row (row) * multiple;
-                Matrix::row_multiply_sub(A, del_row, A, row, static_cast<uint8_t> (multiple));
-                Matrix::row_multiply_sub(D, del_row, D, row, static_cast<uint8_t> (multiple));
+                Matrix::row_multiply_sub(A, del_row, A, row,
+                                            static_cast<uint8_t> (multiple));
+                Matrix::row_multiply_sub(D, del_row, D, row,
+                                            static_cast<uint8_t> (multiple));
                 if (IS_OFFLINE == Save_Computation::ON)
                     ops.emplace_back (Operation::_t::ADD_MUL, del_row, row,
                                                                     multiple);
@@ -521,7 +528,8 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseOctetMatrix &D,
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::decode_phase3 (DenseOctetMatrix &X, DenseOctetMatrix &D,
+void Precode_Matrix<IS_OFFLINE>::decode_phase3 (DenseOctetMatrix &X,
+                                                DenseOctetMatrix &D,
                                                 const uint16_t i, Op_Vec &ops)
 {
     // rfc 6330, pg 35:
@@ -547,9 +555,9 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase3 (DenseOctetMatrix &X, DenseOctetM
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseOctetMatrix &D, const uint16_t i,
-                                        const uint16_t u, Op_Vec &ops,
-                                        bool &keep_working,
+void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseOctetMatrix &D,
+                                        const uint16_t i, const uint16_t u,
+                                        Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working)
 {
     // rfc 6330, pg 35:
@@ -585,8 +593,9 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseOctetMatrix &D, const uint1
 }
 
 template<Save_Computation IS_OFFLINE>
-void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseOctetMatrix &D, const uint16_t i,
-                                        Op_Vec &ops, bool &keep_working,
+void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseOctetMatrix &D,
+                                        const uint16_t i, Op_Vec &ops,
+                                        bool &keep_working,
                                         const Work_State *thread_keep_working)
 {
     // rc 6330, pg 36
@@ -608,8 +617,10 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseOctetMatrix &D, const uint1
             if (static_cast<uint8_t> (multiple) != 0) {
                 //A.row (j) += A.row (tmp) * multiple;
                 //D.row (j) += D.row (tmp) * multiple;
-                Matrix::row_multiply_add(A, j, A, tmp, static_cast<uint8_t> (multiple)); //TODO change to A
-                Matrix::row_multiply_add(D, j, D, tmp, static_cast<uint8_t> (multiple));
+                Matrix::row_multiply_add(A, j, A, tmp,
+                                            static_cast<uint8_t> (multiple));
+                Matrix::row_multiply_add(D, j, D, tmp,
+                                            static_cast<uint8_t> (multiple));
                 if (IS_OFFLINE == Save_Computation::ON)
                     ops.emplace_back (Operation::_t::ADD_MUL, j, tmp, multiple);
             }

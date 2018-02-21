@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 by Intinor AB. All rights reserved. 
+ * Copyright (c) 2018 by Intinor AB. All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *

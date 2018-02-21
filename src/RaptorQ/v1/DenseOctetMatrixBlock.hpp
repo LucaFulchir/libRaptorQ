@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 by Intinor AB. All rights reserved. 
+ * Copyright (c) 2018 by Intinor AB. All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -38,8 +38,9 @@ using DenseMtx = Eigen::Matrix<Octet, Eigen::Dynamic, Eigen::Dynamic,
 class RAPTORQ_LOCAL DenseOctetMatrixBlock {
 public:
 
-    DenseOctetMatrixBlock(uint8_t *data, unsigned int startrow, unsigned int startcolumn,
-                          unsigned int rows, unsigned int columns, int stride) {
+    DenseOctetMatrixBlock(uint8_t *data, uint32_t startrow,
+                          uint32_t startcolumn, uint32_t rows,
+                          uint32_t columns, int32_t stride) {
         blockrowcnt = rows;
         blockcolumncnt = columns;
         blockstep = stride;
@@ -49,20 +50,20 @@ public:
     ~DenseOctetMatrixBlock() {
     }
 
-    uint8_t& operator() (unsigned int row, unsigned int col) {
+    uint8_t& operator() (uint32_t row, uint32_t col) {
         assert(row < blockrowcnt);
         assert(col < blockcolumncnt);
         return blockdata[index(row, col)];
     }
 
-    int rows() const { return (int)this->blockrowcnt; }
-    int cols() const { return (int)this->blockcolumncnt; }
+    int32_t rows() const { return (int)this->blockrowcnt; }
+    int32_t cols() const { return (int)this->blockcolumncnt; }
 
     DenseMtx toEigen() {
         DenseMtx ret = DenseMtx(blockrowcnt, blockcolumncnt);
 
-        for (unsigned int i = 0; i < blockrowcnt; i++) {
-            for (unsigned int j = 0; j < blockcolumncnt; j++) {
+        for (uint32_t i = 0; i < blockrowcnt; i++) {
+            for (uint32_t j = 0; j < blockcolumncnt; j++) {
                 ret(i, j) = blockdata[index(i, j)];
             }
         }
@@ -71,7 +72,7 @@ public:
     }
 
     void setZero() {
-        for (int i = 0; i < rows(); i++)
+        for (int32_t i = 0; i < rows(); i++)
         {
             memset(&blockdata[index(i, 0)], 0, cols());
         }
@@ -79,11 +80,11 @@ public:
 
 private:
     uint8_t *blockdata{NULL};
-    unsigned int blockrowcnt{0};
-    unsigned int blockcolumncnt{0};
-    unsigned int blockstep{0};
+    uint32_t blockrowcnt{0};
+    uint32_t blockcolumncnt{0};
+    uint32_t blockstep{0};
 
-    unsigned index(unsigned int row, unsigned int col) {
+    unsigned index(uint32_t row, uint32_t col) {
         return blockstep * row + col;
     }
 };

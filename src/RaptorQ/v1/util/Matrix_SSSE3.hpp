@@ -34,7 +34,7 @@ namespace Impl {
 class RAPTORQ_LOCAL Matrix_SSSE3
 {
 public:
-    static void add(uint8_t *dest, uint8_t *src, int bytes)
+    static void add(uint8_t *dest, uint8_t *src, int32_t bytes)
     {
 #ifdef __SSSE3__
         uint8_t *src_ptr, *dest_ptr;
@@ -46,8 +46,8 @@ public:
         src_ptr = src;
         dest_ptr = dest;
 
-        int limit = bytes / 16;
-        for (int i = 0; i < limit; i++) {
+        int32_t limit = bytes / 16;
+        for (int32_t i = 0; i < limit; i++) {
             s = _mm_load_si128((__m128i *) (src_ptr));
             d = _mm_load_si128((__m128i *) (dest_ptr));
             d = _mm_xor_si128(d, s);
@@ -58,7 +58,7 @@ public:
 #endif
     }
 
-    static void div(uint8_t *data, uint8_t num, int bytes)
+    static void div(uint8_t *data, uint8_t num, int32_t bytes)
     {
 #ifdef __SSSE3__
         uint8_t *high, *low, *data_ptr;
@@ -69,7 +69,7 @@ public:
 
         // Inverse num (div is multiply with 1/num)
         num = oct_exp[255 - oct_log[num - 1]];
-        int limit = bytes / 16;
+        int32_t limit = bytes / 16;
 
         high = gf256_high_ptr + (num << 4) * 2;
         low = gf256_low_ptr + (num << 4) * 2;
@@ -79,7 +79,7 @@ public:
         m_table_low = _mm_loadu_si128((__m128i *) (low));
 
         data_ptr = data;
-        for (int i = 0; i < limit; i++) {
+        for (int32_t i = 0; i < limit; i++) {
             v = _mm_load_si128((__m128i *) (data_ptr));
             t = _mm_and_si128(mask, v);
             r = _mm_shuffle_epi8(m_table_low, t);
@@ -92,7 +92,8 @@ public:
 #endif
     }
 
-    static void multiply_and_add(uint8_t *dest, uint8_t *src, uint8_t num, int bytes)
+    static void multiply_and_add(uint8_t *dest, uint8_t *src, uint8_t num,
+                                                                int32_t bytes)
     {
 #ifdef __SSSE3__
         uint8_t *high, *low, *src_ptr, *dest_ptr;
@@ -101,7 +102,7 @@ public:
         assert(bytes % 16 == 0);
         assert(bytes >= 16);
 
-        int limit = bytes / 16;
+        int32_t limit = bytes / 16;
 
         high = gf256_high_ptr + (num << 4) * 2;
         low = gf256_low_ptr + (num << 4) * 2;
@@ -112,7 +113,7 @@ public:
 
         src_ptr = src;
         dest_ptr = dest;
-        for (int i = 0; i < limit; i++) {
+        for (int32_t i = 0; i < limit; i++) {
             v = _mm_load_si128((__m128i *) (src_ptr));
             t = _mm_and_si128(mask, v);
             r = _mm_shuffle_epi8(m_table_low, t);

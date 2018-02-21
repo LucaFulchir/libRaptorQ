@@ -71,16 +71,20 @@ public:
     void gen (const uint32_t repair_overhead);
 
 
-    std::pair<Precode_Result, DenseOctetMatrix> intermediate (DenseOctetMatrix &D, Op_Vec &ops,
+    std::pair<Precode_Result, DenseOctetMatrix> intermediate (
+                                        DenseOctetMatrix &D, Op_Vec &ops,
                                         bool &keep_working,
                                         const Work_State *thread_keep_working);
-    std::pair<Precode_Result, DenseOctetMatrix> intermediate (DenseOctetMatrix &D,
+    std::pair<Precode_Result, DenseOctetMatrix> intermediate (
+                                        DenseOctetMatrix &D,
                                         const Bitmask &mask,
                                         const std::vector<uint32_t> &repair_esi,
                                         Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working);
-    DenseOctetMatrix get_missing (const DenseOctetMatrix &C, const Bitmask &mask) const;
-    DenseOctetMatrix encode (const DenseOctetMatrix &C, const uint32_t ISI) const;
+    DenseOctetMatrix get_missing (const DenseOctetMatrix &C,
+                                                    const Bitmask &mask) const;
+    DenseOctetMatrix encode (const DenseOctetMatrix &C,
+                                                    const uint32_t ISI) const;
 
 private:
     DenseOctetMatrix A;
@@ -88,19 +92,22 @@ private:
 
     // indenting here prepresent which function needs which other.
     // not standard, ask me if I care.
-    void init_LDPC1 (DenseOctetMatrix &_A, const uint16_t S, const uint16_t B) const;
-    void init_LDPC2 (DenseOctetMatrix &_A, const uint16_t skip, const uint16_t rows,
+    void init_LDPC1 (DenseOctetMatrix &_A, const uint16_t S,
+                                                        const uint16_t B) const;
+    void init_LDPC2 (DenseOctetMatrix &_A, const uint16_t skip,
+                                                    const uint16_t rows,
                                                     const uint16_t cols) const;
     void add_identity (DenseOctetMatrix &_A, const uint16_t size,
                                                 const uint16_t skip_row,
                                                 const uint16_t skip_col) const;
 
     void init_HDPC (DenseOctetMatrix &_A) const;
-        DenseOctetMatrix make_MT() const;       // rfc 6330, pgg 24, used for HDPC
-        DenseOctetMatrix make_GAMMA() const;    // rfc 6330, pgg 24, used for HDPC
+        DenseOctetMatrix make_MT() const;     // rfc 6330, pgg 24, used for HDPC
+        DenseOctetMatrix make_GAMMA() const;  // rfc 6330, pgg 24, used for HDPC
     void add_G_ENC (DenseOctetMatrix &_A) const;
 
-    //DenseOctetMatrix intermediate (DenseOctetMatrix &D, Op_Vec &ops, bool &keep_working);
+    //DenseOctetMatrix intermediate (DenseOctetMatrix &D, Op_Vec &ops,
+    //                                                      bool &keep_working);
     void decode_phase0 (const Bitmask &mask,
                                     const std::vector<uint32_t> &repair_esi);
     std::tuple<bool, uint16_t, uint16_t> decode_phase1 (DenseOctetMatrix &X,

@@ -119,7 +119,7 @@ private:
     std::mutex _mtx;
     std::shared_future<Error> _single_wait;
     std::thread _waiting;
-    
+
     static void compute_thread (Encoder<Rnd_It, Fwd_It> *obj,
                                                     bool forced_precomputation,
                                                     std::promise<Error> p);

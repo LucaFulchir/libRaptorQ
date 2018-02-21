@@ -376,7 +376,8 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
                                 static_cast<uint32_t> (received_repair.size()),
                                             mask.get_bitmask(), bitmask_repair);
 
-    DenseOctetMatrix D = DenseOctetMatrix (L_rows + overhead, source_symbols.cols());
+    DenseOctetMatrix D = DenseOctetMatrix (L_rows + overhead,
+                                                        source_symbols.cols());
 
     // initialize D: first S_H rows == 0
     D.block(0, 0, S_H, D.cols()).setZero();

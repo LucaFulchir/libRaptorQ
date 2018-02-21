@@ -241,6 +241,7 @@ SET(HEADERS
             src/RaptorQ/v1/util/Graph.hpp
             src/RaptorQ/v1/util/CPU_Info.hpp
             src/RaptorQ/v1/util/Matrix.hpp
+            src/RaptorQ/v1/util/Matrix_None.hpp
             src/RaptorQ/v1/util/Matrix_SSSE3.hpp
             src/RaptorQ/v1/util/Matrix_AVX2.hpp
             )

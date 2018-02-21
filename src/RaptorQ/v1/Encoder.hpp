@@ -87,7 +87,8 @@ public:
 
 
     // for both interleaved and non-interleaved
-    std::deque<Operation> get_precomputed (RaptorQ__v1::Work_State *thread_keep_working);
+    std::deque<Operation> get_precomputed (RaptorQ__v1::Work_State
+                                                        *thread_keep_working);
 
     // interleaver-only, precomputed
     template <typename R_It = Rnd_It,
@@ -138,11 +139,13 @@ private:
     template <typename R_It = Rnd_It,
         typename F_It = Fwd_It, typename I = Interleaved,
         typename std::enable_if<!I::value, int>::type = 0>
-    DenseOctetMatrix get_raw_symbols (const uint16_t K_S_H, const uint16_t S_H) const;
+    DenseOctetMatrix get_raw_symbols (const uint16_t K_S_H,
+                                                    const uint16_t S_H) const;
     template <typename R_It = Rnd_It,
         typename F_It = Fwd_It, typename I = Interleaved,
         typename std::enable_if<I::value, int>::type = 0>
-    DenseOctetMatrix get_raw_symbols (const uint16_t K_S_H, const uint16_t S_H) const;
+    DenseOctetMatrix get_raw_symbols (const uint16_t K_S_H,
+                                                    const uint16_t S_H) const;
 
 
     std::pair<uint16_t, uint16_t> init_ksh() const;
@@ -230,7 +233,7 @@ bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::ready() const
     { return encoded_symbols.cols() != 0; }
 
 template <typename Rnd_It, typename Fwd_It, typename Interleaved>
-std::deque<Operation> Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed (
+std::deque<Operation> Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed(
                                 RaptorQ__v1::Work_State *thread_keep_working)
 {
     keep_working = true;
@@ -348,7 +351,8 @@ DenseOctetMatrix Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_raw_symbols(
     using T = typename std::iterator_traits<Rnd_It>::value_type;
     assert (_interleaver != nullptr);
 
-    DenseOctetMatrix D = DenseOctetMatrix (K_S_H, sizeof(T) * _interleaver->symbol_size());
+    DenseOctetMatrix D = DenseOctetMatrix (K_S_H, sizeof(T) *
+                                                _interleaver->symbol_size());
     auto C = (*_interleaver)[_SBN];
 
     // fill matrix D: full zero for the first S + H symbols
@@ -378,7 +382,7 @@ template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 template <typename R_It, typename F_It, typename I,
                                 typename std::enable_if<I::value, int>::type>
 bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::generate_symbols (
-                                                    const std::deque<Operation> &ops)
+                                            const std::deque<Operation> &ops)
 {
     if (ops.size() == 0)
         return false;
@@ -492,7 +496,8 @@ std::pair<uint16_t, uint16_t> Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::
 
 template <typename Rnd_It, typename Fwd_It, typename Interleaved>
 bool Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::compute_intermediate (
-                    DenseOctetMatrix &D, RaptorQ__v1::Work_State *thread_keep_working)
+                                DenseOctetMatrix &D,
+                                RaptorQ__v1::Work_State *thread_keep_working)
 {
     Precode_Result precode_res;
     std::deque<Operation> ops;

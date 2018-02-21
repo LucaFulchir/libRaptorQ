@@ -208,7 +208,8 @@ public:
         }
     }
 
-    static uint16_t deserialize_uint16(const std::vector<uint8_t> &vec, int index)
+    static uint16_t deserialize_uint16(const std::vector<uint8_t> &vec,
+                                                                    int index)
     {
         return vec[index] + (vec[index + 1] << 8);
     }
@@ -219,9 +220,11 @@ public:
         vec.emplace_back(number >> 8);
     }
 
-    static uint32_t deserialize_uint32(const std::vector<uint8_t> &vec, int index)
+    static uint32_t deserialize_uint32(const std::vector<uint8_t> &vec,
+                                                                    int index)
     {
-        return vec[index] + (vec[index + 1] << 8) + (vec[index + 2] << 16) + (vec[index + 3] << 24);
+        return vec[index] + (vec[index + 1] << 8) + (vec[index + 2] << 16) +
+                                                        (vec[index + 3] << 24);
     }
 
     static void serialize_uint32(std::vector<uint8_t> &vec, uint32_t number)
@@ -274,7 +277,8 @@ private:
         {
             //const auto row = mtx.row (_row_2) * _scalar;
             //mtx.row (_row_1) += row;
-            Matrix::row_multiply_add(mtx, _row_1, mtx, _row_2, static_cast<uint8_t> (_scalar));
+            Matrix::row_multiply_add(mtx, _row_1, mtx, _row_2,
+                                                static_cast<uint8_t> (_scalar));
         }
         void serialize (std::vector<uint8_t> &vec) const
         {
@@ -371,8 +375,9 @@ private:
         void build_mtx (DenseOctetMatrix &mtx) const
         {
             uint16_t overhead = static_cast<uint16_t> (
-                                static_cast<uint16_t> (mtx.rows()) - _order.size());
-            DenseOctetMatrix ret = DenseOctetMatrix (mtx.rows() - overhead , mtx.cols());
+                            static_cast<uint16_t> (mtx.rows()) - _order.size());
+            DenseOctetMatrix ret = DenseOctetMatrix (mtx.rows() - overhead,
+                                                                    mtx.cols());
 
             // reorder some of the lines as requested by the _order vector
             uint16_t row = 0;

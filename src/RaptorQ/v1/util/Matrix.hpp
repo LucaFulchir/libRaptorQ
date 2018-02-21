@@ -20,6 +20,7 @@
 
 #pragma once
 #include "RaptorQ/v1/DenseOctetMatrix.hpp"
+#include "RaptorQ/v1/util/Matrix_None.hpp"
 #include "RaptorQ/v1/util/Matrix_SSSE3.hpp"
 #include "RaptorQ/v1/util/Matrix_AVX2.hpp"
 #include "RaptorQ/v1/util/CPU_Info.hpp"
@@ -31,9 +32,10 @@
 namespace RaptorQ__v1 {
 namespace Impl {
 
-typedef void (*ADD_FPTR)(uint8_t *dest, uint8_t *src, int bytes);
-typedef void (*DIV_FPTR)(uint8_t *data, uint8_t num, int bytes);
-typedef void (*ADD_MUL_FPTR)(uint8_t *dest, uint8_t *src, uint8_t num, int bytes);
+typedef void (*ADD_FPTR)(uint8_t *dest, uint8_t *src, int32_t bytes);
+typedef void (*DIV_FPTR)(uint8_t *data, uint8_t num, int32_t bytes);
+typedef void (*ADD_MUL_FPTR)(uint8_t *dest, uint8_t *src, uint8_t num,
+                                                                int32_t bytes);
 
 class RAPTORQ_LOCAL Matrix
 {
@@ -41,8 +43,8 @@ public:
     enum class SIMD : uint8_t {
         NONE = 0x00,
         AUTO = 0x01,
-        SSSE3 = 0x02,
-        AVX2 = 0x03,
+        SSSE3 = 0x03,
+        AVX2 = 0x04,
     };
 
     static Matrix & get_instance() {
@@ -55,8 +57,8 @@ public:
     }
 
     static void print_matrix(DenseOctetMatrix &mtx) {
-        for (int i = 0; i < mtx.rows(); i++) {
-            for (int j = 0; j < mtx.cols(); j++) {
+        for (int32_t i = 0; i < mtx.rows(); i++) {
+            for (int32_t j = 0; j < mtx.cols(); j++) {
                     std::cout << (int)mtx.data[i * mtx.stride + j] << ", ";
             }
             std::cout << std::endl;
@@ -64,19 +66,16 @@ public:
         std::cout << std::endl;
     }
 
-    /**
-     * Write Matrix to file in format "rows cols v0, v1, v2, ..." in row-major
-     * @param fileName path to output file
-     * @param A The Matrix
-     */
-    static void write_matrix_to_file (std::string fileName, const DenseOctetMatrix &mtx)
+    // Write Matrix to file in format "rows cols v0, v1, v2, ..." in row-major
+    static void write_matrix_to_file (std::string fileName,
+                                      const DenseOctetMatrix &mtx)
     {
         std::ofstream file(fileName);
         file << mtx.rows() << ' ' << mtx.cols();
         if (file.is_open())
         {
-            for (int i = 0; i < mtx.rows(); i++) {
-                for (int j = 0; j < mtx.cols(); j++) {
+            for (int32_t i = 0; i < mtx.rows(); i++) {
+                for (int32_t j = 0; j < mtx.cols(); j++) {
                     file << ' ' << mtx(i, j);
                 }
             }
@@ -84,7 +83,9 @@ public:
         file << '\n';
     }
 
-    static void row_multiply_add(DenseOctetMatrix &lhs, uint16_t lhsRow, DenseOctetMatrix &rhs, uint16_t rhsRow, uint8_t scalar)
+    static void row_multiply_add(DenseOctetMatrix &lhs, uint16_t lhsRow,
+                                 DenseOctetMatrix &rhs, uint16_t rhsRow,
+                                 uint8_t scalar)
     {
         assert(lhs.stride == rhs.stride);
         uint8_t *dest = lhs.data + lhsRow * lhs.stride;
@@ -105,14 +106,17 @@ public:
         Matrix::get_instance().div_cb(data, scalar, mtx.stride);
     }
 
-    static void row_add(DenseOctetMatrix &lhs, uint16_t lhsRow, const DenseOctetMatrix &rhs, uint16_t rhsRow)
+    static void row_add(DenseOctetMatrix &lhs, uint16_t lhsRow,
+                        const DenseOctetMatrix &rhs, uint16_t rhsRow)
     {
         uint8_t *dest = lhs.data + lhsRow * lhs.stride;
         uint8_t *src = rhs.data + rhsRow * rhs.stride;
         Matrix::get_instance().add_cb(dest, src, lhs.stride);
     }
 
-    static void row_multiply_sub(DenseOctetMatrix &lhs, uint16_t lhsRow, DenseOctetMatrix &rhs, uint16_t rhsRow, uint8_t scalar)
+    static void row_multiply_sub(DenseOctetMatrix &lhs, uint16_t lhsRow,
+                                 DenseOctetMatrix &rhs, uint16_t rhsRow,
+                                 uint8_t scalar)
     {
         row_multiply_add(lhs, lhsRow, rhs, rhsRow, scalar);
     }
@@ -133,16 +137,19 @@ public:
             return;
 
         uint8_t temp;
-        for (int row = 0; row < mtx.rows(); row++) {
-            if (mtx.data[row * mtx.stride + col1] != 0 || mtx.data[row * mtx.stride + col2] != 0) {
+        for (int32_t row = 0; row < mtx.rows(); row++) {
+            if (mtx.data[row * mtx.stride + col1] != 0 ||
+                                    mtx.data[row * mtx.stride + col2] != 0) {
                 temp = mtx.data[row * mtx.stride + col1];
-                mtx.data[row * mtx.stride + col1] = mtx.data[row * mtx.stride + col2];
+                mtx.data[row * mtx.stride + col1] = mtx.data[row * mtx.stride
+                                                                        + col2];
                 mtx.data[row * mtx.stride + col2] = temp;
             }
         }
     }
 
-    static void inline row_assign(DenseOctetMatrix &lhs, uint16_t lhsRow, const DenseOctetMatrix &rhs, uint16_t rhsRow)
+    static void inline row_assign(DenseOctetMatrix &lhs, uint16_t lhsRow,
+                                  const DenseOctetMatrix &rhs, uint16_t rhsRow)
     {
         assert(lhs.cols() == rhs.cols());
         uint8_t *dest = lhs.data + lhsRow * lhs.stride;
@@ -189,43 +196,10 @@ private:
             add_mul_cb = &Matrix_AVX2::multiply_and_add;
             break;
         default:
-            add_cb = &add;
-            div_cb = &div;
-            add_mul_cb = &multiply_and_add;
+            add_cb = &Matrix_None::add;
+            div_cb = &Matrix_None::div;
+            add_mul_cb = &Matrix_None::multiply_and_add;
             break;
-        }
-    }
-
-    static void add(uint8_t *dest, uint8_t *src, int bytes)
-    {
-        for (int i = 0; i < bytes;i++) {
-            dest[i] = dest[i] ^ src[i];
-        }
-    }
-
-    static void div(uint8_t *data, uint8_t num, int bytes)
-    {
-        num = oct_log[num - 1];
-        for (int i = 0; i < bytes;i++) {
-            if (data[i] != 0) {
-                data[i] = oct_exp[oct_log[data[i] - 1] - num + 255];
-            }
-        }
-    }
-
-    /* The SIMD versions are: dest[i] ^= (high[src[i]>>4] ^ low[src[i]&0xf]);
-     * high and low are 16 byte lookup tables (high four bits and low four bits)
-     */
-    static void multiply_and_add(uint8_t *dest, uint8_t *src, uint8_t num, int bytes)
-    {
-        if (num == 0) {
-            return;
-        }
-        /* TODO: Probably faster with a single lookup based on num, a single
-         * lookup require an additional lookup table */
-        uint16_t log_num = oct_log_no_if[num];
-        for (int i = 0; i < bytes;i++) {
-            dest[i] = dest[i] ^ oct_exp_no_if[oct_log_no_if[src[i]] + log_num];
         }
     }
 };

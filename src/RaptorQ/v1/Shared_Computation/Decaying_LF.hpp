@@ -37,7 +37,8 @@ namespace RaptorQ__v1 {
 namespace Impl {
 
 std::vector<uint8_t> RAPTORQ_API ops_to_raw (const std::deque<Operation> &ops);
-inline std::vector<uint8_t> RAPTORQ_API ops_to_raw (const std::deque<Operation> &ops)
+inline std::vector<uint8_t> RAPTORQ_API ops_to_raw (const std::deque<Operation>
+                                                                        &ops)
 {
     std::vector<uint8_t> ret;
     ret.reserve (10000);
@@ -48,7 +49,8 @@ inline std::vector<uint8_t> RAPTORQ_API ops_to_raw (const std::deque<Operation> 
 }
 
 std::deque<Operation> RAPTORQ_API raw_to_ops (const std::vector<uint8_t> &raw);
-inline std::deque<Operation> RAPTORQ_API raw_to_ops (const std::vector<uint8_t> &raw)
+inline std::deque<Operation> RAPTORQ_API raw_to_ops (const std::vector<uint8_t>
+                                                                        &raw)
 {
     std::deque<Operation> ops;
     for(std::vector<uint8_t>::size_type i = 0; i < raw.size(); i++) {
@@ -70,7 +72,8 @@ inline std::deque<Operation> RAPTORQ_API raw_to_ops (const std::vector<uint8_t> 
             uint16_t row_2 = Operation::deserialize_uint16(raw, i + 3);
             uint8_t scalar = raw[i + 5];
             i += 5;
-            ops.emplace_back (Operation::_t::ADD_MUL, row_1, row_2, Octet(scalar));
+            ops.emplace_back (Operation::_t::ADD_MUL, row_1, row_2,
+                                                                Octet(scalar));
         } else if (raw[i] == static_cast<uint8_t> (Operation::_t::BLOCK)) {
             assert ((i + 8) < raw.size());
             uint16_t rows = Operation::deserialize_uint16(raw, i + 1);
@@ -84,7 +87,8 @@ inline std::deque<Operation> RAPTORQ_API raw_to_ops (const std::vector<uint8_t> 
             for (uint32_t j = 0; j < nnz; j++) {
                 uint16_t row = Operation::deserialize_uint16(raw, i + 1);
                 uint16_t col = Operation::deserialize_uint16(raw, i + 3);
-                tripletList.emplace_back(Eigen::Triplet<Octet>(row, col, Octet(raw[i + 5])));
+                tripletList.emplace_back(Eigen::Triplet<Octet>(row, col,
+                                                            Octet(raw[i + 5])));
                 i += 5;
             }
             SparseMtx mtx = SparseMtx(rows, cols);
@@ -113,35 +117,6 @@ inline std::deque<Operation> RAPTORQ_API raw_to_ops (const std::vector<uint8_t> 
     }
     return ops;
 }
-
-// easy compress from/to eigen matrix
-std::vector<uint8_t> RAPTORQ_API Mtx_to_raw (const DenseMtx &mtx);
-inline std::vector<uint8_t> RAPTORQ_API Mtx_to_raw (const DenseMtx &mtx)
-{
-    std::vector<uint8_t> ret;
-    ret.reserve (static_cast<size_t> (mtx.rows() * mtx.cols()));
-    for (uint32_t row = 0; row < static_cast<uint32_t> (mtx.rows()); ++row) {
-        for (uint32_t col = 0; col < static_cast<uint32_t> (mtx.cols()); ++col)
-            ret.emplace_back (static_cast<uint8_t> (mtx (row, col)));
-    }
-    return ret;
-}
-
-DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
-                                                        const uint32_t cols);
-inline DenseMtx RAPTORQ_API raw_to_Mtx (const std::vector<uint8_t> &raw,
-                                                        const uint32_t cols)
-{
-    uint16_t rows = static_cast<uint16_t> (raw.size() / cols);
-    DenseMtx ret (rows, cols);
-    auto raw_it = raw.begin();
-    for (uint32_t row = 0; row < rows; ++row) {
-        for (uint32_t col = 0; col < cols; ++col, ++raw_it)
-            ret (row, col) = *raw_it;
-    }
-    return ret;
-}
-
 
 // TODO: keys and search: we might be able to decode things without using
 // all repair symbols! so the cached mtx could have less symbols than the
@@ -225,10 +200,10 @@ public:
     {
         return _mt_size == rhs._mt_size && _lost == rhs._lost &&
                 _repair == rhs._repair &&
-                            _lost_bitmask.size() == rhs._lost_bitmask.size() &&
-                                            _lost_bitmask == rhs._lost_bitmask &&
-                            _repair_bitmask.size() == rhs._repair_bitmask.size() &&
-                                            _repair_bitmask == rhs._repair_bitmask;
+                        _lost_bitmask.size() == rhs._lost_bitmask.size() &&
+                                        _lost_bitmask == rhs._lost_bitmask &&
+                        _repair_bitmask.size() == rhs._repair_bitmask.size() &&
+                                        _repair_bitmask == rhs._repair_bitmask;
     }
 
     uint32_t out_size() const
