@@ -52,17 +52,16 @@ public:
         }
     }
 
-    /* The SIMD versions are: dest[i] ^= (high[src[i]>>4] ^ low[src[i]&0xf]);
-     * high and low are 16 byte lookup tables (high four bits and low four bits)
-     */
+    // The SIMD versions are: dest[i] ^= (high[src[i]>>4] ^ low[src[i]&0xf]);
+    // high and low are 16 byte lookup tables (high four bits and low four bits)
     static void multiply_and_add(uint8_t *dest, uint8_t *src, uint8_t num,
                                                                 int32_t bytes)
     {
         if (num == 0) {
             return;
         }
-        /* TODO: Probably faster with a single lookup based on num, a single
-         * lookup require an additional lookup table */
+        // TODO: Probably faster with a single lookup based on num, a single
+        //       lookup require an additional lookup table
         uint16_t log_num = oct_log_no_if[num];
         for (int32_t i = 0; i < bytes;i++) {
             dest[i] = dest[i] ^ oct_exp_no_if[oct_log_no_if[src[i]] + log_num];

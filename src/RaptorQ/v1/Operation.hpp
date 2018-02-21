@@ -209,7 +209,7 @@ public:
     }
 
     static uint16_t deserialize_uint16(const std::vector<uint8_t> &vec,
-                                                                    int index)
+                                                                int32_t index)
     {
         return vec[index] + (vec[index + 1] << 8);
     }
@@ -221,7 +221,7 @@ public:
     }
 
     static uint32_t deserialize_uint32(const std::vector<uint8_t> &vec,
-                                                                    int index)
+                                                                int32_t index)
     {
         return vec[index] + (vec[index + 1] << 8) + (vec[index + 2] << 16) +
                                                         (vec[index + 3] << 24);
@@ -250,7 +250,6 @@ private:
         ~Swap() {}
         void build_mtx (DenseOctetMatrix &mtx) const
         {
-            //mtx.row(_row_1).swap (mtx.row(_row_2));
             Matrix::row_swap(mtx, _row_1, _row_2);
         }
         void serialize (std::vector<uint8_t> &vec) const
@@ -275,8 +274,6 @@ private:
         ~Add_Mul() {}
         void build_mtx (DenseOctetMatrix &mtx) const
         {
-            //const auto row = mtx.row (_row_2) * _scalar;
-            //mtx.row (_row_1) += row;
             Matrix::row_multiply_add(mtx, _row_1, mtx, _row_2,
                                                 static_cast<uint8_t> (_scalar));
         }
@@ -304,7 +301,6 @@ private:
         ~Div() {}
         void build_mtx (DenseOctetMatrix &mtx) const
         {
-            //mtx.row (_row_1) /= _scalar;
             Matrix::row_div(mtx, _row_1, static_cast<uint8_t> (_scalar));
         }
         void serialize (std::vector<uint8_t> &vec) const
@@ -330,9 +326,6 @@ private:
         ~Block() {}
         void build_mtx (DenseOctetMatrix &mtx) const
         {
-            //const auto orig = mtx.block (0,0, _block.cols(), mtx.cols());
-            //mtx.block (0, 0, _block.cols(), mtx.cols()) = _block * orig;
-
             DenseMtx orig = mtx.toEigen(0, 0, _block.cols(), mtx.cols());
             DenseMtx res = _block * orig; // Sparse * Dense
             mtx.valuesFromEigen(res, 0, 0, _block.cols(), mtx.cols());
@@ -344,7 +337,7 @@ private:
             serialize_uint16(vec, _block.cols());
             serialize_uint32(vec, _block.nonZeros());
 
-            for (int k=0; k<_block.outerSize(); ++k) {
+            for (int32_t k=0; k<_block.outerSize(); ++k) {
                 for (SparseMtx::InnerIterator it(_block,k); it; ++it)
                 {
                     serialize_uint16(vec, it.row());
@@ -353,9 +346,8 @@ private:
                 }
             }
         }
-        /* It's not good to call the destructor explicit but I see no other way.
-         * A sparse matrix thas has memory allocated even when it's of size 0x0.
-         */
+        // It's not good to call the destructor explicit but no other way is known.
+        // A sparse matrix has memory allocated even when it's of size 0x0.
         void clear()
             { _block.~SparseMtx(); }
     private:
@@ -382,7 +374,6 @@ private:
             // reorder some of the lines as requested by the _order vector
             uint16_t row = 0;
             for (const uint16_t pos : _order) {
-                //ret.row (pos) = mtx.row (row++);
                 Matrix::row_assign(ret, pos, mtx, row++);
             }
             mtx = ret;

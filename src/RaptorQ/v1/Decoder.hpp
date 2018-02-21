@@ -405,7 +405,6 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
             continue;
         }
         const uint16_t row = S_H + hole;
-        //D.row (row) = symbol->second;
         Matrix::row_assign(D, row, symbol->second, 0);
         ++symbol;
         ++hole;
@@ -414,7 +413,6 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
     D.block (S_H + _symbols, 0, (L_rows - S_H) - _symbols, D.cols()).setZero();
     // fill the remaining (redundant) repair symbols
     for (uint16_t row = L_rows; symbol != received_repair.end(); ++symbol) {
-        //D.row (row) = symbol->second;
         Matrix::row_assign(D, row, symbol->second, 0);
         ++row;
     }
@@ -490,7 +488,6 @@ Decoder_Result Raw_Decoder<In_It>::decode (Work_State *thread_keep_working)
         ++miss_row;
         if (mask.exists (row))
             continue;
-        //source_symbols.row (row) = missing.row (miss_row - 1);
         Matrix::row_assign(source_symbols, row, missing, miss_row - 1);
         mask.add (row);
     }

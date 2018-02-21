@@ -113,10 +113,10 @@ inline std::deque<Operation> RAPTORQ_API raw_to_ops (const std::vector<uint8_t>
         } else {
             assert ("Invalid instruction!");
         }
-
     }
     return ops;
 }
+
 
 // TODO: keys and search: we might be able to decode things without using
 // all repair symbols! so the cached mtx could have less symbols than the
@@ -200,10 +200,10 @@ public:
     {
         return _mt_size == rhs._mt_size && _lost == rhs._lost &&
                 _repair == rhs._repair &&
-                        _lost_bitmask.size() == rhs._lost_bitmask.size() &&
-                                        _lost_bitmask == rhs._lost_bitmask &&
-                        _repair_bitmask.size() == rhs._repair_bitmask.size() &&
-                                        _repair_bitmask == rhs._repair_bitmask;
+                            _lost_bitmask.size() == rhs._lost_bitmask.size() &&
+                                            _lost_bitmask == rhs._lost_bitmask &&
+                            _repair_bitmask.size() == rhs._repair_bitmask.size() &&
+                                            _repair_bitmask == rhs._repair_bitmask;
     }
 
     uint32_t out_size() const

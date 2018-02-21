@@ -57,7 +57,7 @@ public:
         return false;
     }
 private:
-    /// From Intel: How to detect New Instruction support in the 4th generation
+    // From Intel: How to detect New Instruction support in the 4th generation
     // Intel® Core™ processor family
     static void run_cpuid(uint32_t eax, uint32_t ecx, uint32_t* abcd)
     {

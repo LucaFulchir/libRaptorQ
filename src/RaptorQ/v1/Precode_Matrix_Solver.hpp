@@ -67,7 +67,6 @@ std::pair<Precode_Result, DenseOctetMatrix>
     DenseOctetMatrix CP_D;
     if (debug)
         CP_D = D;
-
     std::tie (success, i, u) = decode_phase1 (X, D, c , ops,
                                             keep_working, thread_keep_working);
     if (stop (keep_working, thread_keep_working))
@@ -114,10 +113,8 @@ std::pair<Precode_Result, DenseOctetMatrix>
         ops.emplace_back (Operation::_t::REORDER, c);
 
     C = DenseOctetMatrix (_params.L, D.cols());
-    for (i = 0; i < _params.L; ++i) {
-        //C.row (c[i]) = D.row (i);
+    for (i = 0; i < _params.L; ++i)
         Matrix::row_assign(C, c[i], D, i);
-    }
 
     if (debug && ops.size() != 0) {
         DenseOctetMatrix test_off (D.rows(), D.rows());
@@ -156,7 +153,6 @@ DenseOctetMatrix Precode_Matrix<IS_OFFLINE>::get_missing (
         if (mask.exists (hole))
             continue;
         DenseOctetMatrix ret = encode (C, hole);
-        //missing.row (row) = ret.row (0);
         Matrix::row_assign(missing, row, ret, 0);
         ++row;
         --holes;
@@ -377,9 +373,6 @@ std::tuple<bool, uint16_t, uint16_t>
 
         // swap chosen row and first V row in A (not just in V)
         if (chosen != 0) {
-            //A.row (i).swap (A.row (chosen + i));
-            //X.row (i).swap (X.row (chosen + i));
-            //D.row (i).swap (D.row (chosen + i));
             Matrix::row_swap(A, i, chosen + i);
             Matrix::row_swap(X, i, chosen + i);
             Matrix::row_swap(D, i, chosen + i);
@@ -396,8 +389,6 @@ std::tuple<bool, uint16_t, uint16_t>
                 if (static_cast<uint8_t> (V (0, idx)) != 0)
                     break;
             }
-            //A.col (i).swap (A.col (i + idx));
-            //X.col (i).swap (X.col (i + idx));
             Matrix::col_swap(A, i, i + idx);
             Matrix::col_swap(X, i, i + idx);
             std::swap (c[i], c[i + idx]);   // rfc6330, pg32
@@ -416,8 +407,6 @@ std::tuple<bool, uint16_t, uint16_t>
             if (swap >= col)
                 break;  // line full of zeros, nothing to swap
             // now V(0, col) == 0 and V(0, swap != 0. swap them
-            //A.col (col + i).swap (A.col (swap + i));
-            //X.col (col + i).swap (X.col (swap + i));
             Matrix::col_swap(A, col + i, swap + i);
             Matrix::col_swap(X, col + i, swap + i);
             std::swap (c[col + i], c[swap + i]);    //rfc6330, pg32
@@ -429,8 +418,7 @@ std::tuple<bool, uint16_t, uint16_t>
         for (uint16_t row = 1; row < V.rows(); ++row) {
             if (static_cast<uint8_t> (V (row, 0)) != 0) {
                 const Octet multiple = V (row, 0) / V (0, 0);
-                //A.row (row + i) += A.row (i) * multiple;
-                //D.row (row + i) += D.row (i) * multiple;    //rfc6330, pg32
+                //rfc6330, pg32
                 Matrix::row_multiply_add(A, row + i, A, i,
                                             static_cast<uint8_t> (multiple));
                 Matrix::row_multiply_add(D, row + i, D, i,
@@ -479,8 +467,6 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseOctetMatrix &D,
             // U_Lower is square, we can return early (rank < u, not solvable)
             return false;
         } else if (row != row_nonzero) {
-            //A.row (row).swap (A.row (row_nonzero));
-            //D.row (row).swap (D.row (row_nonzero));
             Matrix::row_swap(A, row, row_nonzero);
             Matrix::row_swap(D, row, row_nonzero);
             if (IS_OFFLINE == Save_Computation::ON)
@@ -490,8 +476,6 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseOctetMatrix &D,
         // U_Lower (row, row) != 0. make it 1.
         if (static_cast<uint8_t> (A (row, col_diag)) > 1) {
             const auto divisor = A (row, col_diag);
-            //A.row (row) /= divisor;
-            //D.row (row) /= divisor;
             Matrix::row_div(A, row, static_cast<uint8_t> (divisor));
             Matrix::row_div(D, row, static_cast<uint8_t> (divisor));
             if (IS_OFFLINE == Save_Computation::ON)
@@ -509,8 +493,6 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseOctetMatrix &D,
             // with "1", so this is easy.
             const auto multiple = A (del_row, col_diag);
             if (static_cast<uint8_t> (multiple) != 0) {
-                //A.row (del_row) -= A.row (row) * multiple;
-                //D.row (del_row) -= D.row (row) * multiple;
                 Matrix::row_multiply_sub(A, del_row, A, row,
                                             static_cast<uint8_t> (multiple));
                 Matrix::row_multiply_sub(D, del_row, D, row,
@@ -581,7 +563,6 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase4 (DenseOctetMatrix &D,
                 // "b times row j of I_u" => row "j" in U_lower.
                 // aka: U_upper.rows() + j
                 uint16_t row_2 = static_cast<uint16_t> (U_upper.rows()) + col;
-                //D.row (row) += D.row (row_2) * multiple;
                 Matrix::row_multiply_add(D, row, D, row_2, multiple);
                 if (IS_OFFLINE == Save_Computation::ON) {
                     ops.emplace_back (Operation::_t::ADD_MUL, row, row_2,
@@ -605,8 +586,6 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseOctetMatrix &D,
         if (static_cast<uint8_t> (A (j, j)) != 1) {
             // A(j, j) is actually never 0, by construction.
             const auto multiple = A (j, j);
-            //A.row (j) /= multiple;
-            //D.row (j) /= multiple;
             Matrix::row_div(A, j, static_cast<uint8_t> (multiple));
             Matrix::row_div(D, j, static_cast<uint8_t> (multiple));
             if (IS_OFFLINE == Save_Computation::ON)
@@ -615,8 +594,6 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseOctetMatrix &D,
         for (uint16_t tmp = 0; tmp < j; ++tmp) {    //tmp == "l" in rfc6330
             const auto multiple = A (j, tmp);
             if (static_cast<uint8_t> (multiple) != 0) {
-                //A.row (j) += A.row (tmp) * multiple;
-                //D.row (j) += D.row (tmp) * multiple;
                 Matrix::row_multiply_add(A, j, A, tmp,
                                             static_cast<uint8_t> (multiple));
                 Matrix::row_multiply_add(D, j, D, tmp,
@@ -640,24 +617,20 @@ DenseOctetMatrix Precode_Matrix<IS_OFFLINE>::encode (const DenseOctetMatrix &C,
     ret = DenseOctetMatrix (1, C.cols());
     Tuple t = _params.tuple (ISI);
 
-    //ret.row (0) = C.row (t.b);
     Matrix::row_assign(ret, 0, C, t.b);
 
     for (uint16_t j = 1; j < t.d; ++j) {
         t.b = (t.b + t.a) % _params.W;
-        // ret.row (0) += C.row (t.b);
         Matrix::row_add(ret, 0, C, t.b);
     }
     while (t.b1 >= _params.P)
         t.b1 = (t.b1 + t.a1) % _params.P1;
 
-    // ret.row (0) += C.row (_params.W + t.b1);
     Matrix::row_add(ret, 0, C, _params.W + t.b1);
     for (uint16_t j = 1; j < t.d1; ++j) {
         t.b1 = (t.b1 + t.a1) % _params.P1;
         while (t.b1 >= _params.P)
             t.b1 = (t.b1 + t.a1) % _params.P1;
-        // ret.row (0) += C.row (_params.W + t.b1);
         Matrix::row_add(ret, 0, C, _params.W + t.b1);
     }
 

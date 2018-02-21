@@ -84,7 +84,7 @@ private:
     uint32_t blockcolumncnt{0};
     uint32_t blockstep{0};
 
-    unsigned index(uint32_t row, uint32_t col) {
+    uint32_t index(uint32_t row, uint32_t col) {
         return blockstep * row + col;
     }
 };

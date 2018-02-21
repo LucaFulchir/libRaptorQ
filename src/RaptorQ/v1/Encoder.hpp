@@ -325,7 +325,7 @@ DenseOctetMatrix Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_raw_symbols(
             if (in_align == sizeof(T)) {
                 in_align = 0;
                 if (!pad) // windows debug: can't  ++iterator past the end()
-                ++it;
+                    ++it;
                 if (it < *_to) {
                     p = reinterpret_cast<uint8_t*> (&*it);
                 } else {
@@ -486,6 +486,7 @@ std::pair<uint16_t, uint16_t> Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::
             precode_off =std::unique_ptr<Precode_Matrix<Save_Computation::OFF>>(
                                     new Precode_Matrix<Save_Computation::OFF> (
                                                         Parameters(_symbols)));
+            precode_off->gen(0);
         }
         precode_off->gen(0);
         S_H = precode_off->_params.S + precode_off->_params.H;

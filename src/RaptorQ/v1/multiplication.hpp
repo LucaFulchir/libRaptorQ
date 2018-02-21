@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <array>
 
@@ -83,11 +84,11 @@ static const std::array<uint8_t, 255> oct_log = {
     89, 95,176,156,169,160, 81, 11,245, 22,235,122,117, 44,215, 79,
    174,213,233,230,231,173,232,116,214,244,234,168, 80, 88,175};
 
-/* Note: log(0) = 510, which is outside of the usual exp-tab values,
- * i.e. consists of only zero entries. The net effect is that
- * 0*x = exp(log(0) + log(x)) = 0  and also
- * x*0 = exp(log(x) + log(0)) = 0, for any 0 <= x <= 255,
- * as it should be. */
+// Note: log(0) = 510, which is outside of the usual exp-tab values,
+// i.e. consists of only zero entries. The net effect is that
+// 0*x = exp(log(0) + log(x)) = 0  and also
+// x*0 = exp(log(x) + log(0)) = 0, for any 0 <= x <= 255,
+// as it should be.
 
 static const std::array<uint16_t, 256> oct_log_no_if = {
    510,  0,  1, 25,  2, 50, 26,198,  3,223, 51,238, 27,104,199, 75,
