@@ -325,7 +325,7 @@ symbol and to the subsymbol). The forward iterator will be used to write the dat
 The same is done for the \textbf{Decoder}, but we do not need to do any interleaving on the input, so the first iterator can be just an input iterator,
 and nothing more.
 
-\subsection{Caching precomputations}
+\subsubsection{Caching precomputations}
 \index{Cache!C++'}
 libRaptorQ can now cache the most used matrices for a quicker reference. The cache can be scaled up or down dynamically.
 
@@ -688,7 +688,7 @@ As the name implies, this frees the given structure.
 Again, we only support API version 1 at the moment.
 
 \index{Cache!C}
-\marginlabel{\textbf{Cache settings}}
+\subsubsection{Cache settings}
 As for the C++11 interface, you can get and set the local memory cache.
 
 \begin{description}
@@ -709,10 +709,10 @@ Set the maximum amount of cache usable. Default: $0$
 get the amount of cache configured
 \end{description}
 
-\marginlabel{C Constructors}
+\subsubsection{C Constructors}
 The first thing you need is to allocate the encoder or the decoder.
 
-The C interface is just a wrapper around the C++ code, so you still have to specify the same things as before.\\
+The C interface is just a wrapper around the C++ code, so you still have to specify the same things as before.
 A quick glance at the constructors should give you all the information you need:
 
 \begin{lstlisting}[language=C]
