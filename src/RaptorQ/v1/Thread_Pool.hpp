@@ -42,7 +42,7 @@ enum class RAPTORQ_API Work_Exit_Status : uint8_t {
 // implemented at the end of the file
 bool RAPTORQ_API set_thread_pool (const size_t threads,
                                     const uint16_t max_block_concurrency,
-                                    const RaptorQ__v1::Work_State exit_type);
+                                    const RFC6330__v1::Work_State exit_type);
 
 
 namespace Impl {
@@ -280,7 +280,7 @@ private:
 
 inline bool RAPTORQ_API set_thread_pool (const size_t threads,
                                     const uint16_t max_block_concurrency,
-                                    const RaptorQ__v1::Work_State exit_type)
+                                    const RFC6330__v1::Work_State exit_type)
 {
     if (max_block_concurrency == 0 || threads == 0 ||
                                             max_block_concurrency > threads) {

@@ -117,6 +117,8 @@ public:
     void end_of_input (const uint8_t block);
     void end_of_input();
 
+    uint64_t decode_symbol (Fwd_It &start, const Fwd_It end, const uint16_t esi,
+                                                            const uint8_t sbn);
     uint64_t decode_bytes (Fwd_It &start, const Fwd_It end, const uint8_t skip);
     size_t decode_block_bytes (Fwd_It &start, const Fwd_It end,
                                                             const uint8_t skip,
@@ -474,6 +476,17 @@ inline void Decoder<In_It, Fwd_It>::end_of_input()
 {
     if (_decoder != nullptr)
         return _decoder->end_of_input();
+}
+
+template <typename In_It, typename Fwd_It>
+inline uint64_t Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start,
+                                                            const Fwd_It end,
+                                                            const uint16_t esi,
+                                                            const uint8_t sbn)
+{
+    if (_decoder == nullptr)
+        return 0;
+    return _decoder->decode_symbol (start, end, esi, sbn);
 }
 
 template <typename In_It, typename Fwd_It>

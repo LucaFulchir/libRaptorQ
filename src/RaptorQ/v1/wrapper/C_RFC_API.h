@@ -79,7 +79,7 @@ extern "C"
                                             const size_t size,
                                             const uint16_t min_subsymbol_size,
                                             const uint16_t symbol_size,
-                                            const size_t max_memory);
+                                            const size_t max_sub_block);
         struct RFC6330_ptr* (*const Decoder) (RFC6330_type type,
                                 const RFC6330_OTI_Common_Data common,
                                 const RFC6330_OTI_Scheme_Specific_Data scheme);
@@ -97,8 +97,8 @@ extern "C"
         uint16_t (*const symbols)     (const struct RFC6330_ptr *ptr,
                                                             const uint8_t sbn);
         size_t   (*const symbol_size) (const struct RFC6330_ptr *ptr);
-        RaptorQ_Error (*const future_state) (const struct RFC6330_future *f);
-        RaptorQ_Error (*const future_wait_for) (const struct RFC6330_future *f,
+        RFC6330_Error (*const future_state) (const struct RFC6330_future *f);
+        RFC6330_Error (*const future_wait_for) (const struct RFC6330_future *f,
                                                 const uint64_t time,
                                                 const RFC6330_Unit_Time unit);
         void (*const future_wait) (const struct RFC6330_future *f);
@@ -163,6 +163,11 @@ extern "C"
                                                 const size_t size,
                                                 const uint8_t skip,
                                                 const uint8_t sbn);
+        uint64_t (*const decode_symbol) (const struct RFC6330_ptr *dec,
+                                                            void **data,
+                                                            const size_t size,
+                                                            const uint16_t esi,
+                                                            const uint8_t sbn);
         uint64_t (*const decode_bytes) (const struct RFC6330_ptr *dec,
                                                             void **data,
                                                             const uint64_t size,

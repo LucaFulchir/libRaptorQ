@@ -514,13 +514,26 @@ static RaptorQ_Error v1_future_state (struct RaptorQ_future *const f)
     switch (f->type)
     {
     case RaptorQ_Future_Type::RQ_FUTURE_ENCODER:
-        if (reinterpret_cast<const RaptorQ_future_enc*> (f)->f.valid())
-            return RaptorQ_Error::RQ_ERR_WORKING;
+        if (reinterpret_cast<const RaptorQ_future_enc*> (f)->f.valid()) {
+            if (reinterpret_cast<const RaptorQ_future_enc*>(f)->f.wait_for (
+                                            std::chrono::milliseconds (0)) ==
+                                                std::future_status::ready) {
+                return RaptorQ_Error::RQ_ERR_NONE; // ready
+            }
+            return RaptorQ_Error::RQ_ERR_WORKING; // still working
+        }
         break;
     case RaptorQ_Future_Type::RQ_FUTURE_DECODER:
-        if (reinterpret_cast<const RaptorQ_future_dec*> (f)->f.valid())
-            return RaptorQ_Error::RQ_ERR_WORKING;
+        if (reinterpret_cast<const RaptorQ_future_dec*> (f)->f.valid()) {
+            if (reinterpret_cast<const RaptorQ_future_dec*>(f)->f.wait_for (
+                                            std::chrono::milliseconds (0)) ==
+                                                std::future_status::ready) {
+                return RaptorQ_Error::RQ_ERR_NONE; // ready
+            }
+            return RaptorQ_Error::RQ_ERR_WORKING; // still working
+        }
     }
+    // future not valid
     return RaptorQ_Error::RQ_ERR_NOT_NEEDED;
 }
 

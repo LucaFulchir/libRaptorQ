@@ -66,7 +66,7 @@ developer accepted the CLA and is the author of the commit.
   * Always sign your commits with the "-s" option, to add the "Signed-off-by" line in the commit message
   * Only the main developers are required to GPG-sign the commits.
 * Run the tests to make sure you have not broken something by mistake
-
+* Please keep commits short and to the point. Nobody wants to review 2000+ lines of code that touch everything.
 
 ## Documentation
 

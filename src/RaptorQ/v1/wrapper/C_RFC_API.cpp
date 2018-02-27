@@ -79,8 +79,8 @@ static bool v1_initialized (const struct RFC6330_ptr *ptr);
 static uint8_t  v1_blocks (const struct RFC6330_ptr *ptr);
 static uint16_t v1_symbols (const struct RFC6330_ptr *ptr, const uint8_t sbn);
 static size_t v1_symbol_size (const struct RFC6330_ptr *ptr);
-static RaptorQ_Error v1_future_state (const struct RFC6330_future *f);
-static RaptorQ_Error v1_future_wait_for (const struct RFC6330_future *f,
+static RFC6330_Error v1_future_state (const struct RFC6330_future *f);
+static RFC6330_Error v1_future_wait_for (const struct RFC6330_future *f,
                                                 const uint64_t time,
                                                 const RFC6330_Unit_Time unit);
 static void v1_future_wait (const struct RFC6330_future *f);
@@ -141,6 +141,10 @@ static struct RFC6330_Dec_Result v1_decode_block_aligned (
                                                 const size_t size,
                                                 const uint8_t skip,
                                                 const uint8_t sbn);
+static uint64_t v1_decode_symbol (const struct RFC6330_ptr *dec, void **data,
+                                                            const size_t size,
+                                                            const uint16_t esi,
+                                                            const uint8_t sbn);
 static uint64_t v1_decode_bytes (const struct RFC6330_ptr *dec, void **data,
                                                             const uint64_t size,
                                                             const uint8_t skip);
@@ -217,6 +221,7 @@ RFC6330_v1::RFC6330_v1()
     add_symbol (&v1_add_symbol),
     decode_aligned (&v1_decode_aligned),
     decode_block_aligned (&v1_decode_block_aligned),
+    decode_symbol (&v1_decode_symbol),
     decode_bytes (&v1_decode_bytes),
     decode_block_bytes (&v1_decode_block_bytes)
 {}
@@ -572,17 +577,21 @@ static size_t v1_symbol_size (const struct RFC6330_ptr *ptr)
     return 0;
 }
 
-static RaptorQ_Error v1_future_state (const struct RFC6330_future *f)
+static RFC6330_Error v1_future_state (const struct RFC6330_future *f)
 {
     if (f == nullptr)
         return RFC6330_Error::RQ_ERR_WRONG_INPUT;
 
-    if (f->f.valid())
-        return RFC6330_Error::RQ_ERR_WORKING;
+    if (f->f.valid()) {
+        if ( f->f.wait_for(std::chrono::microseconds(0)) == std::future_status::ready)
+            return RFC6330_Error::RQ_ERR_NONE; // ready
+        return RFC6330_Error::RQ_ERR_WORKING; // working
+    }
+    // future to something that has already been get()
     return RaptorQ_Error::RQ_ERR_NOT_NEEDED;
 }
 
-static RaptorQ_Error v1_future_wait_for (const struct RFC6330_future *f,
+static RFC6330_Error v1_future_wait_for (const struct RFC6330_future *f,
                                                 const uint64_t time,
                                                 const RFC6330_Unit_Time unit)
 {
@@ -1363,6 +1372,68 @@ static struct RFC6330_Dec_Result v1_decode_block_aligned(
     }
     return RFC6330_Dec_Result {ret.written, ret.offset};
 }
+
+static uint64_t v1_decode_symbol (const struct RFC6330_ptr *dec, void **data,
+                                                            const size_t size,
+                                                            const uint16_t esi,
+                                                            const uint8_t sbn)
+{
+    uint8_t *p_8;
+    uint16_t *p_16;
+    uint32_t *p_32;
+    uint64_t *p_64;
+    uint64_t ret = 0;
+    if (dec == nullptr || dec->ptr == nullptr ||
+                                        data == nullptr || *data == nullptr) {
+        return 0;
+    }
+    switch (dec->type) {
+    case RFC6330_type::RQ_DEC_8:
+        p_8 = reinterpret_cast<uint8_t*> (*data);
+        ret = (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
+                                                    dec->ptr))->decode_symbol (
+                                                            p_8, p_8 + size,
+                                                                    esi, sbn);
+        *data = p_8;
+        break;
+    case RFC6330_type::RQ_DEC_16:
+        p_16 = reinterpret_cast<uint16_t*> (*data);
+        ret = (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
+                                                    dec->ptr))->decode_symbol (
+                                                            p_16, p_16 + size,
+                                                                    esi, sbn);
+        *data = p_16;
+        break;
+    case RFC6330_type::RQ_DEC_32:
+        p_32 = reinterpret_cast<uint32_t*> (*data);
+        ret = (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
+                                                    dec->ptr))->decode_symbol (
+                                                            p_32, p_32 + size,
+                                                                    esi, sbn);
+        *data = p_32;
+        break;
+    case RFC6330_type::RQ_DEC_64:
+        p_64 = reinterpret_cast<uint64_t*> (*data);
+        ret = (reinterpret_cast<
+                            RFC6330__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
+                                                    dec->ptr))->decode_symbol (
+                                                            p_64, p_64 + size,
+                                                                    esi,sbn);
+        *data = p_64;
+        break;
+    case RFC6330_type::RQ_ENC_8:
+    case RFC6330_type::RQ_ENC_16:
+    case RFC6330_type::RQ_ENC_32:
+    case RFC6330_type::RQ_ENC_64:
+    case RFC6330_type::RQ_NONE:
+        break;
+    }
+    return ret;
+}
+
 static uint64_t v1_decode_bytes (const struct RFC6330_ptr *dec, void **data,
                                                             const uint64_t size,
                                                             const uint8_t skip)
