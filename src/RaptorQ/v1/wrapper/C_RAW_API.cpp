@@ -657,6 +657,7 @@ static void v1_free (struct RaptorQ_ptr **ptr)
         return;
     if ((*ptr)->ptr == nullptr) {
         delete *ptr;
+        *ptr = nullptr;
         return;
     }
     switch ((*ptr)->type) {
@@ -695,6 +696,8 @@ static void v1_free (struct RaptorQ_ptr **ptr)
     case RaptorQ_type::RQ_NONE:
         break;
     }
+    delete *ptr;
+    *ptr = nullptr;
 }
 
 static bool v1_ready (const RaptorQ_ptr *ptr)
