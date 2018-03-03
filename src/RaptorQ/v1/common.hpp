@@ -129,10 +129,11 @@ typedef enum {
 typedef RaptorQ_Compress RFC6330_Compress;
 
 typedef enum {
-    RQ_DEC_DECODED   = 0,
-    RQ_DEC_STOPPED   = 1,
-    RQ_DEC_CAN_RETRY = 2,
-    RQ_DEC_NEED_DATA = 3
+    RQ_DEC_DECODED     = 0,
+    RQ_DEC_STOPPED     = 1,
+    RQ_DEC_CAN_RETRY   = 2,
+    RQ_DEC_NEED_DATA   = 3,
+    RQ_DEC_WRONG_INPUT = 4 // used by the C wrapper
 } RaptorQ_Decoder_Result;
 
 

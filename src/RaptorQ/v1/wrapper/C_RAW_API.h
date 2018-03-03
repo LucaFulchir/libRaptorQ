@@ -137,6 +137,7 @@ extern "C"
         struct RaptorQ_Dec_Result (*const dec_future_get) (
                                                 struct RaptorQ_future_dec *f);
         void (*const end_of_input) (struct RaptorQ_ptr *dec);
+        RaptorQ_Decoder_Result (*const decode_once) (struct RaptorQ_ptr *dec);
         RaptorQ_Error (*const decode_symbol) (struct RaptorQ_ptr *dec,
                                                             void** start,
                                                             const size_t size,

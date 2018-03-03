@@ -127,6 +127,7 @@ static RaptorQ_Dec_Result v1_wait_sync (const RaptorQ_ptr *dec);
 static RaptorQ_future_dec* v1_wait (const RaptorQ_ptr *dec);
 static RaptorQ_Dec_Result v1_dec_future_get (struct RaptorQ_future_dec *f);
 static void v1_end_of_input (struct RaptorQ_ptr *dec);
+static RaptorQ_Decoder_Result v1_decode_once (struct RaptorQ_ptr *dec);
 static RaptorQ_Error v1_decode_symbol (struct RaptorQ_ptr *dec, void** start,
                                         const size_t size, const uint16_t esi);
 static RaptorQ_Dec_Written v1_decode_bytes (struct RaptorQ_ptr *dec,
@@ -201,6 +202,7 @@ RaptorQ_v1::RaptorQ_v1()
     wait (&v1_wait),
     dec_future_get (&v1_dec_future_get),
     end_of_input (&v1_end_of_input),
+    decode_once (&v1_decode_once),
     decode_symbol (&v1_decode_symbol),
     decode_bytes (&v1_decode_bytes)
 {}
@@ -1363,6 +1365,38 @@ static void v1_end_of_input (struct RaptorQ_ptr *dec)
         break;
     }
     return;
+}
+
+static RaptorQ_Decoder_Result v1_decode_once (struct RaptorQ_ptr *dec)
+{
+    if (dec == nullptr || dec->ptr == nullptr)
+        return RQ_DEC_WRONG_INPUT;
+
+    using D_T8 = RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>;
+    using D_T16 = RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>;
+    using D_T32 = RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>;
+    using D_T64 = RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>;
+    switch (dec->type) {
+    case RaptorQ_type::RQ_DEC_8:
+        return static_cast<RaptorQ_Decoder_Result> (
+                            reinterpret_cast<D_T8*>(dec->ptr)->decode_once());
+    case RaptorQ_type::RQ_DEC_16:
+        return static_cast<RaptorQ_Decoder_Result> (
+                            reinterpret_cast<D_T16*>(dec->ptr)->decode_once());
+    case RaptorQ_type::RQ_DEC_32:
+        return static_cast<RaptorQ_Decoder_Result> (
+                            reinterpret_cast<D_T32*>(dec->ptr)->decode_once());
+    case RaptorQ_type::RQ_DEC_64:
+        return static_cast<RaptorQ_Decoder_Result> (
+                            reinterpret_cast<D_T64*>(dec->ptr)->decode_once());
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return RQ_DEC_WRONG_INPUT;
 }
 
 static RaptorQ_Error v1_decode_symbol (struct RaptorQ_ptr *dec, void** start,
