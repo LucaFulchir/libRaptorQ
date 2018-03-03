@@ -963,11 +963,11 @@ is not aligned with your data.
 \begin{lstlisting}[language=C]
 struct RAPTORQ_API RFC6330_Dec_Result {
 	uint64_t written;
-	uint8_t skip;
+	uint8_t offset;
 };
 \end{lstlisting}
 The result is the number of written \textbf{elements} (size depending on \texttt{RQ\_DEC\_8}, \texttt{RQ\_DEC\_16} etc).\\
-The \texttt{skip} parameter is the amount of bytes written in the last element if the alignment used in the encoder does not fit the
+The \texttt{offset} parameter is the amount of bytes written in the last element if the alignment used in the encoder does not fit the
 alignment used in the decoder. Usually you keep those synchronized, so it should be zero (element fully written)
 \item[decode\_block\_aligned]\textbf{Input: const struct RFC6330\_ptr *dec}\\
 .\ \ \ \ \ \ \ \ \ \ \textbf{const void **data}\\
