@@ -60,82 +60,34 @@
 
 #define RAPTORQ_DEPRECATED __attribute__ ((deprecated))
 
+/* Supporting header-only and compiled modes mean that sometimes a function
+ * should be inline and other times not.
+ * This becouse inline means both "single implementation" (useful for hdr-only)
+ * and "local to the translation unit" (bad for compiled)
+ */
+#ifdef RQ_HEADER_ONLY
+#define RQ_HDR_INLINE inline
+#else
+#define RQ_HDR_INLINE
+#endif
+
 
 #pragma clang diagnostic push
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-macros"
 #pragma clang diagnostic ignored "-Wunused-variable"
-#ifndef RQ_VERSION
+#ifdef RQ_VERSION
+    static char RaptorQ_version[] = RQ_VERSION;
+#else
     // let's see if I remember to update this...
     static char RaptorQ_version[] = "1.0.0-alpha1";
-#else
-    static char RaptorQ_version[] = RQ_VERSION;
 #endif
+#define RQ_UNUSED(x)    ((void)x)
 #pragma GCC diagnostic pop
 #pragma clang diagnostic pop
 
-///////////////////////////
-////
-//// Common error codes
-////
-///////////////////////////
-// NOTE: the C++ and C version should be kept in sync
-//      so that we can just static_cast<>() from one to the other
-
-// C version
-typedef enum {  RQ_TIME_NANOSEC     = 0,
-                RQ_TIME_MICROSEC    = 1,
-                RQ_TIME_MILLISEC    = 2,
-                RQ_TIME_SEC         = 3,
-                RQ_TIME_MIN         = 4,
-                RQ_TIME_HOUR        = 5
-            } RaptorQ_Unit_Time;
-typedef RaptorQ_Unit_Time RFC6330_Unit_Time;
-
-
-typedef enum {  RQ_ERR_NONE = 0,
-                RQ_ERR_NOT_NEEDED = 1,
-                RQ_ERR_WRONG_INPUT = 2,
-                RQ_ERR_NEED_DATA = 3,
-                RQ_ERR_WORKING = 4,
-                RQ_ERR_INITIALIZATION = 5,
-                RQ_ERR_EXITING = 6
-            } RaptorQ_Error;
-typedef RaptorQ_Error RFC6330_Error;
-
-typedef enum {
-    RQ_COMPUTE_NONE = 0x00,                 // do nothing => get error
-                                            // warn when;
-    RQ_COMPUTE_PARTIAL_FROM_BEGINNING = 0x01,// first blocks can be decoded
-    RQ_COMPUTE_PARTIAL_ANY = 0x02,          //  "some" blocks have been decoded.
-    RQ_COMPUTE_COMPLETE = 0x04,             //  all blocks are decoded.
-    RQ_COMPUTE_NO_BACKGROUND = 0x08,        // no background/async
-    RQ_COMPUTE_NO_POOL = 0x10,              // do not use the thread pool
-    RQ_COMPUTE_NO_RETRY = 0x20              // do not try again with different
-                                            // repair symbol combination
-} RaptorQ_Compute;
-typedef RaptorQ_Compute RFC6330_Compute;
-
-typedef enum {
-    RQ_WORK_KEEP_WORKING = 0,
-    RQ_WORK_ABORT_COMPUTATION = 1,
-} RaptorQ_Work;
-typedef RaptorQ_Work RFC6330_Work;
-
-typedef enum {
-    RQ_COMPRESS_NONE = 0x00,
-    RQ_COMPRESS_LZ4 = 0x01,
-} RaptorQ_Compress;
-typedef RaptorQ_Compress RFC6330_Compress;
-
-typedef enum {
-    RQ_DEC_DECODED     = 0,
-    RQ_DEC_STOPPED     = 1,
-    RQ_DEC_CAN_RETRY   = 2,
-    RQ_DEC_NEED_DATA   = 3,
-    RQ_DEC_WRONG_INPUT = 4 // used by the C wrapper
-} RaptorQ_Decoder_Result;
-
+#include "RaptorQ/v1/wrapper/C_common.h"
 
 #ifndef __cplusplus
 #include <stddef.h>
@@ -146,19 +98,6 @@ typedef enum {
 #include <type_traits>
 //windows does not have ssize_t
 typedef std::conditional<sizeof(size_t) == 4, int32_t, int64_t>::type ssize_t;
-#endif
-
-#define RQ_UNUSED(x)    ((void)x)
-
-/* Supporting header-only and compiled modes mean that sometimes a function
- * should be inline and other times not.
- * This becouse inline means both "single implementation" (useful for hdr-only)
- * and "local to the translation unit" (bad for compiled)
- */
-#ifdef RQ_HEADER_ONLY
-#define RQ_HDR_INLINE inline
-#else
-#define RQ_HDR_INLINE
 #endif
 
 static const uint64_t RFC6330_max_data = 946270874880;  // ~881 GB
@@ -178,6 +117,13 @@ template<typename T, typename... Ts>
 std::unique_ptr<T> RAPTORQ_LOCAL make_unique (Ts&&... params)
     { return std::unique_ptr<T> (new T(std::forward<Ts> (params)...)); }
 } // namespace Impl
+
+#ifndef RQ_DEBUG
+    #define RQ_DEBUG false
+#endif
+// don't use #define everywhere. let the dead code elimination take care
+// of eliminating unused code.
+constexpr bool debug = RQ_DEBUG;
 
 enum class Decoder_Result : uint8_t {
     DECODED = RQ_DEC_DECODED,
@@ -213,32 +159,27 @@ enum class Work_State : uint8_t {
     KEEP_WORKING = RQ_WORK_KEEP_WORKING,
     ABORT_COMPUTATION = RQ_WORK_ABORT_COMPUTATION,
 };
+// tracked by C_RAW_API.h/RaptorQ_Dec_wait_res
 struct RAPTORQ_API Decoder_wait_res {
     Error error;
     uint16_t symbol;
 };
 // different than RFC6330_v1::Decoder_written
 // the sizes are *not* forced from the RFC
+// tracked by C_RAW_API.h/RaptorQ_Dec_written
 struct RAPTORQ_API Decoder_written {
     size_t written;
     size_t offset;
 };
 
+// tracked by C_RAW_API.h/RQ_Dec_Report
 enum class Dec_Report : uint8_t {
-    NONE = RQ_COMPUTE_NONE,
     PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
     PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
     COMPLETE = RQ_COMPUTE_COMPLETE
 };
-} // namespace RaptorQ__v1
-namespace RFC6330__v1 {
-    using RaptorQ__v1::Work_State;
-namespace Impl {
-    using RaptorQ__v1::Impl::make_unique;
-} // namespace Impl
 
-using Error = RaptorQ__v1::Error; // easier
-using Compress = RaptorQ__v1::Compress; // easier
+// tracks C_common.h/RFC6330_Compute
 enum class Compute : uint8_t {
     NONE = RQ_COMPUTE_NONE,
     PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
@@ -259,8 +200,27 @@ inline Compute operator& (const Compute a, const Compute b)
     return static_cast<Compute> (static_cast<uint8_t> (a) &
                                                     static_cast<uint8_t> (b));
 }
+
+} // namespace RaptorQ__v1
+
+
+//////////
+// RFC6330
+//////////
+
+namespace RFC6330__v1 {
+namespace Impl {
+    using RaptorQ__v1::Impl::make_unique;
+} // namespace Impl
+
+using Compute = RaptorQ__v1::Compute;
+using Compress = RaptorQ__v1::Compress;
+using Error = RaptorQ__v1::Error;
+using Work_State = RaptorQ__v1::Work_State;
+
 // dieffrent than RaptorQ_v1::Decoder_written
 // the sizes are forced from the RFC
+// tracked by C_RFC.h/RFC6330_Dec_Result
 struct RAPTORQ_API Decoder_written
 {
     uint64_t written;
@@ -268,18 +228,6 @@ struct RAPTORQ_API Decoder_written
 };
 } // namespace RFC6330__v1
 
-namespace RaptorQ__v1 {
-    using RFC6330__v1::Compute;
-namespace Impl {
-#ifndef RQ_DEBUG
-    #define RQ_DEBUG false
-#endif
-// don't use #define everywhere. let the dead code elimination take care
-// of eliminating unused code.
-constexpr bool debug = RQ_DEBUG;
-
-}
-}
 
 
 #include <cassert>

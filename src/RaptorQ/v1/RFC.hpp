@@ -296,6 +296,7 @@ public:
     operator bool() const
         { return _size <= max_data; }
 
+    // result type tracked by C_RFC_API.h/RFC6330_Result
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     // if you can tell there is no more input, we can avoid locking
     // forever and return an error.

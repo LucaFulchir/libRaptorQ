@@ -21,7 +21,7 @@
 #pragma once
 
 #include "RaptorQ/v1/wrapper/C_common.h"
-#include "RaptorQ/v1/common.hpp" // includes RaptorQ_Errors
+#include "RaptorQ/v1/common.hpp"
 #ifdef __cplusplus
 #include <cstdbool>
 #else
@@ -37,13 +37,15 @@ extern "C"
 
     // do NOT mark the members of these structs as const.
     // MSVC breaks in annoyingly ways.
+    // tracks the result of the future in RFC.hpp.compute()
     struct RAPTORQ_API RFC6330_Result {
         RFC6330_Error error;
         uint8_t sbn;
     };
+    // tracks common.hpp/RFC6330__v1::Impl::Decoder_written
     struct RAPTORQ_API RFC6330_Dec_Result {
         uint64_t written;
-        uint8_t skip;
+        uint8_t offset;
     };
 
 

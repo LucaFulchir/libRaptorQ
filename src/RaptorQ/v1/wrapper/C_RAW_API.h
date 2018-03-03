@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -41,14 +41,17 @@ extern "C"
 
     // do NOT mark the members of these structs as const.
     // MSVC breaks in annoyingly ways.
-    struct RAPTORQ_API RaptorQ_Dec_Result {
+    // tracks RaptorQ__v1::Impl::Decoder_wait_res
+    struct RAPTORQ_API RaptorQ_Dec_wait_res {
         RaptorQ_Error error;
-        uint16_t esi;
+        uint16_t symbol;
     };
+    // tracks RaptorQ__v1::Impl::Decoder_written
     struct RAPTORQ_API RaptorQ_Dec_Written {
-        uint64_t written;
+        size_t written;
         size_t offset;
     };
+    // tracks RaptorQ__v1::Impl::Dec_Report
     typedef enum {
         RQ_PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
         RQ_PARTIAL_ANY = RQ_COMPUTE_PARTIAL_ANY,
@@ -129,12 +132,13 @@ extern "C"
         bool (*const can_decode) (const struct RaptorQ_ptr *dec);
         uint16_t (*const needed_symbols) (const struct RaptorQ_ptr *dec);
 
-        struct RaptorQ_Dec_Result (*const poll) (const struct RaptorQ_ptr *dec);
-        struct RaptorQ_Dec_Result (*const wait_sync) (
+        struct RaptorQ_Dec_wait_res (*const poll) (
+                                                const struct RaptorQ_ptr *dec);
+        struct RaptorQ_Dec_wait_res (*const wait_sync) (
                                                 const struct RaptorQ_ptr *dec);
         struct RaptorQ_future_dec* (*const wait) (
                                                 const struct RaptorQ_ptr *dec);
-        struct RaptorQ_Dec_Result (*const dec_future_get) (
+        struct RaptorQ_Dec_wait_res (*const dec_future_get) (
                                                 struct RaptorQ_future_dec *f);
         void (*const end_of_input) (struct RaptorQ_ptr *dec);
         RaptorQ_Decoder_Result (*const decode_once) (struct RaptorQ_ptr *dec);

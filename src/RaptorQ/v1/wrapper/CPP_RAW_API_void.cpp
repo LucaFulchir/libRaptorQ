@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2016-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -482,28 +482,23 @@ Decoder_void::Decoder_void (const RaptorQ_type type,
     : _type (init_t (type, false))
 {
     _decoder = nullptr;
-    Dec_Report report = computation;
-    if (report == Dec_Report::NONE) {
-        _type = RaptorQ_type::RQ_NONE;
-        return;
-    }
 
     switch (_type) {
     case RaptorQ_type::RQ_DEC_8:
         _decoder = new Decoder<uint8_t*, uint8_t*> (symbols,
-                                                        symbol_size, report);
+                                                    symbol_size, computation);
         return;
     case RaptorQ_type::RQ_DEC_16:
         _decoder = new Decoder<uint16_t*, uint16_t*> (symbols,
-                                                        symbol_size, report);
+                                                    symbol_size, computation);
         return;
     case RaptorQ_type::RQ_DEC_32:
         _decoder = new Decoder<uint32_t*, uint32_t*> (symbols,
-                                                        symbol_size, report);
+                                                    symbol_size, computation);
         return;
     case RaptorQ_type::RQ_DEC_64:
         _decoder = new Decoder<uint64_t*, uint64_t*> (symbols,
-                                                        symbol_size, report);
+                                                    symbol_size, computation);
         return;
     case RaptorQ_type::RQ_ENC_8:
     case RaptorQ_type::RQ_ENC_16:

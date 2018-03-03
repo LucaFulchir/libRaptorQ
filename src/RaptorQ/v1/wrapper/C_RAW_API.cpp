@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -122,10 +122,10 @@ static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec, void **from,
                                                             const uint32_t esi);
 static bool v1_can_decode (const RaptorQ_ptr *dec);
 static uint16_t v1_needed_symbols (const RaptorQ_ptr *dec);
-static RaptorQ_Dec_Result v1_poll (const RaptorQ_ptr *dec);
-static RaptorQ_Dec_Result v1_wait_sync (const RaptorQ_ptr *dec);
+static RaptorQ_Dec_wait_res v1_poll (const RaptorQ_ptr *dec);
+static RaptorQ_Dec_wait_res v1_wait_sync (const RaptorQ_ptr *dec);
 static RaptorQ_future_dec* v1_wait (const RaptorQ_ptr *dec);
-static RaptorQ_Dec_Result v1_dec_future_get (struct RaptorQ_future_dec *f);
+static RaptorQ_Dec_wait_res v1_dec_future_get (struct RaptorQ_future_dec *f);
 static void v1_end_of_input (struct RaptorQ_ptr *dec);
 static RaptorQ_Decoder_Result v1_decode_once (struct RaptorQ_ptr *dec);
 static RaptorQ_Error v1_decode_symbol (struct RaptorQ_ptr *dec, void** start,
@@ -135,7 +135,6 @@ static RaptorQ_Dec_Written v1_decode_bytes (struct RaptorQ_ptr *dec,
                                                         const size_t size,
                                                         const size_t from_byte,
                                                         const size_t skip);
-
 
 
 void RaptorQ_free_api (struct RaptorQ_base_api **api)
@@ -1224,7 +1223,7 @@ static uint16_t v1_needed_symbols (const RaptorQ_ptr *dec)
     return 0;
 }
 
-static RaptorQ_Dec_Result v1_poll (const RaptorQ_ptr *dec)
+static RaptorQ_Dec_wait_res v1_poll (const RaptorQ_ptr *dec)
 {
 
     if (dec == nullptr || dec->ptr == nullptr)
@@ -1260,7 +1259,7 @@ static RaptorQ_Dec_Result v1_poll (const RaptorQ_ptr *dec)
     return {RaptorQ_Error::RQ_ERR_WRONG_INPUT, 0};
 }
 
-static RaptorQ_Dec_Result v1_wait_sync (const RaptorQ_ptr *dec)
+static RaptorQ_Dec_wait_res v1_wait_sync (const RaptorQ_ptr *dec)
 {
     if (dec == nullptr || dec->ptr == nullptr)
         return {RaptorQ_Error::RQ_ERR_WRONG_INPUT, 0};
@@ -1326,7 +1325,7 @@ static RaptorQ_future_dec* v1_wait (const RaptorQ_ptr *dec)
     return nullptr;
 }
 
-static RaptorQ_Dec_Result v1_dec_future_get (struct RaptorQ_future_dec *f)
+static RaptorQ_Dec_wait_res v1_dec_future_get (struct RaptorQ_future_dec *f)
 {
     RaptorQ__v1::Decoder_wait_res cpp_res;
     if (f == nullptr)

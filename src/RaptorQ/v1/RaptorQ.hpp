@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -628,9 +628,6 @@ Decoder_wait_res Decoder<In_It, Fwd_It>::poll ()
     uint32_t last;
     bool expected = false;
     switch (_type) {
-    case Dec_Report::NONE:
-        assert (false && "RQ: Report enum: should not have gotten here!");
-        return {Error::INITIALIZATION, 0};
     case Dec_Report::PARTIAL_FROM_BEGINNING:
         // report the number of symbols that are known, starting from
         // the beginning.
