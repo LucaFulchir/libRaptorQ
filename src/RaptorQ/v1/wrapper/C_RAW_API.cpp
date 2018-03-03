@@ -1109,7 +1109,8 @@ static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec, void **from,
                                                     const size_t size,
                                                     const uint32_t esi)
 {
-    if (dec == nullptr || dec->ptr == nullptr)
+    if (dec == nullptr || dec->ptr == nullptr ||
+                                        from == nullptr || *from == nullptr)
         return RaptorQ_Error::RQ_ERR_WRONG_INPUT;
     uint8_t *f_8;
     uint16_t *f_16;
@@ -1118,7 +1119,7 @@ static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec, void **from,
     RaptorQ_Error err = RaptorQ_Error::RQ_ERR_NONE;
     switch (dec->type) {
     case RaptorQ_type::RQ_DEC_8:
-        f_8 = reinterpret_cast<uint8_t*> (from);
+        f_8 = reinterpret_cast<uint8_t*> (*from);
         err = static_cast<RaptorQ_Error> (reinterpret_cast<
                             RaptorQ__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
                                             dec->ptr)->add_symbol (f_8,
@@ -1126,7 +1127,7 @@ static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec, void **from,
         *from = f_8;
         return err;
     case RaptorQ_type::RQ_DEC_16:
-        f_16 = reinterpret_cast<uint16_t*> (from);
+        f_16 = reinterpret_cast<uint16_t*> (*from);
         err = static_cast<RaptorQ_Error> (reinterpret_cast<
                             RaptorQ__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
                                             dec->ptr)->add_symbol (f_16,
@@ -1134,7 +1135,7 @@ static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec, void **from,
         *from = f_16;
         return err;
     case RaptorQ_type::RQ_DEC_32:
-        f_32 = reinterpret_cast<uint32_t*> (from);
+        f_32 = reinterpret_cast<uint32_t*> (*from);
         err = static_cast<RaptorQ_Error> (reinterpret_cast<
                             RaptorQ__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
                                             dec->ptr)->add_symbol (f_32,
@@ -1142,7 +1143,7 @@ static RaptorQ_Error v1_add_symbol (const RaptorQ_ptr *dec, void **from,
         *from = f_32;
         return err;
     case RaptorQ_type::RQ_DEC_64:
-        f_64 = reinterpret_cast<uint64_t*> (from);
+        f_64 = reinterpret_cast<uint64_t*> (*from);
         err = static_cast<RaptorQ_Error> (reinterpret_cast<
                             RaptorQ__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
                                             dec->ptr)->add_symbol (f_64,
