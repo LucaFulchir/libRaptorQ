@@ -37,6 +37,7 @@
 #include "RaptorQ/v1/RFC_Iterators.hpp"
 #include "RaptorQ/v1/Shared_Computation/Decaying_LF.hpp"
 #include "RaptorQ/v1/Thread_Pool.hpp"
+#include "RaptorQ/v1/util/endianess.hpp"
 #include <algorithm>
 #include <cassert>
 #include <future>
@@ -229,25 +230,30 @@ public:
     Decoder& operator= (Decoder&&) = default;
     ~Decoder();
     Decoder (const RFC6330_OTI_Common_Data common,
-                            const RFC6330_OTI_Scheme_Specific_Data scheme)
+                                const RFC6330_OTI_Scheme_Specific_Data scheme)
     {
         // _size > max_data means improper initialization.
         IS_INPUT(In_It, "RaptorQ__v1::Decoder");
         IS_FORWARD(Fwd_It, "RaptorQ__v1::Decoder");
 
+        RFC6330_OTI_Common_Data _common =
+                    RaptorQ__v1::Impl::Endian::b_to_h<RFC6330_OTI_Common_Data>
+                                                                    (common);
+        RFC6330_OTI_Common_Data _scheme =
+            RaptorQ__v1::Impl::Endian::b_to_h<RFC6330_OTI_Scheme_Specific_Data>
+                                                                    (scheme);
         // see the above commented bitfields for quick reference
-        _symbol_size = static_cast<uint16_t> (common);
-        _size = common >> 24;
-        uint16_t tot_sub_blocks = static_cast<uint16_t> (scheme >> 8);
-        _alignment = static_cast<uint8_t> (scheme);
-        _blocks = static_cast<uint8_t> (scheme >> 24);
+        _symbol_size = static_cast<uint16_t> (_common);
+        _size = _common >> 24;
+        uint16_t tot_sub_blocks = static_cast<uint16_t> (_scheme >> 8);
+        _alignment = static_cast<uint8_t> (_scheme);
+        _blocks = static_cast<uint8_t> (_scheme >> 24);
         if (_size > max_data || _size % _alignment != 0 ||
                                             _symbol_size % _alignment != 0) {
             _size = std::numeric_limits<uint64_t>::max();
             return;
         }
-        _sub_blocks = Impl::Partition (_symbol_size /
-                                                static_cast<uint8_t> (scheme),
+        _sub_blocks = Impl::Partition (_symbol_size / _alignment,
                                                                 tot_sub_blocks);
 
         const uint64_t total_symbols = static_cast<uint64_t> (ceil (
@@ -417,11 +423,12 @@ RFC6330_OTI_Common_Data Encoder<Rnd_It, Fwd_It>::OTI_Common() const
     // last 16 bits: symbol size
     ret += _symbol_size;
 
-    return ret;
+    return RaptorQ__v1::Impl::Endian::h_to_b<RFC6330_OTI_Common_Data> (ret);
 }
 
 template <typename Rnd_It, typename Fwd_It>
-RFC6330_OTI_Scheme_Specific_Data Encoder<Rnd_It, Fwd_It>::OTI_Scheme_Specific() const
+RFC6330_OTI_Scheme_Specific_Data Encoder<Rnd_It, Fwd_It>::OTI_Scheme_Specific()
+                                                                        const
 {
     if (!interleave)
         return 0;
@@ -433,7 +440,8 @@ RFC6330_OTI_Scheme_Specific_Data Encoder<Rnd_It, Fwd_It>::OTI_Scheme_Specific() 
     // 8 bit: alignment
     ret += sizeof(typename std::iterator_traits<Rnd_It>::value_type);
 
-    return ret;
+    return RaptorQ__v1::Impl::Endian::h_to_b<RFC6330_OTI_Scheme_Specific_Data> (
+                                                                        ret);
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -621,7 +629,7 @@ void Encoder<Rnd_It, Fwd_It>::wait_threads (Encoder<Rnd_It, Fwd_It> *obj,
 
 template <typename Rnd_It, typename Fwd_It>
 std::pair<Error, uint8_t> Encoder<Rnd_It, Fwd_It>::get_report (
-                                                        const Compute flags)
+                                                            const Compute flags)
 {
     if (encoders.size() == 0)
         return {Error::WORKING, 0};
@@ -762,7 +770,7 @@ uint32_t Encoder<Rnd_It, Fwd_It>::max_repair (const uint8_t sbn) const
     if (!interleave)
         return 0;
     return static_cast<uint32_t> (std::pow (2, 20)) -
-                                            interleave.source_symbols (sbn);
+                                                interleave.source_symbols (sbn);
 }
 
 /////////////////
@@ -805,8 +813,9 @@ template <typename In_It, typename Fwd_It>
 Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
                                                             const uint32_t id)
 {
-    uint32_t esi = (id << 8 ) >> 8;
-    uint8_t sbn = id >> 24;
+    const uint32_t _id = RaptorQ__v1::Impl::Endian::b_to_h (id);
+    const uint32_t esi = _id & 0x00FFFFFF;
+    const uint8_t sbn = _id >> 24;
 
     return add_symbol (start, end, esi, sbn);
 }
@@ -949,7 +958,7 @@ Work_Exit_Status Decoder<In_It, Fwd_It>::Block_Work::do_work (
 
 template <typename In_It, typename Fwd_It>
 std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
-                                                        const Compute flags)
+                                                            const Compute flags)
 {
     using ret_t = std::pair<Error, uint8_t>;
     std::promise<ret_t> p;
@@ -1196,7 +1205,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
 
 template <typename In_It, typename Fwd_It>
 uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
-                                                        const uint8_t skip)
+                                                            const uint8_t skip)
 {
     if (!operator bool())
         return 0;
@@ -1327,10 +1336,9 @@ size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
 }
 
 template <typename In_It, typename Fwd_It>
-Decoder_written Decoder<In_It, Fwd_It>::decode_aligned (
-                                                        Fwd_It &start,
-                                                        const Fwd_It end,
-                                                        const uint8_t skip)
+Decoder_written Decoder<In_It, Fwd_It>::decode_aligned (Fwd_It &start,
+                                                            const Fwd_It end,
+                                                            const uint8_t skip)
 {
     const uint64_t bytes = decode_bytes (start, end, skip);
     const uint64_t skip_and_bytes = skip + bytes;
@@ -1343,10 +1351,10 @@ Decoder_written Decoder<In_It, Fwd_It>::decode_aligned (
 
 template <typename In_It, typename Fwd_It>
 Decoder_written Decoder<In_It, Fwd_It>::decode_block_aligned (
-                                                        Fwd_It &start,
-                                                        const Fwd_It end,
-                                                        const uint8_t skip,
-                                                        const uint8_t sbn)
+                                                            Fwd_It &start,
+                                                            const Fwd_It end,
+                                                            const uint8_t skip,
+                                                            const uint8_t sbn)
 {
     const size_t bytes = decode_block_bytes (start, end, skip, sbn);
     const size_t skip_and_bytes = skip + bytes;

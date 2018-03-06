@@ -33,6 +33,7 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+
 include(GNUInstallDirs)
 
 option(DYNAMIC_LIB "Build dynamic library" ON)
@@ -42,13 +43,36 @@ option(CLI "BUild CLI tools" ON)
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build Type")
 set(USE_LZ4 "ON" CACHE STRING "Use LZ4 compression for result caching")
 set(RQ_LINKER CACHE STRING "linker to use (auto/gold/ld/bsd)")
+set(RQ_ENDIANNESS CACHE STRING "endianness of your system")
 set_property(CACHE CMAKE_BUILD_TYPE   PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
 set_property(CACHE USE_LZ4   PROPERTY STRINGS ON BUNDLED OFF)
 set_property(CACHE RQ_LINKER PROPERTY STRINGS GOLD LD BSD)
-mark_as_advanced(FORCE RQ_LINKER RQ_GOLD RQ_LZ4_LIB)
+set_property(CACHE RQ_ENDIANNESS PROPERTY STRINGS Auto BigEndian LittleEndian)
+mark_as_advanced(FORCE RQ_LINKER RQ_ENDIANNESS RQ_GOLD RQ_LZ4_LIB)
 if (USE_LZ4 MATCHES "BUNDLED")
     set(USE_LZ4 "ON")
     set(RQ_LZ4_USE_OWN TRUE)
+endif()
+
+if (NOT RQ_ENDIANNESS)
+    set(RQ_ENDIANNESS Auto)
+endif()
+if (RQ_ENDIANNESS MATCHES "Auto")
+    include(TestBigEndian)
+    TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
+    if (IS_BIG_ENDIAN)
+        add_definitions(-DRQ_BIG_ENDIAN)
+        message (STATUS "Detected big endian machine")
+    else()
+        add_definitions(-DRQ_LITTLE_ENDIAN)
+        message (STATUS "Detected little endian machine")
+    endif()
+elseif (RQ_ENDIANNESS MATCHES "BigEndian")
+    add_definitions(-DRQ_BIG_ENDIAN)
+    message (STATUS "Forced to big endian")
+elseif (RQ_ENDIANNESS MATCHES "LittleEndian")
+    add_definitions(-DRQ_LITTLE_ENDIAN)
+    message (STATUS "Forced to little endian")
 endif()
 
 # supported linkers: gold, linux standard, bsd
@@ -235,6 +259,7 @@ SET(HEADERS
             src/RaptorQ/v1/Thread_Pool.hpp
             src/RaptorQ/v1/util/Bitmask.hpp
             src/RaptorQ/v1/util/div.hpp
+            src/RaptorQ/v1/util/endianess.hpp
             src/RaptorQ/v1/util/Graph.hpp
             )
 
@@ -534,7 +559,8 @@ target_compile_options(
     ${CXX_COMPILER_FLAGS}
 )
 target_link_libraries(example_cpp_raw ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
-add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw libRaptorQ-test)
+
+add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw libRaptorQ-test example_cpp_raw)
 
 
 

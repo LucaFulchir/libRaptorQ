@@ -21,6 +21,7 @@
 #pragma once
 
 #include "RaptorQ/v1/common.hpp"
+#include "RaptorQ/v1/util/endianess.hpp"
 #include <cmath>
 #include <iterator>
 
@@ -75,18 +76,19 @@ public:
         return _enc->encode (start, end, _id);
     }
     uint32_t id() const
-        { return _id; }
+        { return RaptorQ__v1::Impl::Endian::h_to_b<uint32_t> (_id); }
 
     uint8_t block() const
         { return static_cast<uint8_t> (_id >> 24); }
 
     uint32_t esi() const
     {
-        uint32_t rev_mask = static_cast<uint32_t> (0xFF) << 24;
-        return static_cast<uint8_t> (_id & ~rev_mask);
+        constexpr uint32_t rev_mask = ~(static_cast<uint32_t> (0xFF) << 24);
+        return _id & rev_mask;
     }
 private:
     RQ_ENC_T *const _enc;
+    // BIG NOTE: HOST endianness, remember to report in big-endian!
     const uint32_t _id;
 };
 
@@ -122,6 +124,7 @@ public:
         { return it._id != _id && it._enc == _enc; }
 private:
     RQ_ENC_T *const _enc;
+    // BIG NOTE: HOST endianness, remember to report in big-endian!
     uint32_t _id;
 };
 
@@ -143,16 +146,16 @@ public:
     {
         if (_enc == nullptr)
             return Symbol_Iterator<Rnd_It, Fwd_It> (nullptr, 0);
-        const uint32_t id = static_cast<uint32_t> (_block) << 24;
-        return Symbol_Iterator<Rnd_It, Fwd_It> (_enc, id);
+        const uint32_t host_endian_id = static_cast<uint32_t> (_block) << 24;
+        return Symbol_Iterator<Rnd_It, Fwd_It> (_enc, host_endian_id);
     }
     Symbol_Iterator<Rnd_It, Fwd_It> end_source() const
     {
         if (_enc == nullptr)
             return Symbol_Iterator<Rnd_It, Fwd_It> (nullptr, 0);
-        const uint32_t id = static_cast<uint32_t> (_block) << 24;
-        return Symbol_Iterator<Rnd_It, Fwd_It> (_enc,
-                                        id + _enc->symbols (_block));
+        const uint32_t host_endian_id = (static_cast<uint32_t> (_block) << 24) +
+                                            _enc->symbols (_block);
+        return Symbol_Iterator<Rnd_It, Fwd_It> (_enc, host_endian_id);
     }
     Symbol_Iterator<Rnd_It, Fwd_It> begin_repair() const
         { return end_source(); }
@@ -162,9 +165,9 @@ public:
             repairs = static_cast<uint32_t> (std::pow (2, 20));
         if (_enc == nullptr)
             return Symbol_Iterator<Rnd_It, Fwd_It> (nullptr, 0);
-        const uint32_t id = static_cast<uint32_t> (_block) << 24;
-        return Symbol_Iterator<Rnd_It, Fwd_It> (_enc,
-                                        id + _enc->symbols (_block) + repairs);
+        const uint32_t host_endian_id = (static_cast<uint32_t> (_block) << 24) +
+                                            _enc->symbols (_block) + repairs;
+        return Symbol_Iterator<Rnd_It, Fwd_It> (_enc, host_endian_id);
     }
 
     uint8_t id() const
@@ -259,18 +262,19 @@ public:
                                 static_cast<uint16_t> (esi (_id)), block (_id));
     }
     uint32_t id() const
-        { return _id; }
+        { return RaptorQ__v1::Impl::Endian::h_to_b<uint32_t> (_id); }
 
     uint8_t block() const
         { return static_cast<uint8_t> (_id >> 24); }
 
     uint32_t esi() const
     {
-        uint32_t rev_mask = static_cast<uint32_t> (0xFF) << 24;
-        return static_cast<uint8_t> (_id & ~rev_mask);
+        constexpr uint32_t rev_mask = ~(static_cast<uint32_t> (0xFF) << 24);
+        return _id & rev_mask;
     }
 private:
     RQ_DEC_T *const _dec;
+    // BIG NOTE: HOST endianness, remember to report in big-endian!
     const uint32_t _id;
 };
 
@@ -306,6 +310,7 @@ public:
         { return it._id != _id && it._dec == _dec; }
 private:
     RQ_DEC_T *const _dec;
+    // BIG NOTE: HOST endianness, remember to report in big-endian!
     uint32_t _id;
 };
 
@@ -327,16 +332,16 @@ public:
     {
         if (_dec == nullptr)
             return Symbol_Iterator<In_It, Fwd_It> (nullptr, 0);
-        const uint32_t id = static_cast<uint32_t> (_block) << 24;
-        return Symbol_Iterator<In_It, Fwd_It> (_dec, id);
+        const uint32_t host_endian_id = static_cast<uint32_t> (_block) << 24;
+        return Symbol_Iterator<In_It, Fwd_It> (_dec, host_endian_id);
     }
     Symbol_Iterator<In_It, Fwd_It> end() const
     {
         if (_dec == nullptr)
             return Symbol_Iterator<In_It, Fwd_It> (nullptr, 0);
-        const uint32_t id = static_cast<uint32_t> (_block) << 24;
-        return Symbol_Iterator<In_It, Fwd_It> (_dec, id +
-                                                        _dec->symbols (_block));
+        const uint32_t host_endian_id = ((static_cast<uint32_t> (_block) << 24)
+                                                    + _dec->symbols(_block));
+        return Symbol_Iterator<In_It, Fwd_It> (_dec, host_endian_id);
     }
     uint8_t id() const
         { return _block; }

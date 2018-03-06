@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+# Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
 #
 # This file is part of libRaptorQ.
 #
@@ -31,31 +31,29 @@ SET(ARCH "X86_64" CACHE STRING "Processor architecture") # defult, most common
 SET_PROPERTY(CACHE ARCH PROPERTY STRINGS X86_64 X86 ARM)
 
 IF(ARCH)
-    # you provided us the right architecture? good ^^
+	# you provided us the right architecture? good ^^
 ELSE()
-    #we need to guess it somehow...
-    IF(WIN32)
-        SET(ARCH "X86_64")
-    ENDIF()
-    IF(APPLE)
-        EXECUTE_PROCESS(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCH )
-    ENDIF()
-    IF(UNIX)
-        EXECUTE_PROCESS(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCH )
+  #we need to guess it somehow...
+  IF(WIN32)
+    SET(ARCH "X86_64")
+  ENDIF()
+  IF(APPLE)
+    EXECUTE_PROCESS(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCH )
+  ENDIF()
+  IF(UNIX)
+    EXECUTE_PROCESS(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCH )
     IF(${ARCH} STREQUAL "x86_64" OR ${ARCH} STREQUAL "amd64" OR ${ARCH} STREQUAL "ia64")
-        SET(ARCH, "X86_64")
+      SET(ARCH, "X86_64")
     ELSE()
-        IF(${ARCH} STREQUAL "x86" OR ${ARCH} STREQUAL "i686")
-    SET(ARCH, "X86")
-        ELSE()
-    IF(${ARCH} STREQUAL "arm" OR ${ARCH} STREQUAL "armeb" OR ${ARCH} STREQUAL "armel")
-        SET(ARCH, "ARM")
-    ELSE()
-    ENDIF()
-        ENDIF()
+      IF(${ARCH} STREQUAL "x86" OR ${ARCH} STREQUAL "i686")
+	SET(ARCH, "X86")
+      ELSE()
+	IF(${ARCH} STREQUAL "arm" OR ${ARCH} STREQUAL "armeb" OR ${ARCH} STREQUAL "armel")
+	  SET(ARCH, "ARM")
+	ELSE()
+	ENDIF()
+      ENDIF()
     ENDIF()
   ENDIF()
 ENDIF()
-
-
 

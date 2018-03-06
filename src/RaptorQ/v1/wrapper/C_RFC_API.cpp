@@ -1050,8 +1050,8 @@ static size_t v1_encode (const struct RFC6330_ptr *enc, void **data,
 static uint32_t v1_id (const uint32_t esi, const uint8_t sbn)
 {
     uint32_t ret = static_cast<uint32_t> (sbn) << 24;
-    ret += esi % static_cast<uint32_t> (std::pow (2, 24));
-    return ret;
+    ret += esi & 0x00FFFFFF;
+    return RaptorQ__v1::Impl::Endian::h_to_b<uint32_t> (ret);
 }
 
 
