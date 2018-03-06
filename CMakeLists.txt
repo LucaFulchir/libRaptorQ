@@ -40,8 +40,32 @@ option(DYNAMIC_LIB "Build dynamic library" ON)
 option(STATIC_LIB "Build static library" ON)
 option(CLANG_STDLIB "Use clang's libc++" OFF)
 set(RQ_LINKER CACHE STRING "linker to use (empty=auto/gold/ld/bsd)")
+set(RQ_ENDIANNESS CACHE STRING "endianness of your system")
 set_property(CACHE RQ_LINKER PROPERTY STRINGS GOLD LD BSD)
-mark_as_advanced(FORCE RQ_LINKER)
+set_property(CACHE RQ_ENDIANNESS PROPERTY STRINGS Auto BigEndian LittleEndian)
+mark_as_advanced(FORCE RQ_LINKER RQ_ENDIANNESS)
+
+
+if (NOT RQ_ENDIANNESS)
+    set(RQ_ENDIANNESS Auto)
+endif()
+if (RQ_ENDIANNESS MATCHES "Auto")
+    include(TestBigEndian)
+    TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
+    if (IS_BIG_ENDIAN)
+        add_definitions(-DRQ_BIG_ENDIAN)
+        message (STATUS "Detected big endian machine")
+    else()
+        add_definitions(-DRQ_LITTLE_ENDIAN)
+        message (STATUS "Detected little endian machine")
+    endif()
+elseif (RQ_ENDIANNESS MATCHES "BigEndian")
+    add_definitions(-DRQ_BIG_ENDIAN)
+    message (STATUS "Forced to big endian")
+elseif (RQ_ENDIANNESS MATCHES "LittleEndian")
+    add_definitions(-DRQ_LITTLE_ENDIAN)
+    message (STATUS "Forced to little endian")
+endif()
 
 # supported linkers: gold, linux standard, bsd
 if(NOT RQ_LINKER)
@@ -178,26 +202,27 @@ endif()
 
 
 SET(SOURCES	src/Precode_Matrix_solver.cpp
-		src/Precode_Matrix.cpp
-		src/Rand.cpp
-		src/Parameters.cpp
-		src/Graph.cpp
-		src/cRaptorQ.cpp)
+        src/Precode_Matrix.cpp
+        src/Rand.cpp
+        src/Parameters.cpp
+        src/Graph.cpp
+        src/cRaptorQ.cpp)
 
 SET(HEADERS	src/Interleaver.hpp
-		src/multiplication.hpp
-		src/table2.hpp
-		src/degree.hpp
-		src/common.hpp
-		src/Encoder.hpp
-		src/Decoder.hpp
-		src/Rand.hpp
-		src/Precode_Matrix.hpp
-		src/Parameters.hpp
-		src/Graph.hpp
-		src/De_Interleaver.hpp
-		src/RaptorQ.hpp
-		src/cRaptorQ.h)
+        src/multiplication.hpp
+        src/table2.hpp
+        src/degree.hpp
+        src/common.hpp
+        src/Encoder.hpp
+        src/endianness.hpp
+        src/Decoder.hpp
+        src/Rand.hpp
+        src/Precode_Matrix.hpp
+        src/Parameters.hpp
+        src/Graph.hpp
+        src/De_Interleaver.hpp
+        src/RaptorQ.hpp
+        src/cRaptorQ.h)
 
 
 # GCC sanitizer needs libubsan

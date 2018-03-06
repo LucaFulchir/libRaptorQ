@@ -151,7 +151,7 @@ public:
         return *this;
     }
 private:
-    const uint8_t *_raw = nullptr;
+    uint8_t *const _raw = nullptr;
     const uint16_t _size;
 };
 
