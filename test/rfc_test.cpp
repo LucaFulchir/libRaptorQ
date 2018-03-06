@@ -324,7 +324,8 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     // returns average number of microseconds for encoding and decoding
     Timer t;
     const uint16_t symbol_size = 1280;
-    const uint16_t subsymbol = 1280 / 4; // small interleaving
+//    const uint16_t subsymbol = 1280 / 4; // small interleaving
+    const uint16_t subsymbol = 1280; // small interleaving
     const size_t max_sub_block = std::numeric_limits<uint32_t>::max();
     std::vector<uint8_t> myvec;
 

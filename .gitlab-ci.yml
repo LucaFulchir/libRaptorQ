@@ -1,13 +1,9 @@
 stages:
-  - makedoc
-  - deploy
+  - testbuild
 
 job1:
-  stage: makedoc
-  script: mkdir build; cd build; cmake -DCMAKE_BUILD_TYPE=Release ../; make everything; cp doc/libRaptorQ.pdf ~/
+  stage: testbuild
+  script: mkdir build; cd build; cmake -DCMAKE_BUILD_TYPE=Release ../; make everything;
   
 
-job2:
-  stage: deploy
-  script: git diff-tree --no-commit-id --name-only -r HEAD | grep ^doc/ || exit 0; cd /var/lib/gitlab-runner/libRaptorQ.wiki; git pull; cp ~/libRaptorQ.pdf .; git add libRaptorQ.pdf; git commit -m '(gitlab-runner) updated pdf'; git push;
 
