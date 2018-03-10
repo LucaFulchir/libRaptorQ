@@ -147,6 +147,7 @@ public:
     uint32_t block_size (const uint8_t sbn) const;
     uint16_t symbol_size() const;
     uint16_t symbols (const uint8_t sbn) const;
+    Block_Size extended_symbols (const uint8_t sbn) const;
     uint32_t max_repair (const uint8_t sbn) const;
 private:
 
@@ -338,6 +339,7 @@ public:
     uint32_t block_size (const uint8_t sbn) const;
     uint16_t symbol_size() const;
     uint16_t symbols (const uint8_t sbn) const;
+    Block_Size extended_symbols (const uint8_t sbn) const;
 private:
     // using shared pointers to avoid locking too much or
     // worrying about deleting used stuff.
@@ -762,6 +764,27 @@ uint16_t Encoder<Rnd_It, Fwd_It>::symbols (const uint8_t sbn) const
     if (!interleave)
         return 0;
     return interleave.source_symbols (sbn);
+}
+
+template <typename Rnd_It, typename Fwd_It>
+Block_Size Encoder<Rnd_It, Fwd_It>::extended_symbols (const uint8_t sbn) const
+{
+    if (!interleave)
+        // outside of the enum, but you should have checked the
+        // initialization anyway. not relly nice either way
+        return static_cast<Block_Size> (0);
+    const uint16_t symbols = interleave.source_symbols (sbn);
+    uint16_t idx;
+    for (idx = 0; idx < (*RFC6330__v1::blocks).size(); ++idx) {
+        if (static_cast<uint16_t> ((*RFC6330__v1::blocks)[idx]) == symbols)
+            break;
+    }
+    // check that the user did not try some cast trickery,
+    // and maximum size is ssize_t::max. But ssize_t is not standard,
+    // so we search the maximum ourselves.
+    if (idx == (*RFC6330__v1::blocks).size())
+        return static_cast<Block_Size> (0);
+    return (*RFC6330__v1::blocks)[idx];
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -1443,6 +1466,25 @@ uint16_t Decoder<In_It, Fwd_It>::symbols (const uint8_t sbn) const
         return part.size (1);
     }
     return 0;
+}
+
+template <typename Rnd_It, typename Fwd_It>
+Block_Size Decoder<Rnd_It, Fwd_It>::extended_symbols (const uint8_t sbn) const
+{
+    const uint16_t symbols = this->symbols (sbn);
+    if (symbols == 0)
+        return static_cast<Block_Size> (0);
+    uint16_t idx;
+    for (idx = 0; idx < (*RFC6330__v1::blocks).size(); ++idx) {
+        if (static_cast<uint16_t> ((*RFC6330__v1::blocks)[idx]) == symbols)
+            break;
+    }
+    // check that the user did not try some cast trickery,
+    // and maximum size is ssize_t::max. But ssize_t is not standard,
+    // so we search the maximum ourselves.
+    if (idx == (*RFC6330__v1::blocks).size())
+        return static_cast<Block_Size> (0);
+    return (*RFC6330__v1::blocks)[idx];
 }
 
 }   // namespace Impl

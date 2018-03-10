@@ -515,6 +515,28 @@ uint16_t Encoder_void::symbols (const uint8_t sbn) const
     return 0;
 }
 
+Block_Size Encoder_void::extended_symbols (const uint8_t sbn) const
+{
+    const cast_enc _enc (_encoder);
+    switch (_type) {
+    case RaptorQ_type::RQ_ENC_8:
+        return _enc._8->extended_symbols (sbn);
+    case RaptorQ_type::RQ_ENC_16:
+        return _enc._16->extended_symbols (sbn);
+    case RaptorQ_type::RQ_ENC_32:
+        return _enc._32->extended_symbols (sbn);
+    case RaptorQ_type::RQ_ENC_64:
+        return _enc._64->extended_symbols (sbn);
+    case RaptorQ_type::RQ_DEC_8:
+    case RaptorQ_type::RQ_DEC_16:
+    case RaptorQ_type::RQ_DEC_32:
+    case RaptorQ_type::RQ_DEC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return static_cast<Block_Size> (0);
+}
+
 uint32_t Encoder_void::max_repair (const uint8_t sbn) const
 {
     const cast_enc _enc (_encoder);
@@ -1257,6 +1279,28 @@ uint16_t Decoder_void::symbols (const uint8_t sbn) const
         break;
     }
     return 0;
+}
+
+Block_Size Decoder_void::extended_symbols (const uint8_t sbn) const
+{
+    const cast_dec _dec (_decoder);
+    switch (_type) {
+    case RaptorQ_type::RQ_DEC_8:
+        return _dec._8->extended_symbols (sbn);
+    case RaptorQ_type::RQ_DEC_16:
+        return _dec._16->extended_symbols (sbn);
+    case RaptorQ_type::RQ_DEC_32:
+        return _dec._32->extended_symbols (sbn);
+    case RaptorQ_type::RQ_DEC_64:
+        return _dec._64->extended_symbols (sbn);
+    case RaptorQ_type::RQ_ENC_8:
+    case RaptorQ_type::RQ_ENC_16:
+    case RaptorQ_type::RQ_ENC_32:
+    case RaptorQ_type::RQ_ENC_64:
+    case RaptorQ_type::RQ_NONE:
+        break;
+    }
+    return static_cast<Block_Size> (0);
 }
 
 } // namespace Impl

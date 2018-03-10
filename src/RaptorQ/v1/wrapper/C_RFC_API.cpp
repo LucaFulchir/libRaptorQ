@@ -78,6 +78,8 @@ static bool v1_initialized (const struct RFC6330_ptr *ptr);
 // common functions
 static uint8_t  v1_blocks (const struct RFC6330_ptr *ptr);
 static uint16_t v1_symbols (const struct RFC6330_ptr *ptr, const uint8_t sbn);
+static RFC6330_Block_Size v1_extended_symbols (const struct RFC6330_ptr *ptr,
+                                                            const uint8_t sbn);
 static size_t v1_symbol_size (const struct RFC6330_ptr *ptr);
 static RFC6330_Error v1_future_state (const struct RFC6330_future *f);
 static RFC6330_Error v1_future_wait_for (const struct RFC6330_future *f,
@@ -190,6 +192,7 @@ RFC6330_v1::RFC6330_v1()
     // common functions
     blocks (&v1_blocks),
     symbols (&v1_symbols),
+    extended_symbols (&v1_extended_symbols),
     symbol_size (&v1_symbol_size),
     future_state (&v1_future_state),
     future_wait_for (&v1_future_wait_for),
@@ -532,6 +535,59 @@ static uint16_t v1_symbols (const struct RFC6330_ptr *ptr, const uint8_t sbn)
         break;
     }
     return 0;
+}
+
+static RFC6330_Block_Size v1_extended_symbols (const struct RFC6330_ptr *ptr,
+                                                            const uint8_t sbn)
+{
+    RFC6330__v1::Block_Size ret = static_cast<RFC6330__v1::Block_Size> (0);
+    if (ptr == nullptr || ptr->ptr == nullptr)
+        return static_cast<RFC6330_Block_Size> (ret);
+    switch (ptr->type) {
+    case RFC6330_type::RQ_ENC_8:
+        ret = (reinterpret_cast<const
+                            RFC6330__v1::Impl::Encoder<uint8_t*, uint8_t*>*> (
+                                            ptr->ptr))->extended_symbols (sbn);
+        break;
+    case RFC6330_type::RQ_ENC_16:
+        ret = (reinterpret_cast<const
+                            RFC6330__v1::Impl::Encoder<uint16_t*, uint16_t*>*> (
+                                            ptr->ptr))->extended_symbols (sbn);
+        break;
+    case RFC6330_type::RQ_ENC_32:
+        ret = (reinterpret_cast<const
+                            RFC6330__v1::Impl::Encoder<uint32_t*, uint32_t*>*> (
+                                            ptr->ptr))->extended_symbols (sbn);
+        break;
+    case RFC6330_type::RQ_ENC_64:
+        ret = (reinterpret_cast<const
+                            RFC6330__v1::Impl::Encoder<uint64_t*, uint64_t*>*> (
+                                            ptr->ptr))->extended_symbols (sbn);
+        break;
+    case RFC6330_type::RQ_DEC_8:
+        ret = (reinterpret_cast<const
+                            RFC6330__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
+                                            ptr->ptr))->extended_symbols (sbn);
+        break;
+    case RFC6330_type::RQ_DEC_16:
+        ret = (reinterpret_cast<const
+                            RFC6330__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
+                                            ptr->ptr))->extended_symbols (sbn);
+        break;
+    case RFC6330_type::RQ_DEC_32:
+        ret = (reinterpret_cast<const
+                            RFC6330__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
+                                            ptr->ptr))->extended_symbols (sbn);
+        break;
+    case RFC6330_type::RQ_DEC_64:
+        ret = (reinterpret_cast<const
+                            RFC6330__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
+                                            ptr->ptr))->extended_symbols (sbn);
+        break;
+    case RFC6330_type::RQ_NONE:
+        break;
+    }
+    return static_cast<RFC6330_Block_Size> (ret);
 }
 
 static size_t v1_symbol_size (const struct RFC6330_ptr *ptr)

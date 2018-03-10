@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2016-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -508,6 +508,8 @@ typedef enum {
     RQ_Block_55843 = 55843,
     RQ_Block_56403 = 56403
 } RaptorQ_Block_Size;
+
+typedef RaptorQ_Block_Size RFC6330_Block_Size;
 
 // I really do not like this code duplication, but sometimes code duplication
 // is better than trying to reference C++ code.
@@ -1306,4 +1308,13 @@ static const auto *blocks =
 #endif  //using_clang
 
 } // namespace RaptorQ__v1
+
+namespace RFC6330__v1 {
+
+using RaptorQ__v1::Block_Size;
+static const auto *blocks =
+            reinterpret_cast<const std::array<Block_Size, RQ_blocks_size> *> (
+                                                &RaptorQ__v1::Impl::K_padded);
+} // namespace RFC6330__v1
+
 #endif // defined(__cplusplus)&& ( __cplusplus >= 201103L || _MSC_VER > 1900 )

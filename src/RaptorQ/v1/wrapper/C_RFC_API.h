@@ -22,6 +22,7 @@
 
 #include "RaptorQ/v1/wrapper/C_common.h"
 #include "RaptorQ/v1/common.hpp"
+#include "RaptorQ/v1/block_sizes.hpp"
 #ifdef __cplusplus
 #include <cstdbool>
 #else
@@ -98,6 +99,9 @@ extern "C"
         uint8_t (*const blocks) (const struct RFC6330_ptr *ptr);
         uint16_t (*const symbols)     (const struct RFC6330_ptr *ptr,
                                                             const uint8_t sbn);
+        RFC6330_Block_Size (*const extended_symbols) (
+                                                const struct RFC6330_ptr *ptr,
+                                                const uint8_t sbn);
         size_t   (*const symbol_size) (const struct RFC6330_ptr *ptr);
         RFC6330_Error (*const future_state) (const struct RFC6330_future *f);
         RFC6330_Error (*const future_wait_for) (const struct RFC6330_future *f,

@@ -78,6 +78,7 @@ public:
     uint32_t block_size (const uint8_t sbn) const;
     uint16_t symbol_size() const;
     uint16_t symbols (const uint8_t sbn) const;
+    Block_Size extended_symbols (const uint8_t sbn) const;
     uint32_t max_repair (const uint8_t sbn) const;
 private:
     Impl::Encoder_void *_encoder;
@@ -145,6 +146,7 @@ public:
     uint32_t block_size (const uint8_t sbn) const;
     uint16_t symbol_size() const;
     uint16_t symbols (const uint8_t sbn) const;
+    Block_Size extended_symbols (const uint8_t sbn) const;
 private:
     Impl::Decoder_void *_decoder;
 };
@@ -332,6 +334,15 @@ inline uint16_t Encoder<Rnd_It, Fwd_It>::symbols (const uint8_t sbn) const
     if (_encoder == nullptr)
         return 0;
     return _encoder->symbols (sbn);
+}
+
+template <typename Rnd_It, typename Fwd_It>
+inline Block_Size Encoder<Rnd_It, Fwd_It>::extended_symbols (const uint8_t sbn)
+                                                                        const
+{
+    if (_encoder == nullptr)
+        return static_cast<Block_Size>(0);
+    return _encoder->extended_symbols (sbn);
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -643,6 +654,15 @@ inline uint16_t Decoder<In_It, Fwd_It>::symbols (const uint8_t sbn) const
     if (_decoder == nullptr)
         return 0;
     return _decoder->symbols (sbn);
+}
+
+template <typename In_It, typename Fwd_It>
+inline Block_Size Decoder<In_It, Fwd_It>::extended_symbols (const uint8_t sbn)
+                                                                        const
+{
+    if (_decoder == nullptr)
+        return static_cast<Block_Size> (0);
+    return _decoder->extended_symbols (sbn);
 }
 
 

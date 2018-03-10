@@ -22,6 +22,7 @@
 
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/C_common.h"
+#include "RaptorQ/v1/block_sizes.hpp"
 #if __cplusplus >= 201103L || _MSC_VER > 1900
 #include <future>
 #define RQ_EXPLICIT explicit
@@ -83,6 +84,7 @@ public:
     uint32_t block_size (const uint8_t sbn) const;
     uint16_t symbol_size() const;
     uint16_t symbols (const uint8_t sbn) const;
+    Block_Size extended_symbols (const uint8_t sbn) const;
     uint32_t max_repair (const uint8_t sbn) const;
 private:
     RaptorQ_type _type;
@@ -144,6 +146,7 @@ public:
     uint32_t block_size (const uint8_t sbn) const;
     uint16_t symbol_size() const;
     uint16_t symbols (const uint8_t sbn) const;
+    Block_Size extended_symbols (const uint8_t sbn) const;
 private:
     RaptorQ_type _type;
     void *_decoder;
