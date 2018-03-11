@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -65,6 +65,18 @@ public:
         concurrent = 0;
         can_retry = false;
         end_of_input = false;
+    }
+    Raw_Decoder (const Block_Size symbols, const size_t symbol_size,
+                                                const uint16_t padding_symbols)
+        :Raw_Decoder (symbols, symbol_size)
+    {
+        assert (padding_symbols <= static_cast<uint16_t> (symbols) &&
+                                            "RQ RFC Decoder: too much padding");
+
+        uint16_t to_pad = (static_cast<uint16_t> (symbols) - padding_symbols);
+        source_symbols.block(to_pad, 0, padding_symbols, symbol_size).setZero();
+        for (; to_pad < static_cast<uint16_t> (symbols); ++to_pad)
+            mask.add (to_pad);
     }
     ~Raw_Decoder();
     Raw_Decoder() = delete;

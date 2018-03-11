@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -187,6 +187,13 @@ public:
         return _enc->symbols (_block);
     }
 
+    Block_Size extended_symbols() const
+    {
+        if (_enc == nullptr)
+            return static_cast<Block_Size> (0);
+        return _enc->extended_symbols (_block);
+    }
+
     uint32_t block_size() const
     {
         if (_enc == nullptr)
@@ -352,6 +359,14 @@ public:
             return 0;
         return _dec->symbols (_block);
     }
+
+    Block_Size extended_symbols() const
+    {
+        if (_dec == nullptr)
+            return static_cast<Block_Size> (0);
+        return _dec->extended_symbols (_block);
+    }
+
 
     uint32_t block_size() const
     {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -346,7 +346,8 @@ public:
     Source_Block<Rnd_It> operator*() const;
     Source_Block<Rnd_It> operator[] (uint8_t source_block_id) const;
     Partition get_partition() const;
-    uint16_t source_symbols(const uint8_t SBN) const;
+    uint16_t source_symbols (const uint8_t SBN) const;
+    Block_Size extended_symbols (const uint8_t SBN) const;
     uint8_t blocks () const;
     uint16_t sub_blocks () const;
     uint16_t symbol_size() const;
@@ -585,6 +586,25 @@ uint16_t Interleaver<Rnd_It>::source_symbols (const uint8_t SBN) const
     if (SBN - _source_part.num (0) < _source_part.num (1))
         return _source_part.size (1);
     return 0;
+}
+
+template <typename Rnd_It>
+Block_Size Interleaver<Rnd_It>::extended_symbols (const uint8_t SBN) const
+{
+    const uint16_t symbols = source_symbols (SBN);
+    if (symbols == 0)
+        return static_cast<Block_Size> (0);
+    uint16_t idx;
+    for (idx = 0; idx < (*RFC6330__v1::blocks).size(); ++idx) {
+        if (static_cast<uint16_t> ((*RFC6330__v1::blocks)[idx]) >= symbols)
+            break;
+    }
+    // check that the user did not try some cast trickery,
+    // and maximum size is ssize_t::max. But ssize_t is not standard,
+    // so we search the maximum ourselves.
+    if (idx == (*RFC6330__v1::blocks).size())
+        return static_cast<Block_Size> (0);
+    return (*RFC6330__v1::blocks)[idx];
 }
 
 template <typename Rnd_It>

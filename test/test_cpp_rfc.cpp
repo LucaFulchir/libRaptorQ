@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Luca Fulchir<luker@fenrirproject.org>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luker@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -124,7 +124,8 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
         repair = overhead;
         ++blockid;
         std::cout << "Block " << blockid << " with " << block.symbols() <<
-                                                                " symbols\n";
+                                            " symbols. Real block size:" <<
+                    static_cast<uint16_t> (block.extended_symbols()) << "\n";
         // Now get the source and repair symbols.
         // make sure that at the end we end with "block.symbols() + overhead"
         // symbols, so that decoding is possible

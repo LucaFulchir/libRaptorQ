@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -183,9 +183,10 @@ template <typename R_It, typename F_It, typename I,
 Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::Raw_Encoder (
         RFC6330__v1::Impl::Interleaver<Rnd_It> *interleaver, const uint8_t sbn)
     : _symbol_size (interleaver->symbol_size()),
-      _symbols (interleaver->source_symbols (sbn)), _SBN (sbn),
-      _type (test_computation()), precode_on  (nullptr), precode_off (nullptr),
-      _interleaver (interleaver), _from (nullptr), _to (nullptr)
+      _symbols (static_cast<uint16_t> (interleaver->extended_symbols (sbn))),
+      _SBN (sbn), _type (test_computation()),
+      precode_on  (nullptr), precode_off (nullptr),
+     _interleaver (interleaver), _from (nullptr), _to (nullptr)
 {
     IS_RANDOM(Rnd_It, "RaptorQ__v1::Impl::Encoder");
     IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::Encoder");

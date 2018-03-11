@@ -482,6 +482,7 @@ int main (int argc, char **argv)
         std::cout << "\tuse this to verify the library performance\n";
         std::cout << "\tUsage:\t\t" << argv[0] << " [threads]\n";
         std::cout << "\trfc test:\t" << argv[0] << " conformity file\n";
+        std::cout << "\tprint results:\t" << argv[0] << " print file\n";
         return 0;
     }
 

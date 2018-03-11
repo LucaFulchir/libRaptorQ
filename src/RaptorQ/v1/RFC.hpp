@@ -355,10 +355,11 @@ private:
     // TODO: tagged pointer
     class RAPTORQ_LOCAL Dec {
     public:
-        Dec (const RaptorQ__v1::Block_Size symbols, const uint16_t symbol_size)
+        Dec (const RaptorQ__v1::Block_Size symbols, const uint16_t symbol_size,
+                                                const uint16_t padding_symbols)
         {
             dec = std::make_shared<RaptorQ__v1::Impl::Raw_Decoder<In_It>> (
-                                                          symbols, symbol_size);
+                                        symbols, symbol_size, padding_symbols);
             reported = false;
         }
         std::shared_ptr<RaptorQ__v1::Impl::Raw_Decoder<In_It>> dec;
@@ -692,6 +693,11 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
     if (sbn >= interleave.blocks())
         return 0;
 
+    const uint32_t syms = this->symbols (sbn);
+    const uint32_t padding = static_cast<uint16_t>(this->extended_symbols (sbn))
+                                                                        - syms;
+    const uint32_t real_esi = esi < syms ? esi : esi + padding;
+
     std::unique_lock<std::mutex> lock (_mtx);
     auto it = encoders.find (sbn);
     if (use_pool) {
@@ -701,7 +707,7 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
         if (!shared_enc->ready())
             return 0;
         lock.unlock();
-        return shared_enc->Enc (esi, output, end);
+        return shared_enc->Enc (real_esi, output, end);
     } else {
         if (it == encoders.end()) {
             bool success;
@@ -712,13 +718,13 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
             RaptorQ__v1::Work_State state =
                                         RaptorQ__v1::Work_State::KEEP_WORKING;
             shared_enc->generate_symbols (&state);
-            return shared_enc->Enc (esi, output, end);
+            return shared_enc->Enc (real_esi, output, end);
         } else {
             auto shared_enc = it->second.enc;
             lock.unlock();
             if (!shared_enc->ready())
                 return 0;
-            return shared_enc->Enc (esi, output, end);
+            return shared_enc->Enc (real_esi, output, end);
         }
     }
 }
@@ -773,18 +779,7 @@ Block_Size Encoder<Rnd_It, Fwd_It>::extended_symbols (const uint8_t sbn) const
         // outside of the enum, but you should have checked the
         // initialization anyway. not relly nice either way
         return static_cast<Block_Size> (0);
-    const uint16_t symbols = interleave.source_symbols (sbn);
-    uint16_t idx;
-    for (idx = 0; idx < (*RFC6330__v1::blocks).size(); ++idx) {
-        if (static_cast<uint16_t> ((*RFC6330__v1::blocks)[idx]) == symbols)
-            break;
-    }
-    // check that the user did not try some cast trickery,
-    // and maximum size is ssize_t::max. But ssize_t is not standard,
-    // so we search the maximum ourselves.
-    if (idx == (*RFC6330__v1::blocks).size())
-        return static_cast<Block_Size> (0);
-    return (*RFC6330__v1::blocks)[idx];
+    return interleave.extended_symbols (sbn);
 }
 
 template <typename Rnd_It, typename Fwd_It>
@@ -851,20 +846,28 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
         return Error::INITIALIZATION;
     if (sbn >= _blocks)
         return Error::WRONG_INPUT;
+
+    const uint16_t syms = this->symbols (sbn);
+    const Block_Size b_size = this->extended_symbols (sbn);
+    // we might have padding symbols. add thse to the esi.
+    const uint16_t padding = static_cast<uint16_t> (b_size) - syms;
+    const uint32_t real_esi = esi < syms ? esi : esi + padding;
+
+    bool added_decoder = false;
+
     std::unique_lock<std::mutex> lock (_mtx);
     auto it = decoders.find (sbn);
     if (it == decoders.end()) {
-        const uint16_t symbols = sbn < part.num (0) ?
-                                                    part.size(0) : part.size(1);
         bool success;
         std::tie (it, success) = decoders.emplace (std::make_pair(sbn,
-            Dec (static_cast<RaptorQ__v1::Block_Size>(symbols), _symbol_size)));
+                                        Dec (b_size, _symbol_size, padding)));
         assert (success);
+        added_decoder = true;
     }
     auto dec = it->second.dec;
     lock.unlock();
 
-    auto err = dec->add_symbol (start, end, esi);
+    auto err = dec->add_symbol (start, end, real_esi);
     if (err != Error::NONE)
         return err;
     // automatically add work to pool if we use it and have enough data
@@ -1476,7 +1479,7 @@ Block_Size Decoder<Rnd_It, Fwd_It>::extended_symbols (const uint8_t sbn) const
         return static_cast<Block_Size> (0);
     uint16_t idx;
     for (idx = 0; idx < (*RFC6330__v1::blocks).size(); ++idx) {
-        if (static_cast<uint16_t> ((*RFC6330__v1::blocks)[idx]) == symbols)
+        if (static_cast<uint16_t> ((*RFC6330__v1::blocks)[idx]) >= symbols)
             break;
     }
     // check that the user did not try some cast trickery,
