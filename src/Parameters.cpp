@@ -138,3 +138,12 @@ std::vector<uint16_t> RaptorQ::Impl::Parameters::get_idxs (const uint32_t ISI)
 	}
 	return ret;
 }
+
+uint16_t RaptorQ::Impl::extended_source_symbols (const uint16_t symbols)
+{
+	for (uint16_t idx = 0; idx < RaptorQ::Impl::K_padded.size(); ++idx) {
+		if (RaptorQ::Impl::K_padded[idx] >= symbols)
+			return RaptorQ::Impl::K_padded[idx];
+	}
+	return 0;
+}

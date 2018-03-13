@@ -62,6 +62,9 @@ private:
 	static bool is_prime (const uint16_t n);
 };
 
+RAPTORQ_API uint16_t extended_source_symbols (const uint16_t symbols);
+
+
 class RAPTORQ_LOCAL Octet
 {
 public:

@@ -31,6 +31,7 @@
 /////////////////////
 
 #include "Interleaver.hpp"
+#include "Parameters.hpp"
 #include "De_Interleaver.hpp"
 #include "Encoder.hpp"
 #include "Decoder.hpp"
@@ -583,6 +584,10 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
         return 0;
     if (sbn >= interleave->blocks())
         return 0;
+    const uint16_t syms = interleave->source_symbols (sbn);
+    const uint16_t padding = Impl::extended_source_symbols (syms) - syms;
+    const uint16_t real_esi = esi < syms ? esi : esi + padding;
+
     _mtx.lock();
     auto it = encoders.find (sbn);
     if (it == encoders.end()) {
@@ -593,14 +598,14 @@ uint64_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
     }
     auto enc_ptr = it->second;
     _mtx.unlock();
-    if (esi >= interleave->source_symbols (sbn)) {
+    if (esi >= syms) {
         // make sure we generated the intermediate symbols
         enc_ptr->_mtx.lock();
         enc_ptr->_enc.generate_symbols();
         enc_ptr->_mtx.unlock();
     }
 
-    return enc_ptr->_enc.Enc (esi, output, end);
+    return enc_ptr->_enc.Enc (real_esi, output, end);
 }
 
 
@@ -688,6 +693,7 @@ bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 {
     if (sbn >= _blocks)
         return false;
+
     _mtx.lock();
     auto it = decoders.find (sbn);
     if (it == decoders.end()) {
@@ -695,6 +701,7 @@ bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
                                                     part.size(0) : part.size(1);
         decoders.insert ({sbn, std::make_shared<Impl::Decoder<In_It>> (
                                                     symbols, _symbol_size)});
+
         it = decoders.find (sbn);
     }
     auto dec = it->second;
