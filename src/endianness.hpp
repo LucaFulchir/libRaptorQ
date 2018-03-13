@@ -43,25 +43,25 @@ namespace Impl {
 namespace Endian {
 
 enum class Endianness : uint8_t {
-    LITTLE, // x86
-    BIG     // arm, network...
+	LITTLE, // x86
+	BIG     // arm, network...
 };
 
 constexpr Endianness RAPTORQ_LOCAL get_endianness()
 {
 #if (defined(RQ_BIG_ENDIAN) && !defined(RQ_LITTLE_ENDIAN))
-    return Endianness::BIG;
+	return Endianness::BIG;
 #elif (defined(RQ_LITTLE_ENDIAN) && !defined(RQ_BIG_ENDIAN))
-    return Endianness::LITTLE;
+	return Endianness::LITTLE;
 #else
-    // no real way to check for the endianness at compile time.
-    // also, if you can do some trick at compile time with constexpr,
-    // note that it will not work when cross-compiling, since the compiler
-    // that executes the constexpr is still the one with the same endianness
-    // or at least, that is what I could get to with https://gcc.godbolt.org/
-    static_assert (false, "RQ: Please specify the endianness with "
-                                                        "-DRQ_LITTLE_ENDIAN "
-                                                        "or -DRQ_BIG_ENDIAN");
+	// no real way to check for the endianness at compile time.
+	// also, if you can do some trick at compile time with constexpr,
+	// note that it will not work when cross-compiling, since the compiler
+	// that executes the constexpr is still the one with the same endianness
+	// or at least, that is what I could get to with https://gcc.godbolt.org/
+	static_assert (false, "RQ: Please specify the endianness with "
+														"-DRQ_LITTLE_ENDIAN "
+														"or -DRQ_BIG_ENDIAN");
 #endif
 }
 
@@ -69,30 +69,30 @@ constexpr Endianness RAPTORQ_LOCAL get_endianness()
 template<typename T>
 constexpr T rev (const T in, const T acc, const uint8_t i)
 {
-    return (i >= sizeof(T)) ? acc :
-                            rev (in >> 8, (acc << 8) | (in & T{0xFF}), i + 1);
+	return (i >= sizeof(T)) ? acc :
+							rev (in >> 8, (acc << 8) | (in & T{0xFF}), i + 1);
 }
 
 template<typename T>
 constexpr T RAPTORQ_LOCAL rev (const T el)
-    { return rev<T> (el, T{0}, 0); }
+	{ return rev<T> (el, T{0}, 0); }
 
 template<typename T>
 constexpr T RAPTORQ_LOCAL h_to_b (const T host)
-    { return (get_endianness() == Endianness::BIG) ? host : rev<T> (host); }
+	{ return (get_endianness() == Endianness::BIG) ? host : rev<T> (host); }
 
 template<typename T>
 constexpr T RAPTORQ_LOCAL h_to_l (const T host)
-    { return (get_endianness() == Endianness::LITTLE) ? host : rev<T> (host); }
+	{ return (get_endianness() == Endianness::LITTLE) ? host : rev<T> (host); }
 
 template<typename T>
 constexpr T RAPTORQ_LOCAL b_to_h (const T big)
-    { return (get_endianness() == Endianness::BIG) ? big : rev<T> (big); }
+	{ return (get_endianness() == Endianness::BIG) ? big : rev<T> (big); }
 
 template<typename T>
 constexpr T RAPTORQ_LOCAL l_to_h (const T little)
 {
-    return (get_endianness() == Endianness::LITTLE) ? little : rev<T> (little);
+	return (get_endianness() == Endianness::LITTLE) ? little : rev<T> (little);
 }
 
 

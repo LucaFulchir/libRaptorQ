@@ -87,9 +87,9 @@ int main (const int argc, const char **argv)
 	}
 
 	std::string filename (argv[1]);
-    std::fstream lib;
+	std::fstream lib;
 
-    lib.open (filename);
+	lib.open (filename);
 	if (!lib.is_open()) {
 		std::cout << "Can not open the library\n";
 		std::cout << "Usage: " << argv[0] << " static_library.a\n";

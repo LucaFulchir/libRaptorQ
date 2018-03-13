@@ -73,7 +73,7 @@ uint64_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
 	}
 	while (start != end && sub_blk < (_sub_blocks.num(0) + _sub_blocks.num(1))){
 		element += static_cast<T> (static_cast<uint8_t>((*_symbols)(
-                                          esi, static_cast<int32_t> (byte))))
+										  esi, static_cast<int32_t> (byte))))
 															<< offset_al * 8;
 		++offset_al;
 		if (offset_al >= sizeof(T)) {
