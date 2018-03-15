@@ -437,7 +437,7 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
     // rfc 6330, pg 35
 
     // U_Lower parameters (u x u):
-    const uint16_t row_start = i, row_end = static_cast<uint16_t> (_params.L);
+    const uint16_t row_start = i, row_end = static_cast<uint16_t> (A.rows());
     const uint16_t col_start = static_cast<uint16_t> (A.cols() - u);
     // try to bring U_Lower to Identity with gaussian elimination.
     // remember that all row swaps affect A as well, not just U_Lower
@@ -448,6 +448,8 @@ bool Precode_Matrix<IS_OFFLINE>::decode_phase2 (DenseMtx &D, const uint16_t i,
         // make sure the considered row has nonzero on the diagonal
         uint16_t row_nonzero = row;
         const uint16_t col_diag = col_start + (row - row_start);
+        if (col_diag >= _params.L)
+            break;
         for (; row_nonzero < row_end; ++row_nonzero) {
             if (static_cast<uint8_t> (A (row_nonzero, col_diag)) != 0) {
                 break;
