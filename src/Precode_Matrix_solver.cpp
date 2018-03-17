@@ -250,6 +250,8 @@ std::tuple<bool, uint16_t, uint16_t>
 			} else {
 				// non_zero > non_zero_tmp)
 				non_zero = non_zero_tmp;
+                                if (only_two_ones && non_zero == 1)
+                                    only_two_ones = false;
 				r_rows.clear();
 				r_rows.emplace_back (row, ones_idx[0]);
 			}
@@ -257,7 +259,7 @@ std::tuple<bool, uint16_t, uint16_t>
 			if (ones == 2) {
 				// track the maximum component in the graph
 				if (non_zero == 2) {
-					if (!tracking[row].first)	// if not HDPC row
+					if (!tracking[row + i].first)	// if not HDPC row
 						G.connect (ones_idx[0], ones_idx[1]);
 					if (!only_two_ones) {
 						// must keep only rows with two ones,
