@@ -81,7 +81,7 @@ template<typename T>
 constexpr T rev (const T in, const T acc, const uint8_t i)
 {
     return (i >= sizeof(T)) ? acc :
-                            rev (in >> 8, (acc << 8) | (in & T{0xFF}), i + 1);
+                            rev<T> (in >> 8, (acc << 8) | (in & T{0xFF}), i + 1);
 }
 
 template<typename T>
