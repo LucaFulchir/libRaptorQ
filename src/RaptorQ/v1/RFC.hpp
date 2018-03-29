@@ -1323,7 +1323,7 @@ size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
     auto it = decoders.find (sbn);
 
     if (it == decoders.end())
-        return 0;   // did not receiveany data yet.
+        return 0;   // did not receive any data yet.
 
     if (use_pool) {
         dec_ptr = it->second.dec;

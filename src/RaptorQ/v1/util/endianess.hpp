@@ -22,17 +22,6 @@
 
 #include "RaptorQ/v1/common.hpp"
 
-#if !(defined(RQ_BIG_ENDIAN) && defined(RQ_LITTLE_ENDIAN))
-// try to include system specific stuff so we can check with which endianness
-// we are working with
-#ifdef _WIN32
-#include<Winsock2.h>
-#else
-#include<arpa/inet.h>
-#endif
-#endif
-
-
 // Some will argue that this is unnecessary,
 // that we do not really need it, and just using
 // htonl every time is enough.
