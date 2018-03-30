@@ -1199,7 +1199,9 @@ uint64_t Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
     // decoder has decoded the block
 
     Impl::De_Interleaver<Fwd_It> de_interleaving (dec_ptr->get_symbols(),
-                                                    _sub_blocks, _alignment);
+                                                                _sub_blocks,
+                                                                symbols (sbn),
+                                                                _alignment);
     size_t max_bytes = block_size (sbn);
     if (sbn == (blocks() - 1)) {
         // size of the data (_size) is different from the sum of the size of
@@ -1265,7 +1267,9 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
         }
 
         Impl::De_Interleaver<Fwd_It> de_interleaving (dec_ptr->get_symbols(),
-                                                    _sub_blocks, _alignment);
+                                                                _sub_blocks,
+                                                                symbols (sbn),
+                                                                _alignment);
 
         size_t max_bytes = block_size (sbn);
         if (sbn == (blocks() - 1)) {
@@ -1346,7 +1350,9 @@ size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
     // decoder has decoded the block
 
     Impl::De_Interleaver<Fwd_It> de_interleaving (dec_ptr->get_symbols(),
-                                                    _sub_blocks, _alignment);
+                                                                _sub_blocks,
+                                                                symbols (sbn),
+                                                                _alignment);
     size_t max_bytes = block_size (sbn);
     if (sbn == (blocks() - 1)) {
         // size of the data (_size) is different from the sum of the size of

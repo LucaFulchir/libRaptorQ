@@ -38,8 +38,10 @@ public:
     De_Interleaver& operator= (De_Interleaver &&) = default;
     De_Interleaver (const RaptorQ__v1::Impl::DenseMtx *symbols,
                                                     const Partition sub_blocks,
+                                                    const uint16_t max_esi,
                                                     const uint8_t alignment)
-        :_symbols (symbols), _sub_blocks (sub_blocks), _al (alignment)
+        :_symbols (symbols), _sub_blocks (sub_blocks), _max_esi (max_esi),
+                                                                _al (alignment)
     {
         IS_FORWARD(Fwd_It, "RaptorQ__v1::Impl::De_Interleaver");
     }
@@ -48,6 +50,7 @@ public:
 private:
     const RaptorQ__v1::Impl::DenseMtx *_symbols;
     const Partition _sub_blocks;
+    const uint16_t _max_esi;
     const uint8_t _al;
 };
 
@@ -63,7 +66,6 @@ size_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
     uint32_t subsym_byte = 0;
     uint16_t esi = from_esi;
     uint16_t sub_blk = 0;
-    const uint16_t max_esi = static_cast<uint16_t> (_symbols->rows());
     uint16_t sub_sym_size = _al *(_sub_blocks.num(0) > 0 ? _sub_blocks.size(0) :
                                                       _sub_blocks.size(1));
     // if the Fwd_It::value_type is not aligned with the block size,
@@ -97,7 +99,7 @@ size_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
         if (subsym_byte == sub_sym_size) {
             subsym_byte = 0;
             ++esi;
-            if (esi >= max_esi) {
+            if (esi >= _max_esi) {
                 esi = 0;
                 ++sub_blk;
             }

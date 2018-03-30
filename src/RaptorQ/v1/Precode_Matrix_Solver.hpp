@@ -568,8 +568,17 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
                                         Op_Vec &ops, bool &keep_working,
                                         const Work_State *thread_keep_working)
 {
-    // rc 6330, pg 36
-    for (uint16_t j = 0; j <= i; ++j) {
+    // rfc 6330, pg 36
+    //
+    // For j from 1 to i, perform the following operations:
+    //
+    // 1.  If A[j,j] is not one, then divide row j of A by A[j,j].
+    //
+    // 2.  For l from 1 to j-1, if A[j,l] is nonzero, then add A[j,l]
+    //     multiplied with row l of A to row j of A.
+    //
+
+    for (uint16_t j = 0; j < i; ++j) {
         if (stop (keep_working, thread_keep_working))
             return;
         if (static_cast<uint8_t> (A (j, j)) != 1) {
@@ -580,13 +589,13 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
             if (IS_OFFLINE == Save_Computation::ON)
                 ops.emplace_back (Operation::_t::DIV, j, multiple);
         }
-        for (uint16_t tmp = 0; tmp < j; ++tmp) {    //tmp == "l" in rfc6330
-            const auto multiple = A (j, tmp);
+        for (uint16_t col = 0; col < j; ++col) {    // col == "l" in rfc6330
+            const auto multiple = A (j, col);
             if (static_cast<uint8_t> (multiple) != 0) {
-                A.row (j) += A.row (tmp) * multiple;
-                D.row (j) += D.row (tmp) * multiple;
+                A.row (j) += A.row (col) * multiple;
+                D.row (j) += D.row (col) * multiple;
                 if (IS_OFFLINE == Save_Computation::ON)
-                    ops.emplace_back (Operation::_t::ADD_MUL, j, tmp, multiple);
+                    ops.emplace_back (Operation::_t::ADD_MUL, j, col, multiple);
             }
         }
     }
