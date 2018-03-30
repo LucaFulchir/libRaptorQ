@@ -1,4 +1,4 @@
-v1.0.0 (alpha):
+v1.0.0 (beta):
     * C++98 compatibility (untested)
     * we are now a header-only library that can be compiled and linked to C/C++98, with RFC and RAW API
     * RAW API block size is now typesafe.
@@ -9,10 +9,12 @@ v1.0.0 (alpha):
     * precomputation caching
     * cached result can be compressed (raw/LZ4)
     * RFC API: global multithreading instead of per-class
+    * RFC compliance
     * CLI tool for raw API
     * OSX/BSD support
 v0.1.10 (unreleased):
     * backported MAC/FreeBSD support (and incomplete windows)
+    * backported RFC compliance
 v0.1.9:
     * remember to bump up version in the cmake -.-'
     * squashed warnings for gcc & clang in 32 bit mode.
