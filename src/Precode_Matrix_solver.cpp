@@ -481,18 +481,18 @@ void Precode_Matrix::decode_phase4 (DenseMtx &D, const uint16_t i,
 void Precode_Matrix::decode_phase5 (DenseMtx &D, const uint16_t i)
 {
 	// rc 6330, pg 36
-	for (uint16_t j = 0; j <= i; ++j) {
+	for (uint16_t j = 0; j < i; ++j) {
 		if (static_cast<uint8_t> (A (j, j)) != 1) {
 			// A(j, j) is actually never 0, by construction.
 			const auto multiple = A (j, j);
 			A.row (j) /= multiple;
 			D.row (j) /= multiple;
 		}
-		for (uint16_t tmp = 0; tmp < j; ++tmp) {	//tmp == "l" in rfc6330
-			const auto multiple = A (j, tmp);
+		for (uint16_t col = 0; col < j; ++col) {	// col == "l" in rfc6330
+			const auto multiple = A (j, col);
 			if (static_cast<uint8_t> (multiple) != 0) {
-				A.row (j) += A.row (tmp) * multiple;
-				D.row (j) += D.row (tmp) * multiple;
+				A.row (j) += A.row (col) * multiple;
+				D.row (j) += D.row (col) * multiple;
 			}
 		}
 	}

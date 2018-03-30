@@ -694,6 +694,10 @@ bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 	if (sbn >= _blocks)
 		return false;
 
+	const uint16_t syms = symbols (sbn);
+	const uint16_t padding = Impl::extended_source_symbols (syms) - syms;
+	const uint16_t real_esi = esi < syms ? esi : esi + padding;
+
 	_mtx.lock();
 	auto it = decoders.find (sbn);
 	if (it == decoders.end()) {
@@ -707,7 +711,7 @@ bool Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 	auto dec = it->second;
 	_mtx.unlock();
 
-	return dec->add_symbol (start, end, esi);
+	return dec->add_symbol (start, end, real_esi);
 }
 
 template <typename In_It, typename Fwd_It>
@@ -739,7 +743,9 @@ uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end)
 		auto dec = it->second;
 		_mtx.unlock();
 		Impl::De_Interleaver<Fwd_It> de_interleaving (dec->get_symbols(),
-													_sub_blocks, _alignment);
+																_sub_blocks,
+																symbols (sbn),
+																_alignment);
 		auto tmp_start = start;
 		uint64_t tmp_written = de_interleaving (tmp_start, end, skip);
 		if (tmp_written == 0)
@@ -786,7 +792,9 @@ uint64_t Decoder<In_It, Fwd_It>::decode (Fwd_It &start, const Fwd_It end,
 		return 0;
 
 	Impl::De_Interleaver<Fwd_It> de_interleaving (dec->get_symbols(),
-													_sub_blocks, _alignment);
+																_sub_blocks,
+																symbols (sbn),
+																_alignment);
 	return de_interleaving (start, end);
 }
 
