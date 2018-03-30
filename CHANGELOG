@@ -1,5 +1,12 @@
-v0.1.10(unreleased):
+v0.1.10:
+    NOTE: This realease is now RFC compliant
+      but it is also incompatible with previous versions!
+        Please update and do not use older versions!
+
     * backported MAC/FreeBSD support (and incomplete windows)
+    * backported bugfixes in the matrix computation
+    * backported bugfixes in the esi numbering
+    * backported correct endianness usage
 v0.1.9:
     * remember to bump up version in the cmake -.-'
     * squashed warnings for gcc & clang in 32 bit mode.

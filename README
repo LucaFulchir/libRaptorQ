@@ -26,6 +26,10 @@ Windows *should* work too, provided you use a complier that understands C++11
 (hint: you might have some problems with VisualC++, but that's not a C++
 compiler anyway)
 
+Current stable version in this branch is 0.1.10
+Due to serious bugs, previous versions are incompatible
+and NOT RFC COMPLIANT. v0.1.10 has received more testing,
+bugfixing and can be considered rfc compliant.
 
 ##############
 #
@@ -62,16 +66,10 @@ signatures, so you can import my key with:
 $ gpg --keyserver pgp.mit.edu --recv-key F61F6137
 2015 key:
 $ gpg --keyserver pgp.mit.edu --recv-key D42DDF0A
+long term key (2018+):
+$ gpg --keyserver pgp.mit.edu --recv-key 7393DAD255BEB5751DBDA04AB11CD823BA278C85
 
-please check the full fingerprint, it should be like this:
-
-$ gpg2 --fingerprint F61F6137
-pub   rsa2048/F61F6137 2016-01-11 [expires: 2017-01-25]
-      Key fingerprint = 95EB 6FA4 03D7 29A7 13C2  FC9F F85A DA1C F61F 6137
-uid         [ultimate] Luca Fulchir (2016 key) <luker@fenrirproject.org>
-full 2015 fingerprint:
-Key fingerprint = AB35 E45F 5CA5 E35B 8B55  818F 0157 D133 D42D DF0A
- 
+please check the full fingerprint
 
 Now you have the source, and the key, it's enough to check the signature of the
 last commit:
