@@ -592,7 +592,9 @@ void Precode_Matrix<IS_OFFLINE>::decode_phase5 (DenseMtx &D, const uint16_t i,
         for (uint16_t col = 0; col < j; ++col) {    // col == "l" in rfc6330
             const auto multiple = A (j, col);
             if (static_cast<uint8_t> (multiple) != 0) {
-                A.row (j) += A.row (col) * multiple;
+                // this row of A is not read again, so we can avoid making
+                // this ADD_MUL on A
+                // A.row (j) += A.row (col) * multiple;
                 D.row (j) += D.row (col) * multiple;
                 if (IS_OFFLINE == Save_Computation::ON)
                     ops.emplace_back (Operation::_t::ADD_MUL, j, col, multiple);
