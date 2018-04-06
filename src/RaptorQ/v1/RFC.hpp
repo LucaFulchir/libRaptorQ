@@ -930,16 +930,6 @@ std::vector<bool> Decoder<In_It, Fwd_It>::end_of_input (
                                                 symbols (sbn),
                                                 _alignment);
             uint32_t block_bytes = block_size (sbn);
-            if (sbn == (blocks() - 1)) {
-                // size of the data (_size) is different from the sum of the size of
-                // all blocks. get the real size, so we do not write more.
-                // we obviously need to consider this only for the last block.
-                uint64_t all_blocks = 0;
-                for (uint8_t id = 0; id < blocks(); ++id)
-                    all_blocks += block_size (sbn);
-                const uint64_t diff = all_blocks - _size;
-                block_bytes -= static_cast<size_t>(diff);
-            }
             auto block_bitmask = de_interleaving.symbols_to_bytes (block_bytes,
                                                     std::move(real_symbols));
             assert (ret.size() - ret_idx >= block_bitmask.size());
@@ -990,16 +980,6 @@ std::vector<bool> Decoder<In_It, Fwd_It>::end_of_input (
                                                 symbols (block),
                                                 _alignment);
     uint32_t block_bytes = block_size (block);
-    if (block == (blocks() - 1)) {
-        // size of the data (_size) is different from the sum of the size of
-        // all blocks. get the real size, so we do not write more.
-        // we obviously need to consider this only for the last block.
-        uint64_t all_blocks = 0;
-        for (uint8_t id = 0; id < blocks(); ++id)
-            all_blocks += block_size (block);
-        const uint64_t diff = all_blocks - _size;
-        block_bytes -= static_cast<size_t>(diff);
-    }
     ret = de_interleaving.symbols_to_bytes (block_bytes,
                                                     std::move(symbol_bitmask));
     dec_lock.unlock();
@@ -1294,16 +1274,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
                                                                 symbols (sbn),
                                                                 _alignment);
     size_t max_bytes = block_size (sbn);
-    if (sbn == (blocks() - 1)) {
-        // size of the data (_size) is different from the sum of the size of
-        // all blocks. get the real size, so we do not write more.
-        // we obviously need to consider this only for the last block.
-        uint64_t all_blocks = 0;
-        for (uint8_t id = 0; id < blocks(); ++id)
-            all_blocks += block_size (sbn);
-        const uint64_t diff = all_blocks - _size;
-        max_bytes -= static_cast<size_t>(diff);
-    }
+
     // find the end:
     auto real_end = start;
     size_t fwd_iter_for_symbol = symbol_size() /
@@ -1363,16 +1334,7 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
                                                                 _alignment);
 
         size_t max_bytes = block_size (sbn);
-        if (sbn == (blocks() - 1)) {
-            // size of the data (_size) is different from the sum of the size of
-            // all blocks. get the real size, so we do not write more.
-            // we obviously need to consider this only for the last block.
-            uint64_t all_blocks = 0;
-            for (uint8_t id = 0; id < blocks(); ++id)
-                all_blocks += block_size (sbn);
-            const size_t diff = static_cast<size_t> (all_blocks - _size);
-            max_bytes -= diff;
-        }
+
         auto tmp_start = start;
         uint64_t bytes_written = de_interleaving (tmp_start, end, max_bytes,
                                                                     new_skip);
@@ -1445,16 +1407,7 @@ size_t Decoder<In_It, Fwd_It>::decode_block_bytes (Fwd_It &start,
                                                                 symbols (sbn),
                                                                 _alignment);
     size_t max_bytes = block_size (sbn);
-    if (sbn == (blocks() - 1)) {
-        // size of the data (_size) is different from the sum of the size of
-        // all blocks. get the real size, so we do not write more.
-        // we obviously need to consider this only for the last block.
-        uint64_t all_blocks = 0;
-        for (uint8_t id = 0; id < blocks(); ++id)
-            all_blocks += block_size (sbn);
-        const uint64_t diff = all_blocks - _size;
-        max_bytes -= static_cast<size_t>(diff);
-    }
+
     return de_interleaving (start, end, max_bytes, skip);
 }
 
@@ -1540,12 +1493,23 @@ uint32_t Decoder<In_It, Fwd_It>::block_size (const uint8_t sbn) const
     if (!operator bool())
         return 0;
 
+    size_t ret = 0;
     if (sbn < part.num (0)) {
-        return part.size (0) * _symbol_size;
+        ret = part.size (0) * _symbol_size;
     } else if (sbn - part.num (0) < part.num (1)) {
-        return part.size (1) * _symbol_size;
+        ret = part.size (1) * _symbol_size;
     }
-    return 0;
+    if (ret != 0 && sbn == (part.num (0) + part.num (1) - 1)) {
+        // the size of the data (_size) is different from the sum of the size of
+        // all blocks. Get the real size, so we do not write more.
+        // we obviously need to consider this only for the last block.
+        size_t left = ret;
+        left -= part.num (0) * part.size (0) * _symbol_size;
+        if (part.num (1) > 1)
+            left -= (part.num (1) - 1) * part.size (1) * _symbol_size;
+        ret = static_cast<uint32_t> (left);
+    }
+    return ret;
 }
 
 template <typename In_It, typename Fwd_It>
