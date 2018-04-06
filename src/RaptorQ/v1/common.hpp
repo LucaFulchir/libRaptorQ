@@ -190,6 +190,10 @@ enum class Compute : uint8_t {
     NO_RETRY = RQ_COMPUTE_NO_RETRY
 };
 
+// tracks C_common.h/RaptorQ_Fill_With_Zeros
+enum class Fill_With_Zeros : uint8_t { NO  = RQ_NO_FILL,
+                                       YES = RQ_FILL_WITH_ZEROS };
+
 inline Compute operator| (const Compute a, const Compute b)
 {
     return static_cast<Compute> (static_cast<uint8_t> (a) |
@@ -216,6 +220,7 @@ namespace Impl {
 using Compute = RaptorQ__v1::Compute;
 using Compress = RaptorQ__v1::Compress;
 using Error = RaptorQ__v1::Error;
+using Fill_With_Zeros = RaptorQ__v1::Fill_With_Zeros;
 using Work_State = RaptorQ__v1::Work_State;
 
 // dieffrent than RaptorQ_v1::Decoder_written

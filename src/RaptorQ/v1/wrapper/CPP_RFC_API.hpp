@@ -23,6 +23,7 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/CPP_RFC_API_void.hpp"
 #include "RaptorQ/v1/RFC_Iterators.hpp"
+#include <vector>
 #include <cmath>
 #if __cplusplus >= 201103L || _MSC_VER > 1900
 #include <future>
@@ -115,8 +116,9 @@ public:
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     #endif
 
-    void end_of_input (const uint8_t block);
-    void end_of_input();
+    std::vector<bool> end_of_input (const Fill_With_Zeros fill,
+                                                        const uint8_t block);
+    std::vector<bool> end_of_input (const Fill_With_Zeros fill);
 
     uint64_t decode_symbol (Fwd_It &start, const Fwd_It end, const uint16_t esi,
                                                             const uint8_t sbn);
@@ -476,17 +478,22 @@ inline std::future<std::pair<Error, uint8_t>> Decoder<In_It, Fwd_It>::compute (
 #endif
 
 template <typename In_It, typename Fwd_It>
-inline void Decoder<In_It, Fwd_It>::end_of_input (const uint8_t block)
+inline std::vector<bool> Decoder<In_It, Fwd_It>::end_of_input (
+                                                    const Fill_With_Zeros fill,
+                                                    const uint8_t block)
 {
     if (_decoder != nullptr)
-        return _decoder->end_of_input (block);
+        return _decoder->end_of_input (fill, block);
+    return std::vector<bool>();
 }
 
 template <typename In_It, typename Fwd_It>
-inline void Decoder<In_It, Fwd_It>::end_of_input()
+inline std::vector<bool> Decoder<In_It, Fwd_It>::end_of_input (
+                                                    const Fill_With_Zeros fill)
 {
     if (_decoder != nullptr)
-        return _decoder->end_of_input();
+        return _decoder->end_of_input (fill);
+    return std::vector<bool>();
 }
 
 template <typename In_It, typename Fwd_It>

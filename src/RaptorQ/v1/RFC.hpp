@@ -306,9 +306,13 @@ public:
     // result type tracked by C_RFC_API.h/RFC6330_Result
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     // if you can tell there is no more input, we can avoid locking
-    // forever and return an error.
-    void end_of_input (const uint8_t block);
-    void end_of_input();
+    // forever and return an error, or if you wish we can fill
+    // everythin with zero, and return you the bitmask of which bytes
+    // we have and which we do not
+    std::vector<bool> end_of_input (const Fill_With_Zeros fill,
+                                                        const uint8_t block);
+    std::vector<bool> end_of_input (const Fill_With_Zeros fill);
+
 
     // result in BYTES
     uint64_t decode_symbol (Fwd_It &start, const Fwd_It end, const uint16_t esi,
@@ -888,33 +892,120 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &start, const In_It end,
 }
 
 template <typename In_It, typename Fwd_It>
-void Decoder<In_It, Fwd_It>::end_of_input()
+std::vector<bool> Decoder<In_It, Fwd_It>::end_of_input (
+                                                    const Fill_With_Zeros fill)
 {
-    if (!operator bool())
-        return;
+    std::vector<bool> ret;
+    if (!operator bool() ||
+                (fill != Fill_With_Zeros::YES && fill != Fill_With_Zeros::NO)) {
+        return ret;
+    }
+
+    if (fill == Fill_With_Zeros::YES)
+        ret.resize (_size, false);
+
+    size_t ret_idx = 0;
+
     std::unique_lock<std::mutex> pool_lock (*_pool_mtx);
     std::unique_lock<std::mutex> dec_lock (_mtx);
-    for (auto &it : decoders)
-        it.second.dec->end_of_input = true;
+    for (uint8_t sbn = 0; sbn < blocks(); ++sbn) {
+        auto it = decoders.find (sbn);
+
+        if (fill == Fill_With_Zeros::YES) {
+            if (it == decoders.end()) {
+                // we might not even have he block for our end_of_input
+                bool success;
+                const uint16_t syms = this->symbols (sbn);
+                const Block_Size b_size = this->extended_symbols (sbn);
+                // we might have padding symbols. add thse to the esi.
+                const uint16_t padding = static_cast<uint16_t> (b_size) - syms;
+                std::tie (it, success) = decoders.emplace (std::make_pair(sbn,
+                                        Dec (b_size, _symbol_size, padding)));
+                assert (success);
+            }
+            auto real_symbols = it->second.dec->fill_with_zeros();
+            Impl::De_Interleaver<Fwd_It> de_interleaving (
+                                                it->second.dec->get_symbols(),
+                                                _sub_blocks,
+                                                symbols (sbn),
+                                                _alignment);
+            uint32_t block_bytes = block_size (sbn);
+            if (sbn == (blocks() - 1)) {
+                // size of the data (_size) is different from the sum of the size of
+                // all blocks. get the real size, so we do not write more.
+                // we obviously need to consider this only for the last block.
+                uint64_t all_blocks = 0;
+                for (uint8_t id = 0; id < blocks(); ++id)
+                    all_blocks += block_size (sbn);
+                const uint64_t diff = all_blocks - _size;
+                block_bytes -= static_cast<size_t>(diff);
+            }
+            auto block_bitmask = de_interleaving.symbols_to_bytes (block_bytes,
+                                                    std::move(real_symbols));
+            assert (ret.size() - ret_idx >= block_bitmask.size());
+            for (const auto block_bit : block_bitmask)
+                ret[ret_idx++] = block_bit;
+        }
+        if (it != decoders.end())
+            it->second.dec->end_of_input = true;
+    }
     dec_lock.unlock();
     pool_lock.unlock();
     _pool_notify->notify_all();
+
+    return ret;
 }
 
 template <typename In_It, typename Fwd_It>
-void Decoder<In_It, Fwd_It>::end_of_input (const uint8_t block)
+std::vector<bool> Decoder<In_It, Fwd_It>::end_of_input (
+                                                    const Fill_With_Zeros fill,
+                                                    const uint8_t block)
 {
-    if (!operator bool())
-        return;
+    std::vector<bool> ret;
+    if (!operator bool() ||
+                (fill != Fill_With_Zeros::YES && fill != Fill_With_Zeros::NO)) {
+        return ret;
+    }
     std::unique_lock<std::mutex> pool_lock (*_pool_mtx);
     std::unique_lock<std::mutex> dec_lock (_mtx);
     auto it = decoders.find(block);
-    if (it != decoders.end()) {
-        it->second.dec->end_of_input = true;
-        dec_lock.unlock();
-        pool_lock.unlock();
-        _pool_notify->notify_all();
+    if (it == decoders.end()) {
+        // we might not even have he block for our end_of_input
+        bool success;
+        const uint16_t syms = this->symbols (block);
+        const Block_Size b_size = this->extended_symbols (block);
+        // we might have padding symbols. add thse to the esi.
+        const uint16_t padding = static_cast<uint16_t> (b_size) - syms;
+        std::tie (it, success) = decoders.emplace (std::make_pair(block,
+                                        Dec (b_size, _symbol_size, padding)));
+        assert (success);
     }
+    std::vector<bool> symbol_bitmask;
+    if (fill == Fill_With_Zeros::YES)
+        symbol_bitmask = it->second.dec->fill_with_zeros();
+    it->second.dec->end_of_input = true;
+    Impl::De_Interleaver<Fwd_It> de_interleaving (
+                                                it->second.dec->get_symbols(),
+                                                _sub_blocks,
+                                                symbols (block),
+                                                _alignment);
+    uint32_t block_bytes = block_size (block);
+    if (block == (blocks() - 1)) {
+        // size of the data (_size) is different from the sum of the size of
+        // all blocks. get the real size, so we do not write more.
+        // we obviously need to consider this only for the last block.
+        uint64_t all_blocks = 0;
+        for (uint8_t id = 0; id < blocks(); ++id)
+            all_blocks += block_size (block);
+        const uint64_t diff = all_blocks - _size;
+        block_bytes -= static_cast<size_t>(diff);
+    }
+    ret = de_interleaving.symbols_to_bytes (block_bytes,
+                                                    std::move(symbol_bitmask));
+    dec_lock.unlock();
+    pool_lock.unlock();
+    _pool_notify->notify_all();
+    return ret;
 }
 
 template <typename In_It, typename Fwd_It>
@@ -1448,6 +1539,7 @@ uint32_t Decoder<In_It, Fwd_It>::block_size (const uint8_t sbn) const
 {
     if (!operator bool())
         return 0;
+
     if (sbn < part.num (0)) {
         return part.size (0) * _symbol_size;
     } else if (sbn - part.num (0) < part.num (1)) {

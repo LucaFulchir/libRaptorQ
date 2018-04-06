@@ -103,6 +103,10 @@ public:
     bool add_concurrent (const uint16_t max_concurrent);
     uint16_t threads() const;
     void drop_concurrent();
+    // you know you will not receive additional data, and can not decode.
+    // fill with zeros and return what you have
+    // returns the bitmask of the SYMBOLS we had (true) or not (false)
+    std::vector<bool> fill_with_zeros();
 
 private:
     bool keep_working, can_retry;
@@ -153,15 +157,11 @@ private:
 
 template <typename In_It>
 Raw_Decoder<In_It>::~Raw_Decoder()
-{
-    stop();
-}
+    { stop(); }
 
 template <typename In_It>
 void Raw_Decoder<In_It>::stop()
-{
-    keep_working = false;
-}
+    { keep_working = false; }
 
 template <typename In_It>
 void Raw_Decoder<In_It>::clear_data()
@@ -181,21 +181,15 @@ void Raw_Decoder<In_It>::clear_data()
 
 template <typename In_It>
 bool Raw_Decoder<In_It>::is_stopped() const
-{
-    return !keep_working;
-}
+    { return !keep_working; }
 
 template <typename In_It>
 bool Raw_Decoder<In_It>::ready() const
-{
-    return mask.get_holes() == 0;
-}
+    { return mask.get_holes() == 0; }
 
 template <typename In_It>
 bool Raw_Decoder<In_It>::can_decode() const
-{
-    return can_retry;
-}
+    { return can_retry; }
 
 template <typename In_It>
 uint16_t Raw_Decoder<In_It>::needed_symbols() const
@@ -225,9 +219,7 @@ bool Raw_Decoder<In_It>::add_concurrent (const uint16_t max_concurrent)
 
 template <typename In_It>
 uint16_t Raw_Decoder<In_It>::threads() const
-{
-    return concurrent;
-}
+    { return concurrent; }
 
 template <typename In_It>
 void Raw_Decoder<In_It>::drop_concurrent()
@@ -241,15 +233,11 @@ void Raw_Decoder<In_It>::drop_concurrent()
 
 template <typename In_It>
 DenseMtx* Raw_Decoder<In_It>::get_symbols()
-{
-    return &source_symbols;
-}
+    { return &source_symbols; }
 
 template <typename In_It>
 bool Raw_Decoder<In_It>::has_symbol (const uint16_t symbol) const
-{
-    return mask.get_holes() == 0 || mask.exists (symbol);
-}
+    { return mask.get_holes() == 0 || mask.exists (symbol); }
 
 template <typename In_It>
 Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
@@ -329,6 +317,28 @@ Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
     if (mask.get_holes() <= received_repair.size())
         can_retry = true;
     return Error::NONE;
+}
+
+template <typename In_It>
+std::vector<bool> Raw_Decoder<In_It>::fill_with_zeros()
+{
+    std::lock_guard<std::mutex> dec_lock (lock);
+    RQ_UNUSED(dec_lock);
+    stop();
+    // free mem;
+    received_repair = std::vector<std::pair<uint32_t, Vect>>();
+
+    std::vector<bool> ret (_symbols, false);
+
+    for (uint16_t idx = 0; idx < _symbols; ++idx) {
+        if (mask.exists (idx))
+            continue;
+        ret[idx] = true;
+        source_symbols.block(idx, 0, 1, source_symbols.cols()).setZero();
+        mask.add (idx);
+    }
+    end_of_input = true;
+    return ret;
 }
 
 template <typename In_It>

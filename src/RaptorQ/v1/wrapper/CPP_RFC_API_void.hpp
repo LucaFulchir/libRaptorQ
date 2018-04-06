@@ -23,6 +23,7 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/C_common.h"
 #include "RaptorQ/v1/block_sizes.hpp"
+#include <vector>
 #if __cplusplus >= 201103L || _MSC_VER > 1900
 #include <future>
 #define RQ_EXPLICIT explicit
@@ -119,9 +120,9 @@ public:
     std::future<std::pair<Error, uint8_t>> compute (const Compute flags);
     #endif
 
-    void end_of_input (const uint8_t block);
-
-    void end_of_input();
+    std::vector<bool> end_of_input (const Fill_With_Zeros fill,
+                                                        const uint8_t block);
+    std::vector<bool> end_of_input (const Fill_With_Zeros fill);
 
     uint64_t decode_symbol (void** start, const void* end, const uint16_t esi,
                                                             const uint8_t sbn);

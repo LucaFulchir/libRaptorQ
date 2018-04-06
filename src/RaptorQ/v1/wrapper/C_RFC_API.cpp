@@ -116,9 +116,13 @@ static uint32_t v1_id (const uint32_t esi, const uint8_t sbn);
 
 
 // decoder-specific
-static void v1_end_of_input (const struct RFC6330_ptr *dec);
-static void v1_end_of_block_input (const struct RFC6330_ptr *dec,
-                                                        const uint8_t block);
+static struct RFC6330_Byte_Tracker v1_end_of_input (
+                                            const struct RFC6330_ptr *dec,
+                                            const RFC6330_Fill_With_Zeros fill);
+static struct RFC6330_Byte_Tracker v1_end_of_block_input (
+                                            const struct RFC6330_ptr *dec,
+                                            const RFC6330_Fill_With_Zeros fill,
+                                            const uint8_t block);
 static uint64_t v1_bytes (const struct RFC6330_ptr *dec);
 static uint8_t v1_blocks_ready (const struct RFC6330_ptr *dec);
 static bool v1_is_ready (const struct RFC6330_ptr *dec);
@@ -1116,27 +1120,41 @@ static uint32_t v1_id (const uint32_t esi, const uint8_t sbn)
 // Decoding
 /////////////
 
-static void v1_end_of_input (const struct RFC6330_ptr *dec)
+static struct RFC6330_Byte_Tracker v1_end_of_input (
+                                            const struct RFC6330_ptr *dec,
+                                            const RFC6330_Fill_With_Zeros fill)
 {
+    struct RFC6330_Byte_Tracker ret;
+    ret.length = 0;
+    ret.bitmask = nullptr;
+
     if (dec == nullptr || dec->ptr == nullptr)
-        return;
+        return ret;
+
+    RFC6330__v1::Fill_With_Zeros cpp_fill =
+                            static_cast<RFC6330__v1::Fill_With_Zeros> (fill);
+    std::vector<bool> cpp_res;
     switch (dec->type) {
     case RFC6330_type::RQ_DEC_8:
-        return (reinterpret_cast<
+        cpp_res = (reinterpret_cast<
                             RFC6330__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
-                                                    dec->ptr))->end_of_input();
+                                            dec->ptr))->end_of_input (cpp_fill);
+        break;
     case RFC6330_type::RQ_DEC_16:
-        return (reinterpret_cast<
+        cpp_res = (reinterpret_cast<
                             RFC6330__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
-                                                    dec->ptr))->end_of_input();
+                                            dec->ptr))->end_of_input (cpp_fill);
+        break;
     case RFC6330_type::RQ_DEC_32:
-        return (reinterpret_cast<
+        cpp_res = (reinterpret_cast<
                             RFC6330__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
-                                                    dec->ptr))->end_of_input();
+                                            dec->ptr))->end_of_input (cpp_fill);
+        break;
     case RFC6330_type::RQ_DEC_64:
-        return (reinterpret_cast<
+        cpp_res = (reinterpret_cast<
                             RFC6330__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
-                                                    dec->ptr))->end_of_input();
+                                            dec->ptr))->end_of_input (cpp_fill);
+        break;
     case RFC6330_type::RQ_ENC_8:
     case RFC6330_type::RQ_ENC_16:
     case RFC6330_type::RQ_ENC_32:
@@ -1144,31 +1162,63 @@ static void v1_end_of_input (const struct RFC6330_ptr *dec)
     case RFC6330_type::RQ_NONE:
         break;
     }
-    return;
+    if (cpp_res.size() != 0) {
+        size_t size = cpp_res.size() / 8;
+        if ((cpp_res.size() % 8) != 0)
+            ++size;
+        ret.length = size;
+        ret.bitmask = reinterpret_cast<uint8_t*> (calloc (size, 1));
+        size_t idx = 0;
+        for (const auto b : cpp_res) {
+            if (b) {
+                const size_t byte_idx = idx / 8;
+                uint8_t mask = 0x01;
+                mask <<= (byte_idx % 8);
+                ret.bitmask[byte_idx] |= mask;
+            }
+            ++idx;
+        }
+    }
+    return ret;
 }
 
-static void v1_end_of_block_input (const struct RFC6330_ptr *dec,
-                                                            const uint8_t block)
+static struct RFC6330_Byte_Tracker v1_end_of_block_input (
+                                            const struct RFC6330_ptr *dec,
+                                            const RFC6330_Fill_With_Zeros fill,
+                                            const uint8_t block)
 {
+    struct RFC6330_Byte_Tracker ret;
+    ret.length = 0;
+    ret.bitmask = nullptr;
+
+
     if (dec == nullptr || dec->ptr == nullptr)
-        return;
+        return ret;
+
+    RFC6330__v1::Fill_With_Zeros cpp_fill =
+                            static_cast<RFC6330__v1::Fill_With_Zeros> (fill);
+    std::vector<bool> cpp_res;
     switch (dec->type) {
     case RFC6330_type::RQ_DEC_8:
-        return (reinterpret_cast<
+        cpp_res = (reinterpret_cast<
                             RFC6330__v1::Impl::Decoder<uint8_t*, uint8_t*>*> (
-                                            dec->ptr))->end_of_input (block);
+                                    dec->ptr))->end_of_input (cpp_fill, block);
+        break;
     case RFC6330_type::RQ_DEC_16:
-        return (reinterpret_cast<
+        cpp_res = (reinterpret_cast<
                             RFC6330__v1::Impl::Decoder<uint16_t*, uint16_t*>*> (
-                                            dec->ptr))->end_of_input (block);
+                                    dec->ptr))->end_of_input (cpp_fill, block);
+        break;
     case RFC6330_type::RQ_DEC_32:
-        return (reinterpret_cast<
+        cpp_res = (reinterpret_cast<
                             RFC6330__v1::Impl::Decoder<uint32_t*, uint32_t*>*> (
-                                            dec->ptr))->end_of_input (block);
+                                    dec->ptr))->end_of_input (cpp_fill, block);
+        break;
     case RFC6330_type::RQ_DEC_64:
-        return (reinterpret_cast<
+        cpp_res = (reinterpret_cast<
                             RFC6330__v1::Impl::Decoder<uint64_t*, uint64_t*>*> (
-                                            dec->ptr))->end_of_input (block);
+                                    dec->ptr))->end_of_input (cpp_fill, block);
+        break;
     case RFC6330_type::RQ_ENC_8:
     case RFC6330_type::RQ_ENC_16:
     case RFC6330_type::RQ_ENC_32:
@@ -1176,7 +1226,24 @@ static void v1_end_of_block_input (const struct RFC6330_ptr *dec,
     case RFC6330_type::RQ_NONE:
         break;
     }
-    return;
+    if (cpp_res.size() != 0) {
+        size_t size = cpp_res.size() / 8;
+        if ((cpp_res.size() % 8) != 0)
+            ++size;
+        ret.length = size;
+        ret.bitmask = reinterpret_cast<uint8_t*> (calloc (size, 1));
+        size_t idx = 0;
+        for (const auto b : cpp_res) {
+            if (b) {
+                const size_t byte_idx = idx / 8;
+                uint8_t mask = 0x01;
+                mask <<= (byte_idx % 8);
+                ret.bitmask[byte_idx] |= mask;
+            }
+            ++idx;
+        }
+    }
+    return ret;
 }
 
 static uint64_t v1_bytes (const struct RFC6330_ptr *dec)

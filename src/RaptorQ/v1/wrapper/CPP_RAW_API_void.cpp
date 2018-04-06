@@ -647,18 +647,18 @@ Error Decoder_void::add_symbol (void** from, const void* to, const uint32_t esi)
     return err;
 }
 
-void Decoder_void::end_of_input()
+std::vector<bool> Decoder_void::end_of_input (const Fill_With_Zeros fill)
 {
     const cast_dec _dec (_decoder);
     switch (_type) {
     case RaptorQ_type::RQ_DEC_8:
-        return _dec._8->end_of_input();
+        return _dec._8->end_of_input (fill);
     case RaptorQ_type::RQ_DEC_16:
-        return _dec._16->end_of_input();
+        return _dec._16->end_of_input (fill);
     case RaptorQ_type::RQ_DEC_32:
-        return _dec._32->end_of_input();
+        return _dec._32->end_of_input (fill);
     case RaptorQ_type::RQ_DEC_64:
-        return _dec._64->end_of_input();
+        return _dec._64->end_of_input (fill);
     case RaptorQ_type::RQ_ENC_8:
     case RaptorQ_type::RQ_ENC_16:
     case RaptorQ_type::RQ_ENC_32:
@@ -666,6 +666,7 @@ void Decoder_void::end_of_input()
     case RaptorQ_type::RQ_NONE:
         break;
     }
+    return std::vector<bool>();
 }
 
 bool Decoder_void::can_decode() const

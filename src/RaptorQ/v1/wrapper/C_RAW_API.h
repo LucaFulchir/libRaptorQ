@@ -51,6 +51,10 @@ extern "C"
         size_t written;
         size_t offset;
     };
+    struct RAPTORQ_API RaptorQ_Byte_Tracker {
+        uint64_t length;
+        uint8_t *bitmask;
+    };
     // tracks RaptorQ__v1::Impl::Dec_Report
     typedef enum {
         RQ_PARTIAL_FROM_BEGINNING = RQ_COMPUTE_PARTIAL_FROM_BEGINNING,
@@ -140,7 +144,9 @@ extern "C"
                                                 const struct RaptorQ_ptr *dec);
         struct RaptorQ_Dec_wait_res (*const dec_future_get) (
                                                 struct RaptorQ_future_dec *f);
-        void (*const end_of_input) (struct RaptorQ_ptr *dec);
+        struct RaptorQ_Byte_Tracker (*const end_of_input) (
+                                        struct RaptorQ_ptr *dec,
+                                        const RaptorQ_Fill_With_Zeros fill);
         RaptorQ_Decoder_Result (*const decode_once) (struct RaptorQ_ptr *dec);
         RaptorQ_Error (*const decode_symbol) (struct RaptorQ_ptr *dec,
                                                             void** start,

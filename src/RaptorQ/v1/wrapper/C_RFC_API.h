@@ -49,6 +49,11 @@ extern "C"
         uint8_t offset;
     };
 
+    struct RAPTORQ_API RFC6330_Byte_Tracker {
+        uint64_t length;
+        uint8_t *bitmask;
+    };
+
 
     RAPTORQ_API struct RFC6330_base_api* RFC6330_api (uint32_t version);
     RAPTORQ_API void RFC6330_free_api (struct RFC6330_base_api **api);
@@ -141,9 +146,13 @@ extern "C"
 
 
         // decoder-specific
-        void (*const end_of_input) (const struct RFC6330_ptr *dec);
-        void (*const end_of_block_input) (const struct RFC6330_ptr *dec,
-                                                        const uint8_t block);
+        struct RFC6330_Byte_Tracker (*const end_of_input) (
+                                            const struct RFC6330_ptr *dec,
+                                            const RaptorQ_Fill_With_Zeros fill);
+        struct RFC6330_Byte_Tracker (*const end_of_block_input) (
+                                            const struct RFC6330_ptr *dec,
+                                            const RaptorQ_Fill_With_Zeros fill,
+                                            const uint8_t block);
         uint64_t (*const bytes) (const struct RFC6330_ptr *dec);
         uint8_t (*blocks_ready) (const struct RFC6330_ptr *dec);
         bool (*is_ready) (const struct RFC6330_ptr *dec);

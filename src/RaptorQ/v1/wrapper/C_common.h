@@ -93,6 +93,12 @@ typedef enum {
     RQ_DEC_WRONG_INPUT = 4 // used by the C wrapper
 } RaptorQ_Decoder_Result;
 
+// tracked by RaptorQ__v1::Fill_With_Zeros
+typedef enum {
+    RQ_NO_FILL         = 0,
+    RQ_FILL_WITH_ZEROS = 1
+} RaptorQ_Fill_With_Zeros;
+typedef RaptorQ_Fill_With_Zeros RFC6330_Fill_With_Zeros;
 
 #ifdef __cplusplus
 }   // extern "C"

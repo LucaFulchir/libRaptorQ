@@ -47,6 +47,8 @@ public:
     }
     size_t operator() (Fwd_It &start, const Fwd_It end, const size_t max_bytes,
                             const uint8_t skip, const uint16_t from_esi = 0);
+    std::vector<bool> symbols_to_bytes (const size_t block_bytes,
+                                    const std::vector<bool> &real_syms) const;
 private:
     const RaptorQ__v1::Impl::DenseMtx *_symbols;
     const Partition _sub_blocks;
@@ -127,6 +129,81 @@ size_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
         written -= skip;
     return written;
 }
+
+template <typename Fwd_It>
+std::vector<bool> De_Interleaver<Fwd_It>::symbols_to_bytes (
+                                    const size_t block_bytes,
+                                    const std::vector<bool> &real_syms) const
+{
+    std::vector<bool> ret;
+    if (real_syms.size() != _symbols->rows())
+        return ret;
+
+    enum class  syms_state : uint8_t {
+        BOTH = 0x00,
+        ONLY_TRUE = 0x01,
+        ONLY_FALSE = 0x02
+    };
+
+    // try to be smart. Do not check each byte if we only have true/false
+    syms_state be_quick = real_syms[0] ? syms_state::ONLY_TRUE :
+                                                        syms_state::ONLY_FALSE;
+    for (const auto b : real_syms) {
+        if (be_quick == syms_state::ONLY_TRUE) {
+            if (!b) {
+                be_quick = syms_state::BOTH;
+                break;
+            }
+        } else {
+            // ONLY_FALSE
+            be_quick = syms_state::BOTH;
+            break;
+        }
+    }
+
+    switch (be_quick) {
+    case syms_state::BOTH:
+        break;
+    case syms_state::ONLY_FALSE:
+        ret.resize (block_bytes, false);
+        return ret;
+    case syms_state::ONLY_TRUE:
+        ret.resize (block_bytes, true);
+        return ret;
+    }
+
+    ret.resize (block_bytes, false);
+
+    uint32_t byte = 0;
+    uint32_t subsym_byte = 0;
+    uint16_t esi = 0;
+    uint16_t sub_blk = 0;
+    uint16_t sub_sym_size = _al *(_sub_blocks.num(0) > 0 ? _sub_blocks.size(0) :
+                                                      _sub_blocks.size(1));
+    bool we_have_current_symbol = real_syms[esi];
+
+    while (byte != block_bytes) {
+        ret[byte] = we_have_current_symbol;
+        ++byte;
+        ++subsym_byte;
+        if (subsym_byte == sub_sym_size) {
+            subsym_byte = 0;
+            ++esi;
+            we_have_current_symbol = real_syms[esi];
+            if (esi >= _max_esi) {
+                esi = 0;
+                ++sub_blk;
+            }
+            if (sub_blk < _sub_blocks.num (0)) {
+                sub_sym_size = _sub_blocks.size (0) * _al;
+            } else {
+                sub_sym_size = _sub_blocks.size (1) * _al;
+            }
+        }
+    }
+    return ret;
+}
+
 
 }   // namespace Impl
 }   // namespace RFC6330__v1

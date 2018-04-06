@@ -23,6 +23,7 @@
 #include "RaptorQ/v1/block_sizes.hpp"
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/C_common.h"
+#include <vector>
 #if __cplusplus >= 201103L || _MSC_VER > 1900
 #include <future>
 #include <utility>
@@ -101,7 +102,7 @@ public:
     size_t symbol_size() const;
 
     Error add_symbol (void** from, const void* to, const uint32_t esi);
-    void end_of_input();
+    std::vector<bool> end_of_input (const Fill_With_Zeros fill);
 
     bool can_decode() const;
     bool ready() const;

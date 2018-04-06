@@ -24,6 +24,7 @@
 #include "RaptorQ/v1/common.hpp"
 #include "RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp"
 #include "RaptorQ/v1/RaptorQ_Iterators.hpp"
+#include <vector>
 #if __cplusplus >= 201103L || _MSC_VER > 1900
     #include <future>
 #endif
@@ -109,7 +110,7 @@ public:
     RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> end();
 
     Error add_symbol (In_It &from, const In_It to, const uint32_t esi);
-    void end_of_input();
+    std::vector<bool> end_of_input (const Fill_With_Zeros fill);
 
     bool can_decode() const;
     bool ready() const;
@@ -443,7 +444,6 @@ RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
                                                         _decoder, symbols());
 }
 
-
 template <typename In_It, typename Fwd_It>
 uint16_t Decoder<In_It, Fwd_It>::needed_symbols() const
 {
@@ -466,10 +466,12 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
 }
 
 template <typename In_It, typename Fwd_It>
-void Decoder<In_It, Fwd_It>::end_of_input()
+std::vector<bool> Decoder<In_It, Fwd_It>::end_of_input (
+                                                    const Fill_With_Zeros fill)
 {
     if (_decoder != nullptr)
-        return _decoder->end_of_input();
+        return _decoder->end_of_input (fill);
+    return std::vector<bool>();
 }
 
 template <typename In_It, typename Fwd_It>

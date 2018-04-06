@@ -150,7 +150,7 @@ public:
 #endif
 
     Error add_symbol (In_It &from, const In_It to, const uint32_t esi);
-    void end_of_input();
+    std::vector<bool> end_of_input (const Fill_With_Zeros fill);
 
     bool can_decode() const;
     bool ready() const;
@@ -787,10 +787,15 @@ std::future<struct Decoder_wait_res> Decoder<In_It, Fwd_It>::wait ()
 }
 
 template <typename In_It, typename Fwd_It>
-void Decoder<In_It, Fwd_It>::end_of_input()
+std::vector<bool> Decoder<In_It, Fwd_It>::end_of_input (
+                                                    const Fill_With_Zeros fill)
 {
-    if (symbols_tracker.size() != 0)
+    if (symbols_tracker.size() != 0) {
+        if (fill == Fill_With_Zeros::YES)
+            return dec.fill_with_zeros();
         dec.end_of_input = true;
+    }
+    return std::vector<bool>();
 }
 
 template <typename In_It, typename Fwd_It>
