@@ -254,8 +254,9 @@ void conform_test (uint16_t *K_idx, uint32_t *test_num,
             ++overhead;
             max_drop = (40 / 1000000) * test;
         }
-        auto symbols = RaptorQ::Impl::K_padded[idx];
-        auto time = decode (symbols, rnd, max_drop, overhead);
+        //auto symbols = RaptorQ::Impl::K_padded[idx];
+        //auto time = decode (symbols, rnd, max_drop, overhead);
+        auto time = decode (idx, rnd, max_drop, overhead);
         if (time == 0) {
             global_mtx.lock();
             uint32_t third;
@@ -320,7 +321,7 @@ void bench (uint16_t *K_idx, std::array<uint64_t, 477> *times)
     }
 }
 
-uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
+uint64_t decode (uint32_t index_K, std::mt19937_64 &rnd, float drop_prob,
                                                             uint8_t overhead)
 {
     // returns average number of microseconds for encoding and decoding
@@ -329,12 +330,19 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     const uint16_t symbol_size = 1280;
     const uint16_t subsymbol = 1280 / 4; // small interleaving
     const size_t max_sub_block = std::numeric_limits<uint32_t>::max();
+    const uint32_t prev_block_size = index_K == 0 ? 0 :
+                    static_cast<uint32_t> ((*RFC6330__v1::blocks)[index_K - 1]);
+    const uint32_t current_block_size =
+                    static_cast<uint32_t> ((*RFC6330__v1::blocks)[index_K]);
+    std::uniform_int_distribution<uint32_t> data_size_distr (prev_block_size + 1,
+                                                            current_block_size);
+    const uint32_t data_size = data_size_distr(rnd);
     std::vector<uint8_t> myvec;
     // initialize vector
     std::uniform_int_distribution<uint8_t> distr (0,
                                         std::numeric_limits<uint8_t>::max());
-    myvec.reserve (mysize * symbol_size);
-    for (uint32_t i = 0; i < mysize * symbol_size; ++i)
+    myvec.reserve (data_size);
+    for (uint32_t i = 0; i < data_size; ++i)
         myvec.push_back (distr(rnd));
 
     std::vector<std::pair<uint32_t, std::vector<uint8_t>>> encoded;
@@ -400,33 +408,33 @@ uint64_t decode (uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     dec.compute (RFC6330::Compute::COMPLETE | RFC6330::Compute::NO_BACKGROUND |
                                                     RFC6330::Compute::NO_POOL);
 
-    std::vector<uint8_t> received (mysize * symbol_size, 0);
+    std::vector<uint8_t> received (data_size, 0);
 
     for (size_t i = 0; i < encoded.size(); ++i) {
         auto it = encoded[i].second.begin();
         auto ret = dec.add_symbol (it, encoded[i].second.end(),
                                                             encoded[i].first);
         if (ret != RFC6330::Error::NONE && ret != RFC6330::Error::NOT_NEEDED) {
-            std::cout << "Error in adding symbol to decoder!\n";
+            std::cerr << "Error in adding symbol to decoder!\n";
             abort();
         }
     }
 
-    dec.end_of_input();
+    dec.end_of_input (RFC6330::Fill_With_Zeros::NO);
     auto re_it = received.begin();
     t.start();
     auto decoded = dec.decode_aligned (re_it, received.end(), 0);
     uint64_t micro2 = t.stop();
 
 
-    if (decoded.written != mysize * symbol_size) {
-        std::cout << "NOPE: "<< mysize << " - " << drop_prob << " - " <<
+    if (decoded.written != data_size) {
+        std::cerr << "NOPE: "<< index_K << " - " << drop_prob << " - " <<
                                             static_cast<int> (overhead) << "\n";
         return 0;
     }
-    for (uint32_t i = 0; i < mysize * symbol_size; ++i) {
+    for (uint32_t i = 0; i < data_size; ++i) {
         if (myvec[i] != received[i]) {
-            std::cout << "FAILED, but we though otherwise! " << i << " - "
+            std::cerr << "FAILED, but we though otherwise! " << i << " - "
                                             << drop_prob << " - " <<
                                             static_cast<int> (overhead) << "\n";
             return 0;

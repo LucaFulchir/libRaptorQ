@@ -67,8 +67,10 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
                 std::ceil(static_cast<float> (mysize) / sizeof(in_enc_align))));
     in_enc_align tmp = 0;
     uint8_t shift = 0;
+    uint8_t insert = 0;
     for (uint32_t i = 0; i < mysize; ++i) {
-        tmp += static_cast<in_enc_align> (distr(rnd)) << shift * 8;
+        tmp += static_cast<in_enc_align> (insert) << shift * 8;
+        ++insert;
         //tmp += static_cast<in_enc_align> (i) << shift * 8;
         ++shift;
         if (shift >= sizeof(in_enc_align)) {
@@ -202,13 +204,16 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     auto async_dec = dec.compute (RFC6330::Compute::COMPLETE);
 
     std::vector<out_dec_align> received;
-    size_t out_size = static_cast<size_t> (
-                std::ceil(static_cast<float>(mysize) / sizeof(out_dec_align)));
-    received.reserve (out_size);
+    size_t out_size = mysize / sizeof(out_dec_align);
+    // the input of the encoder might have a completely different alignment
+    // then the output. keep that into consideration when confronting
+    // "decoded" and "mysize"
+    size_t aligned_missing = mysize % sizeof(out_dec_align);
+    if (aligned_missing != 0)
+        ++out_size;
     // make sure that there's enough place in "received" to get the
     // whole decoded data.
-    for (uint32_t i = 0; i < out_size; ++i)
-        received.push_back (static_cast<out_dec_align> (0));
+    received.resize (out_size, 0);
 
     for (size_t i = 0; i < encoded.size(); ++i) {
         auto it = encoded[i].second.begin();
@@ -219,7 +224,8 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
             abort();
         }
     }
-    dec.end_of_input();
+
+    dec.end_of_input (RFC6330::Fill_With_Zeros::NO);
 
     async_dec.wait();
 
@@ -231,14 +237,16 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     auto decoded = dec.decode_bytes (re_it, received.end(), 0);
 
     assert (mysize == dec.bytes());
-    if (decoded != mysize) {
+    // "decoded" can be more than mysize if the alignments are different
+    if (decoded < mysize) {
         if (decoded == 0) {
             std::cout << "Couldn't decode, RaptorQ Algorithm failure. "
                                                             "Can't Retry.\n";
             return true;
         } else {
             std::cout << "Partial Decoding? This should not have happened: " <<
-                                        decoded  << " vs " << mysize << "\n";
+                                        decoded  << " vs " << mysize <<
+                                        " missing " << aligned_missing << "\n";
         }
         return false;
     } else {
@@ -248,15 +256,17 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     uint8_t *in, *out;
     in = reinterpret_cast<uint8_t *> (myvec.data());
     out = reinterpret_cast<uint8_t *> (received.data());
+    bool error = false;
     for (uint64_t i = 0; i < mysize; ++i) {
         if (in[i] != out[i]) {
-            std::cout << "FAILED, but we thought otherwise! " << mysize << " - "
-                                            << drop_prob << " at " << i << "\n";
-            return false;
+//            std::cout << "FAILED, but we thought otherwise! " << mysize << " - "
+//                                            << drop_prob << " at " << i << "\n";
+            std::cout << i << " -> " << std::hex << static_cast<int>(in[i]) << " = " << static_cast<int> (out[i]) << std::dec << "\n";
+            error = true;
         }
     }
 
-    return true;
+    return !error;
 }
 
 uint32_t rnd_size (std::mt19937_64 &rnd, uint8_t size);

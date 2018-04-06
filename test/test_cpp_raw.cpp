@@ -253,7 +253,10 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
         }
     }
 
-    dec.end_of_input();
+    dec.end_of_input (RaptorQ::Fill_With_Zeros::NO);
+    // optional: fill with zeros to get partial data
+    // std::vector<bool> symbol_bitmask = dec.fill_with_zeros (
+    //                                          RaptorQ::Fill_With_Zeros::YES);
     auto res = dec.wait_sync();
     if (res.error != RaptorQ::Error::NONE) {
         std::cout << "Couldn't decode.\n";
@@ -304,7 +307,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 uint32_t rnd_size (std::mt19937_64 &rnd, uint8_t size);
 uint32_t rnd_size (std::mt19937_64 &rnd, uint8_t size)
 {
-    std::uniform_int_distribution<uint32_t> distr(1, 10000);
+    std::uniform_int_distribution<uint32_t> distr(1, 100000);
     uint32_t ret;
     do {
         ret = distr (rnd);

@@ -293,7 +293,11 @@ bool test_rq (const uint32_t mysize, std::mt19937_64 &rnd,
     // by now we now there will be no more input, so we tell this to the
     // decoder. You can skip this call, but if the decoder does not have
     // enough data it sill wait forever (or until you call .stop())
-    dec.end_of_input();
+    dec.end_of_input (RaptorQ::Fill_With_Zeros::NO);
+    // optional if you want partial decoding without using the repair
+    // symbols
+    // std::vector<bool> symbols_bitmask = dec.end_of_input (
+    //                                          RaptorQ::Fill_With_Zeros::YES);
 
     // decode, and do not return until the computation is finished.
     auto res = dec.wait_sync();

@@ -259,7 +259,13 @@ bool decode (struct RFC6330_v1 *rfc, uint32_t mysize, float drop_prob,
     }
     // tell the decoder not to wait indefinitely
     // and exit if it does not have enough data.
-    rfc->end_of_input (dec);
+    rfc->end_of_input (dec, RQ_NO_FILL);
+    // optional: if you know there is no additional data, get the de-interleaved
+    // data and a bitmask of which byte we actually have and which we zet to 0
+    // structRFC6330_Byte_Tracker bytes =
+    //                              rfc->end_of_input (dec, RQ_FILL_WITH_ZEROS);
+    // then when you are done, free (bytes.bitmask);
+
 
     // make sure that there's enough place in "received" to get the
     // whole decoded data.
