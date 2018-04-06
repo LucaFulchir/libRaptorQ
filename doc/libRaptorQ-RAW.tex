@@ -1,4 +1,4 @@
-%    Copyright (C)  2015-2018, Luca Fulchir<luca@fulchir.it>
+%    Copyright (C)  2018, Luca Fulchir<luca@fulchir.it>
 %    Permission is granted to copy, distribute and/or modify this document
 %    under the terms of the GNU Free Documentation License, Version 1.3
 %    or any later version published by the Free Software Foundation;
@@ -49,7 +49,7 @@
   title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
 }
 
-\title{Using libRaptorQ library: RFC6330 interface}
+\title{Using libRaptorQ library: RAW interface}
 \date{\today}
 \makeindex
 
@@ -58,9 +58,10 @@
 
 \begin{abstract}
 
-\textbf{libRaptorQ} is a C++11 implementation of the RaptorQ Forward Error Correction. It includes two interfaces, one derived from the \href{https://tools.ietf.org/html/rfc6330}{RFC6330} standard, and one RAW API for a more flexible and easy usage.
+\textbf{libRaptorQ} is a C++11
+ implementation of the RaptorQ Forward Error Correction. It includes two interfaces, one derived from the \href{https://tools.ietf.org/html/rfc6330}{RFC6330} standard, and one RAW API for a more flexible and easy usage.
 
-This document is only about the RFC6330 interface.
+This document is only about the RAW interface.
 
 The implementation was started as a university laboratory project, and will be later used and included in \href{https://www.fenrirproject.org}{Fenrir}, the
 maintainer's master thesis project.
@@ -112,13 +113,13 @@ You can get the tarballs from the main website here:\\
 Or you can check out the repository (warning: development in progress):
 
 \begin{verbatim}
-$ git clone https://github.com/LucaFulchir/libRaptorQ.git
+$ git clone https://fenrirproject.org/Luker/libRaptorQ.git
 \end{verbatim}
 
-You can also get it from our main server:
+You can also get it from github:
 
 \begin{verbatim}
-$ git clone https://fenrirproject.org/Luker/libRaptorQ.git
+$ git clone https://github.com/LucaFulchir/libRaptorQ.git
 \end{verbatim}
 
 \index{GPG}\marginlabel{GPG verification:}
@@ -163,8 +164,7 @@ libRaptorQ has 4 dependencies:
 \item[\textbf{Eigen3}] This is used for matrix manipulation, which is a big part of RaptorQ.
 \item[\textbf{lz4}] Used to compress cached precomputations.
 \item[\textbf{git}] This is used not only to get the source, but also by the build system. We get the last git commit id and feed it to clang or gcc as seed for their internal random number generator. This makes it possible to have reproducible builds.
-
-\item[\textbf{optionparser}] Library used to parse the command line easily in C++, without exceptions
+\item[\textbf{optionparser}] Library used to parse the command line easily in C++, without exceptions.
 \end{description}
 
 All dependencies are included in the sources, so you do not need to download and compile them.\\
@@ -174,7 +174,9 @@ LZ4 is included as a git submodule. if you do not have it, run:
 $ git submodule init
 $ git submodule update
 \end{verbatim}
-and LZ4 will be built statically in the library (it will not be installed on the system)
+and LZ4 w
+ill be built
+ statically in the library (it will not be installed on the system)
 
 \subsection{Build \& Install}
 
@@ -268,45 +270,44 @@ RaptorQ handles up to $56.403$ symbols.
 \marginlabel{\textbf{Caching}} libRaptorQ can work with big matrices that take a lot of time to compute. For this reason the matrices can be saved once they have
 been computed the first time. libRaptorQ uses a \textbf{local} cache. The matrix can be compressed with LZ4.
 
-\subsection{RFC6330: Blocks \& Symbols}
+\subsection{RaptorQ: Blocks \& Symbols}
 
-To understand how to properly use and tune libRaptorQ, you first need to understand how RaptorQ and the \textbf{RFC6330} handles its inputs, outputs, and what the time and memory
+To understand how to properly use and tune libRaptorQ, you first need to understand how RaptorQ handles its inputs, outputs, and what the time and memory
 constraints are.
 
 \index{Sequencing}\marginlabel{Input sequencing:}
 The RC6330 needs to have the whole input you want to send before it can start working.\\
-This means that it might be a little more difficult to use in live-streaming contexts, or where you need real-time data, but for that you probably want to use the single-block API in the \textbf{RaptorQ} C++ namespace. There is a second document tracking that interface, this document tracks only the RFC6330 interface.
+This means that You should buffer the data you are sending, and then when you have a block big enough you pass it to libRaptorQ, which will start generating symbols.
 
-Once you have the whole input, RFC6330 divides it into \textbf{blocks}. Each block \textit{is encoded and decoded independently} and will be divided into \textbf{symbols}. Each symbol \textit{should}
-be transmitted separately in its own packet (if you are on the network).
+Contrary to the RFC6330, the RAW api is about a single block of data. You will have to divide your input in multiple blocks by hand, and decide by yourself how to send the encoded symbols. This will increase your flexibility, at the expense of not being conformant to RFC6330.
+Note that a RaptorQ block does not need to be completely filled since the block is automatically padded with zeros, but you need to somehow tell the receiver how much data you have in that block so that it can know where the padding starts. RFC6330 does this with the \texttt{OTI} parameters
 
-\index{Sequencing!Sizes}\marginlabel{Sizes:}Each input can have up to \textit{256 blocks}, each block can have up to \textit{$56.403$ symbols}, and each
-symbol can have up to \textit{$2^{16}-1$ bytes}long. This gives a maximum files size of almost $881$ GB (946270874880 bytes to be exact)
+
+\index{Sequencing!Sizes}\marginlabel{Sizes:} Each block can have up to \textit{$56.403$ symbols}, and each
+symbol can have up to \textit{size\_t bytes} long ($2^{32}$ on 32 bit machines, $2^{
+	64}$ on 64 bits
+). Please remember the Complexity discussion before using high values.
+
 
 \index{Interleaving}\marginlabel{Interleaving:}
-An other feature of RFC6330 is to automatically provide some interleaving of the input data before transmitting it. This means that one symbol will not
-represent one sequential chunk of your input data, but more likely it's the concatenation of different \textbf{sub-symbols}. The size of the subsymbol must thus
-be a fraction of the symbol size. \textit{This feature is not used if you set the size of the subsymbol to the size of symbol}.
-
+Contrary to the RFC6330 the RAW api does not include any kind of interleaving
 
 \marginlabel{Memory and Time:}
-Memory and time requirements are to be considered, though, as RFC6330 needs to run a cubic algorithm on matrix of size $K*K$, where $K$ is the number of
-symbols in each block.\\
+Memory and time requirements are to be considered, though, as RaptorQ needs to run a cubic algorithm on matrix of size $K*K$, where $K$ is the number of symbols in each block.\\
 The algorithm needs to keep in memory two of these matrices, although most of the work is done on only one.\\
-This is actually a lot. More benchmarks and optimizations will come later, for now remember that with 10 symbols it takes something like 0.4ms on a core i7 2.4GHZ, 280ms with 1000 symbols, and up to an hour with 27.000 symbols.
+This is actually a lot. More benchmarks and optimizations will come later, for now remember that with 10 symbols it takes something like 0.4ms on a core i7 2.4GHZ, 280ms with 1000 symbols, and up to an hour with 27.000 symbols. YMMV.
 
 
 \subsection{C++ interface}
 \index{Interface!C++}
-To use the C++ interface you only need to include the \textbf{RaptorQ/RFC6330\_v1.hpp} header, and link \textbf{libRaptorQ} and your threading library (usually
-\textit{libpthread}).
+To use the C++ interface you only need to include the \textbf{RaptorQ/RaptorQ\_v1.hpp} header, and link \textbf{libRaptorQ} and your threading library (usually \textit{libpthread}).
 
-You can also use the library as a header-only include, by including \textbf{RaptorQ/RFC6330\_v1\_hdr.hpp}. All your code should keep working even if you switch between linked and header-only at a later date. If you use the header-only version, remember to have Eigen3 in your include path and to include the needed definitions, \texttt{RQ\_LITTLE\_ENDIAN} or \texttt{RQ\_BIG\_ENDIAN}
+You can also use the library as a header-only include, by including \textbf{RaptorQ/RaptorQ\_v1\_hdr.hpp}. All your code should keep working even if you switch between linked and header-only at a later date. If you use the header-only version, remember to have Eigen3 in your include path, and to include the needed definitions, \texttt{RQ\_LITTLE\_ENDIAN} or \texttt{RQ\_BIG\_ENDIAN}
 
 \marginlabel{Namespace}
-Since the libRaptorQ library now has two very different usages, everything was split into two namespaces: \textbf{RFC6330} and \textbf{RaptorQ}. The names should be explanatory: the first namespace (that we cover in this document) is for the RFC interface, while the second namespace is for the low-level interface.
+Since the libRaptorQ library now has two very different usages, everything was split into two namespaces: \textbf{RFC6330} and \textbf{RaptorQ}. The names should be explanatory: the first namespace is for the RFC interface, while the second namespace is for the low-level interface.
 
-Since we will cover only the \textbf{RFC6330} namespace here, remember that everything we talk about is in this namespace.
+Since we will cover only the \textbf{RaptorQ} namespace here, remember that everything we talk about is in this namespace.
 
 \newpage
 
@@ -321,10 +322,9 @@ class Decoder
 \end{verbatim}
 
 As you might guess, the classes for the encoder and decoder take two template parameters.\\
-For the \textbf{Encoder}, the first parameter \textit{MUST} be a \textit{random access iterator} to the input data, and the second parameter is an
-\textit{forward iterator}. The random access iterator will be used to scan your input data, and perform an interleaving (if you did not set the same size the
-symbol and to the subsymbol). The forward iterator will be used to write the data to your structure.\\
-The same is done for the \textbf{Decoder}, but we do not need to do any interleaving on the input, so the first iterator can be just an input iterator,
+For the \textbf{Encoder}, the first parameter \textit{MUST} be a \textit{random access iterator} to the input data, and the second parameter is a
+\textit{forward iterator}. The random access iterator will be used to scan your input data. The forward iterator will be used to write the data to your output.\\
+The same is done for the \textbf{Decoder}, but the first iterator can be just an input iterator, 
 and nothing more.
 
 \subsubsection{Caching precomputations}
@@ -352,40 +352,20 @@ Try to set a compression algorithm. LZ4 is not a mandatory dependency, so we mig
 
 \end{description}
 
-\newpage
-\subsubsection{Thread pool}
 
-Both the encoder and the decoder can work with multiple blocks at the same time, so it makes sense to have a thread pool for such work.
-
-\begin{description}
-\item[set\_thread\_pool] \textbf{Input: const size\_t threads}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint16\_t max\_block\_concurrency}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const RaptorQ\_\_v1::Work\_State exit\_type}\\
-\textbf{return: bool}\\
-set a pool of a certain number of threads. But the decoder is special: if one decoding fails we can always try again once we have at least one other symbol. The second parameter tells the pool how many times we can try to decode the same block concurrently. $1$ is a safe option.\\
-The final argument is used when downsizing the queue: what do we do if all the threads are running but you asked to have less threads?
-\begin{lstlisting}
-enum class Work_State : uint8_t {
-	KEEP_WORKING
-	ABORT_COMPUTATION
-};
-\end{lstlisting}
-\end{description}
 \newpage
 \subsubsection{The Encoder}
 \index{Encoder!C++}
 The constructor is the following:
 \begin{lstlisting}[language=C++]
-Encoder (const Rnd_It data_from, const Rnd_It data_to,
-					const uint16_t min_subsymbol_size,
-					const uint16_t symbol_size,
-					const size_t max_sub_block);
+Encoder (const Block_Size symbols, const size_t symbol_size);
 \end{lstlisting}
 
-As we said, the RFC will decide by itself how many blocks each input will have, the actual size of the subsymbol, and the size of the blocks. Although needed for RFC compliance, you probably do not care about the \textit{min\_subsymbol\_size}, in which case the safe choice is to put it at the same size of the symbol.\\
-The \textit{max\_sub\_block} the the maximum size of a sub-block in bytes. Again, unless you \textit{really} understand the RFC, you should probably ignore this and put it to a high value. This parameter is used to limit the block size used by the RFC, and is the size (in bytes) of the biggest block you allow the RFC to use.\\
-\textbf{safe settings for max\_sub\_block:} sub\_symbol\_size * block\_size.
+Which is really simple. The first is an Enum that will help you get the correct block size, and the second is your arbitrary symbol size.
 
+Since the RaptorQ algorithm only works with specific block sizes, You can get all the possible block sizes from \texttt{RaptorQ\_\_v1::*blocks}, which is a pointer to an array of 477 possible sizes, from $10$ to $56403$. You can cast each element in this array to \texttt{uint16\_t} to verify the actual value, or directly name them, as in \texttt{RaptorQ\_\_v1::Block\_Size::Block\_42}.
+
+If you pass unsafe values the encoder (or decoder) will refuse to work.
 
 You can instantiate an encoder for example by doing:
 
@@ -393,13 +373,15 @@ You can instantiate an encoder for example by doing:
 std::vector<uint32_t> input, output;
 ...
 using T_it = typename std::vector<uint32_t>::iterator;
-RFC6330::Encoder<T_it, T_it> enc (input.begin(),
-                                  input.end(),
-                                  4, 1444, 10000)
+using RaptorQ = RaptorQ__v1;
+RaptorQ::Encoder<T_it, T_it> enc (
+						RaptorQ::Block_Size::Block_42,					
+						1500);
+														
 \end{lstlisting}
 
-This will create an Encoder that works on vectors of unsigned 32 bit integers for both input and output, that will create symbols of size 1444 bytes, interleaving
-your input every 4 bytes, and try to work with a big number of symbols per blocks.
+This will create an Encoder that works on vectors of unsigned 32 bit integers for both input and output, that will be fed to a block of size 42 
+symbols of size 1500 bytes.
 
 The available methods for the encoder are the following:
 
@@ -407,60 +389,6 @@ The available methods for the encoder are the following:
 \item[operator bool()] \textbf{return:bool}\\
 False if constructor parameters did not make sense. Else true.
 
-\item[OTI\_Common()] \textbf{return: OTI\_Common\_Data}, aka \textit{uint64\_t}.\\
-Keeps total \textbf{file size and symbol size}. You need to send this to the receiver, so that it will be able to properly decode the data.
-
-\item[OTI\_Scheme\_Specific\_Data()] \textbf{return: OTI\_Scheme\_Specific\_Data}, aka \textit{uint32\_t}.\\
-Keeps number of \textbf{source blocks, sub blocks, and alignment}. As for the OTI\_Common\_Data, you need to send this to the receiver to be able to
-properly decode the data.
-
-\item[compute] \textbf{Input: const Compute flags}\\
-\textbf{return: std::future<std::pair<Error, uint8\_t> >}\\
-For C++11 only (automatically disabled on C++98). Start the computation, return a future, which has a pair of Error and the number of blocks ready.\\
-Compute flags:
-\begin{lstlisting}[language=C++]
-enum class Compute : uint8_t {
-	NONE 
-	// report every time there is more data, but only
-	// if that data starts at the beginning.
-	PARTIAL_FROM_BEGINNING
-	PARTIAL_ANY
-	COMPLETE // only when all the data is available
-	NO_BACKGROUND // only return after the computation is finished
-	NO_POOL // do not use the thread pool
-	NO_RETRY // do not retry if we failed, even if there is more data
-};
-\end{lstlisting}
-
-\item [precompute\_max\_memory] \textbf{return: size\_t}\\
-Each precomputation can take a lot of memory, depending on the configuration, so you might want to limit the number of precomputations run in parallel
-depending on the memory used. This method returns the amount of memory taken by \textbf{ONE} precomputation.
-
-\item[encode] \textbf{Input: Fwd\_It \&output, const Fwd\_It end, const uint32\_t esi, const uint8\_t sbn}.\\
-\textbf{return:size\_t}.\\
-Take as input the iterators to the data structure into where we have to save the encoded data, the \textbf{Encoding Symbol Id} and the
-\textbf{Source Block Number}. As you are writing in C++, you probably want to use the iterators begin/end, though. Returns the number of written
-iterators (\textbf{NOT} the bytes)
-
-\item[encode] \textbf{Input: Fwd\_It \&output, const Fwd\_It end, const uint32\_t id}.\\
-\textbf{return:size\_t}.\\
-Exactly as before, but the \textbf{id} contains both the \textit{source block number} and the \textit{encoding symbol id}
-
-\item[begin()] \textbf{return: Block\_Iterator<Rnd\_It, Fwd\_It>}\\
-This returns an iterator to the blocks in which the RFC divided the input data. See later to understand how to use it.
-\item[end()] \textbf{return: const Block\_Iterator<Rnd\_It, Fwd\_It>}\\
-This returns an iterator to the end of the blocks in which the RFC divided the input data. See later to understand how to use it.
-
-\item [free] \textbf{Input: const uint8\_t sbn}\\
-\textbf{return: void}\\
-Each block takes some memory, (a bit more than $symbols * symbol\_size$), so once you are done sending source and repair symbols for one block,
-you might want to free the memory of that block.
-
-\item[blocks()] \textbf{return: uint8\_t} The number of blocks.
-
-\item[block\_size()] \textbf{Input: const uint8\_t sbn}\\
-\textbf{return: uint32\_t}\\
-The block size, in bytes. Each block can have different symbols and thus different size. The last block also might have more padding, and with this you get the real size of that block, without the padding.
 
 \item[symbol\_size()] \textbf{return: uint16\_t} The size of a symbol.
 
@@ -468,66 +396,75 @@ The block size, in bytes. Each block can have different symbols and thus differe
 \textbf{return: uint16\_t}\\
 The number of symbols in a specific block. different blocks can have different symbols.
 
-\item[extended\_symbols] \textbf{Input:uint8\_t sbn}\\
-\textbf{return: uint16\_t}\\
-The \textbf{real, internal} number of symbols in a specific block. This can be slightly higher than the \texttt{symbols()} call, and \textit{you probably do not need this} for anything except if you are trying to know more about the RaptorQ algorithm
-
 \item[max\_repair] \textbf{Input: const uint8\_t sbn)}\\
 \textbf{return: uint32\_t}\\
-The maximum amount of repair symbols that you can generate. Something less than $2^{24}$, but the exact number depends on the number of symbols
-in a block
+The maximum amount of repair symbols that you can generate. Something less than $2^{24}$, but the exact number depends on the number of symbols in a block
+
+\item[begin\_source()] \textbf{return: Symbol\_Iterator<Rnd\_It, Fwd\_It>}\\
+This returns an iterator to the symbols in this block. Source symbols only
+\item[end\_source()] \textbf{return: const Symbol.\_Iterator<Rnd\_It, Fwd\_It>}\\
+This returns an iterator to the end of the source symbols.
+\item[begin\_repair()] \textbf{return: Symbol\_Iterator<Rnd\_It, Fwd\_It>}\\
+This returns an iterator to the symbols in this block. Source symbols only
+\item[end\_repair] \textbf{Input: const uint32\_t max\_repair}\\
+\textbf{return: const Symbol.\_Iterator<Rnd\_It, Fwd\_It>}\\
+This returns an iterator to the end of the source symbols.
+
+\item[has\_data()] \textbf{return: bool}\\
+Did you feed this encoder the data? That is: did you use \texttt{set\_data()} without calling \texttt{clear\_data()} later?
+
+\item[set\_data] \textbf{Input: const Rnd\_It \&from}\\
+.\ \ \ \ \ \ \ \ \ \ \textbf{const Rnd\_It \&to}\\
+\textbf{return: size\_t}\\
+Set the iterators from which we load all the data.
+
+\item[clear\_data]\textbf{return: void}\\
+clear all data, without deallocating memory so that things might be slightly faster next time.
+
+\item[ready()]\textbf{return: bool}\\
+Is everything decoded?
+
+\item[stop()]\textbf{return void}\\
+Stop any current decoding and return error.
+
+\item[precompute\_sync()]\textbf{return: bool}\\
+Start a precomputation so that next computations might be slightly faster. Only return when the precomputation is done or stop() was called.
+
+\item[compute\_sync()]\textbf{return: bool}\\
+Compute internal symbols from the input. Only return when the computation is done or stop() was called.
+
+\item[precompute()] \textbf{return: std::shared\_future<Error>}\\
+Start a precomputation so that next computations might be slightly faster. Returns immediately, but the user can wait or poll on the returned future.
+
+\item[compute()] \textbf{return: std::shared\_future<Error>}\\
+Start a computation on the data. Returns immediately, but the user can wait or poll on the returned future.
+
+\item[encode]\textbf{Input:Fwd\_It \&output}\\
+.\ \ \ \ \ \ \ \ \textbf{const Fwd\_It end}\\
+.\ \ \ \ \ \ \ \ \textbf{const uint32\_t id}\\
+\textbf{return: size\_t}\\
+Once the computation is finished, you can get the encoded symbols. The first \texttt{symbols()} are source symbols, and the next are repair symbols. Returns the number of iterators written into the \texttt{output} iterator, which will point to the first non-written element after the symbol.
+
 \end{description}
-
-\subsubsection{Blocks}
-\index{Blocks!C++}
-With the \textit{begin()/end()} calls you get \textit{Input iterators} to the blocks. A Block has the following type:
-\begin{lstlisting}[language=C++]
-template <typename Rnd_It, typename Fwd_It>
-class Block
-\end{lstlisting}
-and exposes the	 following methods:
-\begin{description}
-\item[begin\_source()]\textbf{return: Symbol\_Iterator}
-\item[end\_source()]\textbf{return: Symbol\_Iterator}
-\item[begin\_repair()]\textbf{return: Symbol\_Iterator}
-\item[end\_repair()]\textbf{Input: const uint32\_t max\_repair}\\
-\textbf{return: Symbol\_Iterator}
-\item[id()]\textbf{return: uint8\_t}
-\item[max\_repair()]\textbf{return: uint32\_t}
-\item[symbols()]\textbf{return: uint16\_t}
-\item[extended\_symbols()]\textbf{return: uint16\_t}\\
-As before, this is the amount of internal symbols, that include padding symbols. You probably do not need this unless you are trying
-to know more about the RaptorQ algorithm
-
-\item[block\_size()]\textbf{return: uint32\_t}
-\end{description}
-
-As the names explain, you will get an iterator to the symbols in the block. As the number of repair symbols can vary, for now you get two separate begin/ends,
-so that you can check when you sent the source symbols, and how many repair symbols you send.\\
-The other functions are helpers for the details of the block.
-
 
 \subsubsection{Symbols}
 \index{Symbols!C++}
-Finally, through the \textit{Symbol\_Iterator} \textit{Input Iterator} we get the \textbf{Symbol} class:
+With the \textit{begin\_source()/end\_source()/begin\_repair()/end\_repair(..)} calls you get \textit{input iterators} to the symbols. A symbol has the following type:
 \begin{lstlisting}[language=C++]
 template <typename Rnd_It, typename Fwd_It>
 class Symbol
 \end{lstlisting}
-
-which exposes the following methods we need to get the symbol data:
-
+and exposes the	 following methods:
 \begin{description}
-\item[operator()]\textbf{Input:Fwd\_It \&start, const Fwd\_It end}\\
-\textbf{return: uint64\_t}\\
-takes a forward iterator, and fill it with the symbol data. returns the number of written iterators.
-\item[id()]\textbf{return: uint32\_t}\\
-return the id (\textit{$sbn + esi$}) of this symbol, that you need to include in every packet you send, before the symbols.
-\item[block()]\textbf{return: uint8\_t}\\
-return the \textit{block} of this symbol.
-\item[esi()]\textbf{return: uint32\_t}\\
-return the \textit{esi} of this symbol.
+\item[id()]\textbf{return: uint32\_t}
+\item[operator()]\textbf{Input: Fwd\_It \&start}\\
+.\ \ \ \ \ \ \ \ \ \ \ \textbf{const Fwd\_It end}\\
+\textbf{return: uint32\_t}\\
+Write the symbol into the start-end iterators provided by the user. Afterwards the start iterator will point to the first non-written element after the symbol
 \end{description}
+
+
+
 \newpage
 \subsubsection{The Decoder}
 \index{Decoder!C++}
