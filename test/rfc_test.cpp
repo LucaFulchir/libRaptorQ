@@ -300,7 +300,7 @@ void bench (uint16_t *K_idx, std::array<uint64_t, 477> *times);
 void bench (uint16_t *K_idx, std::array<uint64_t, 477> *times)
 {
     std::mt19937_64 rnd;
-    std::ifstream rand("/dev/random");
+    std::ifstream rand("/dev/urandom");
     uint64_t seed = 0;
     rand.read (reinterpret_cast<char *> (&seed), sizeof(seed));
     rand.close ();
@@ -315,9 +315,15 @@ void bench (uint16_t *K_idx, std::array<uint64_t, 477> *times)
             return;
         auto symbols = RaptorQ::Impl::K_padded[idx];
         std::uniform_real_distribution<float> drop (0.0, 20.0);
-        uint64_t time = decode (symbols, rnd, drop (rnd), 4);
-        (*times)[idx] = time;
-        std::cout << "K: " << symbols << " time: " << time << "\n";
+        std::array<uint64_t, 50> runs;
+        for (size_t run_idx = 0; run_idx < runs.size(); ++run_idx)
+            runs[run_idx] = decode (idx, rnd, drop (rnd), 4);
+        uint64_t avg = 0;
+        for (const auto run : runs)
+            avg += run;
+        avg /= runs.size();
+        (*times)[idx] = avg;
+        std::cout << "K: " << symbols << " time: " << avg << "\n";
     }
 }
 
@@ -334,9 +340,9 @@ uint64_t decode (uint32_t index_K, std::mt19937_64 &rnd, float drop_prob,
                     static_cast<uint32_t> ((*RFC6330__v1::blocks)[index_K - 1]);
     const uint32_t current_block_size =
                     static_cast<uint32_t> ((*RFC6330__v1::blocks)[index_K]);
-    std::uniform_int_distribution<uint32_t> data_size_distr (prev_block_size + 1,
+    std::uniform_int_distribution<uint32_t> data_size_distr(prev_block_size + 1,
                                                             current_block_size);
-    const uint32_t data_size = data_size_distr(rnd);
+    const uint32_t data_size = symbol_size * data_size_distr (rnd);
     std::vector<uint8_t> myvec;
     // initialize vector
     std::uniform_int_distribution<uint8_t> distr (0,
@@ -359,7 +365,7 @@ uint64_t decode (uint32_t index_K, std::mt19937_64 &rnd, float drop_prob,
     if (micro1 == 0)
         return 0;
 
-    if (drop_prob > static_cast<float> (100.0))
+    if (drop_prob > static_cast<float> (90.0))
         drop_prob = 90.0;   // this is still too high probably.
     std::uniform_real_distribution<float> drop (0.0, 100.0);
 
@@ -379,7 +385,7 @@ uint64_t decode (uint32_t index_K, std::mt19937_64 &rnd, float drop_prob,
             encoded.emplace_back ((*sym_it).id(), std::move(source_sym));
         }
         auto sym_it = block.begin_repair();
-        for (; repair >= 0 && sym_it != block.end_repair (block.max_repair());
+        for (; repair > 0 && sym_it != block.end_repair (block.max_repair());
                                                                     ++sym_it) {
             // repair symbols can be lost, too
             float dropped = drop (rnd);
@@ -398,6 +404,7 @@ uint64_t decode (uint32_t index_K, std::mt19937_64 &rnd, float drop_prob,
             std::cout << "Maybe losing " << drop_prob << "% is too much?\n";
             return 0;
         }
+        enc.free (block.id()); // done working with this block, forget it
     }
     auto oti_scheme = enc.OTI_Scheme_Specific();
     auto oti_common = enc.OTI_Common();
@@ -425,7 +432,8 @@ uint64_t decode (uint32_t index_K, std::mt19937_64 &rnd, float drop_prob,
     t.start();
     auto decoded = dec.decode_aligned (re_it, received.end(), 0);
     uint64_t micro2 = t.stop();
-
+    for (auto block : dec) // don't need those anymore
+        dec.free(block.id());
 
     if (decoded.written != data_size) {
         std::cerr << "NOPE: "<< index_K << " - " << drop_prob << " - " <<
@@ -461,6 +469,7 @@ int main (int argc, char **argv)
             // some problem. print help and exit
             std::cout << "Usage:\t\t" << argv[0] << " [threads]\n";
             std::cout << "rfc test:\t" << argv[0] << " conformity file\n";
+            std::cout << "\tprint results:\t" << argv[0] << " print file\n";
             return 1;
         }
         if (threads == 0)
@@ -506,7 +515,7 @@ int main (int argc, char **argv)
             times[i] = 0;
         for (uint8_t i = 0; i < threads; ++i)
             t.emplace_back (bench, &K_index, &times);
-        while (K_index != 477) {
+        while (K_index < 477) {
             std::this_thread::sleep_for (std::chrono::seconds(10));
             std::cout << "Done: " << K_index << "==" <<
                                     RaptorQ::Impl::K_padded[K_index] << "\n";
@@ -544,7 +553,7 @@ int main (int argc, char **argv)
         bool keep_working = true;
         t.emplace_back (save, file_state, &keep_working, &K_index, &test_num,
                                                             threads, &failures);
-        while (K_index != 477 || test_num < 1000000) {
+        while (K_index < 477) {
             std::this_thread::sleep_for (std::chrono::seconds(10));
             std::cout << "Done: " << K_index << "==" <<
                                 RaptorQ::Impl::K_padded[K_index] << ". Test:"
