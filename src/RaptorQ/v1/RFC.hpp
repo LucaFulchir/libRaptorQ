@@ -687,9 +687,11 @@ template <typename Rnd_It, typename Fwd_It>
 size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
                                                             const uint32_t &id)
 {
+    const uint32_t host_id = RaptorQ__v1::Impl::Endian::b_to_h<uint32_t> (id);
     constexpr uint32_t mask = ~(static_cast<uint32_t>(0xFF) << 24);
 
-    return encode (output, end, id & mask, static_cast<uint8_t> (id >> 24));
+    return encode (output, end, host_id & mask,
+                                        static_cast<uint8_t> (host_id >> 24));
 }
 
 template <typename Rnd_It, typename Fwd_It>

@@ -73,7 +73,8 @@ public:
     {
         if (_enc == nullptr)
             return 0;
-        return _enc->encode (start, end, _id);
+        return _enc->encode (start, end,
+                            RaptorQ__v1::Impl::Endian::h_to_b<uint32_t> (_id));
     }
     uint32_t id() const
         { return RaptorQ__v1::Impl::Endian::h_to_b<uint32_t> (_id); }
