@@ -85,7 +85,8 @@ public:
     Raw_Decoder (Raw_Decoder&&) = default;
     Raw_Decoder& operator= (Raw_Decoder&&) = default;
 
-    Error add_symbol (In_It &start, const In_It end, const uint32_t esi);
+    Error add_symbol (In_It &start, const In_It end, const uint32_t esi,
+                                                                bool padded);
     Decoder_Result decode (Work_State *thread_keep_working);
     DenseMtx* get_symbols();
     bool has_symbol (const uint16_t symbol) const;
@@ -241,9 +242,13 @@ bool Raw_Decoder<In_It>::has_symbol (const uint16_t symbol) const
 
 template <typename In_It>
 Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
-                                                            const uint32_t esi)
+                                            const uint32_t esi, bool padded)
 {
     // true if added succesfully
+
+    // only the last symbol from the RFC interface should be padded,
+    // but we do not track here which one that is, so we leave that to
+    // the rfc interface
 
     // if we were lucky to get a random access iterator, quickly check that
     // the we have enough data for the symbol.
@@ -277,8 +282,14 @@ Error Raw_Decoder<In_It>::add_symbol (In_It &start, const In_It end,
         }
         // input iterator might reach end before we get enough data
         // for the symbol.
-        if (col != source_symbols.cols())
-            return Error::WRONG_INPUT;
+        if (col != source_symbols.cols()) {
+            if (padded) {
+                while (col != source_symbols.cols())
+                    source_symbols (static_cast<int32_t>(esi), col++) = 0;
+            } else {
+                return Error::WRONG_INPUT;
+            }
+        }
     } else {
         Vect v = Vect (source_symbols.cols());
         for (; start != end && col != source_symbols.cols(); ++start) {

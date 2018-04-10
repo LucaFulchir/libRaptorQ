@@ -609,7 +609,7 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
 {
     if (symbols_tracker.size() == 0)
         return Error::INITIALIZATION;
-    auto ret = dec.add_symbol (from, to, esi);
+    auto ret = dec.add_symbol (from, to, esi, false);
     if (ret == Error::NONE) {
         if (esi < _symbols)
             symbols_tracker [2 * esi].store (true);
