@@ -71,8 +71,8 @@ public:
     Encoder() = delete;
     Encoder (const Encoder&) = delete;
     Encoder& operator= (const Encoder&) = delete;
-    Encoder (Encoder &&) = default;
-    Encoder& operator= (Encoder &&) = default;
+    Encoder (Encoder &&) = delete;
+    Encoder& operator= (Encoder &&) = delete;
 
     explicit operator bool() const;
 
@@ -136,8 +136,8 @@ public:
                                                         const Dec_Report type);
     Decoder (const Decoder&) = delete;
     Decoder& operator= (const Decoder&) = delete;
-    Decoder (Decoder &&) = default;
-    Decoder& operator= (Decoder &&) = default;
+    Decoder (Decoder &&) = delete;
+    Decoder& operator= (Decoder &&) = delete;
 
     explicit operator bool() const;
 

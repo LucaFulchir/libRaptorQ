@@ -62,8 +62,8 @@ public:
     Raw_Encoder() = delete;
     Raw_Encoder (const Raw_Encoder&) = delete;
     Raw_Encoder& operator= (const Raw_Encoder&) = delete;
-    Raw_Encoder (Raw_Encoder&&) = default;
-    Raw_Encoder& operator= (Raw_Encoder&&) = default;
+    Raw_Encoder (Raw_Encoder&&) = delete;
+    Raw_Encoder& operator= (Raw_Encoder&&) = delete;
 
     // set data early so we can encode source symbols without
     // having done any precomputation.

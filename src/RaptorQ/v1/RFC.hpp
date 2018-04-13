@@ -78,8 +78,8 @@ public:
     Encoder() = delete;
     Encoder (const Encoder&) = delete;
     Encoder& operator= (const Encoder&) = delete;
-    Encoder (Encoder&&) = default;
-    Encoder& operator= (Encoder&&) = default;
+    Encoder (Encoder&&) = delete;
+    Encoder& operator= (Encoder&&) = delete;
     ~Encoder();
     Encoder (const Rnd_It data_from, const Rnd_It data_to,
                                             const uint16_t min_subsymbol_size,
@@ -228,8 +228,8 @@ public:
     //};
     Decoder (const Decoder&) = delete;
     Decoder& operator= (const Decoder&) = delete;
-    Decoder (Decoder&&) = default;
-    Decoder& operator= (Decoder&&) = default;
+    Decoder (Decoder&&) = delete;
+    Decoder& operator= (Decoder&&) = delete;
     ~Decoder();
     Decoder (const RFC6330_OTI_Common_Data common,
                                 const RFC6330_OTI_Scheme_Specific_Data scheme)

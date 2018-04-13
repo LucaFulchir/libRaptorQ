@@ -82,8 +82,8 @@ public:
     Raw_Decoder() = delete;
     Raw_Decoder (const Raw_Decoder&) = delete;
     Raw_Decoder& operator= (const Raw_Decoder&) = delete;
-    Raw_Decoder (Raw_Decoder&&) = default;
-    Raw_Decoder& operator= (Raw_Decoder&&) = default;
+    Raw_Decoder (Raw_Decoder&&) = delete;
+    Raw_Decoder& operator= (Raw_Decoder&&) = delete;
 
     Error add_symbol (In_It &start, const In_It end, const uint32_t esi,
                                                                 bool padded);
