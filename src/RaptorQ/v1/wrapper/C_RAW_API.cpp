@@ -283,9 +283,10 @@ static struct RaptorQ_ptr* v1_Decoder (RaptorQ_type type,
                                             const size_t symbol_size,
                                             const RQ_Dec_Report report)
 {
-    if (report != RQ_COMPUTE_PARTIAL_FROM_BEGINNING &&
-        report != RQ_COMPUTE_PARTIAL_ANY &&
-        report != RQ_COMPUTE_COMPLETE) {
+    const auto _report = static_cast<RFC6330_Compute> (report);
+    if (_report != RQ_COMPUTE_PARTIAL_FROM_BEGINNING &&
+        _report != RQ_COMPUTE_PARTIAL_ANY &&
+        _report != RQ_COMPUTE_COMPLETE) {
         return nullptr;
     }
 

@@ -529,9 +529,18 @@ target_link_libraries(test_cpp_rfc ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INI
 add_executable(test_cpp_raw EXCLUDE_FROM_ALL test/test_cpp_raw.cpp ${HEADERS_ONLY} ${HEADERS})
 target_compile_options(
     test_cpp_raw PRIVATE
+    ${CXX_COMPILER_FLAGS} "-DTEST_HDR_ONLY"
+)
+target_link_libraries(test_cpp_raw RaptorQ ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+
+# CPP interface - RAW interface (linked version)
+add_executable(test_cpp_raw_linked EXCLUDE_FROM_ALL test/test_cpp_raw.cpp)
+target_compile_options(
+    test_cpp_raw_linked PRIVATE
     ${CXX_COMPILER_FLAGS}
 )
-target_link_libraries(test_cpp_raw ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+add_dependencies(test_cpp_raw_linked RaptorQ)
+target_link_libraries(test_cpp_raw_linked RaptorQ ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
 # CLI tool - RAW API interface (header only)
 set(CLI_raw_sources src/cli/RaptorQ.cpp external/optionparser-1.4/optionparser.h ${HEADERS} ${HEADERS_ONLY})

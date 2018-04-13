@@ -19,7 +19,12 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../src/RaptorQ/RaptorQ_v1_hdr.hpp"
+// we can switch easily between header-only and linked version of the library
+#if defined (TEST_HDR_ONLY)
+    #include "../src/RaptorQ/RaptorQ_v1_hdr.hpp"
+#else
+    #include "../src/RaptorQ/RaptorQ_v1.hpp"
+#endif
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -131,10 +136,8 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
         }
     }
 
-    RaptorQ::Encoder<typename std::vector<in_enc_align>::iterator,
-                            typename std::vector<out_enc_align>::iterator> enc (
-                                                            block, symbol_size);
-    if (enc.set_data (myvec.begin(), myvec.end()) != mysize) {
+    RaptorQ::Encoder<in_enc_align*, out_enc_align*> enc (block, symbol_size);
+    if (enc.set_data (myvec.begin().base(), myvec.end().base()) != mysize) {
         std::cout << "Could not give data to the encoder :(\n";
         return false;
     }
@@ -172,9 +175,9 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
             std::vector<out_enc_align> source_sym;
             source_sym.reserve (out_aligned_symbol_size);
             source_sym.insert (source_sym.begin(), out_aligned_symbol_size, 0);
-            auto it = source_sym.begin();
+            out_enc_align* from = source_sym.begin().base();
             // save the symbol
-            auto written = (*sym_it) (it, source_sym.end());
+            auto written = (*sym_it) (from, source_sym.end().base());
             if (written != out_aligned_symbol_size) {
                 std::cout << written << "-vs-" << out_aligned_symbol_size <<
                                     " Could not get the whole source symbol!\n";
@@ -204,9 +207,9 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
             std::vector<out_enc_align> repair_sym;
             repair_sym.reserve (out_aligned_symbol_size);
             repair_sym.insert (repair_sym.begin(), out_aligned_symbol_size, 0);
-            auto it = repair_sym.begin();
+            out_enc_align* from = repair_sym.begin().base();
             // save the repair symbol
-            auto written = (*sym_it) (it, repair_sym.end());
+            auto written = (*sym_it) (from, repair_sym.end().base());
             if (written != out_aligned_symbol_size) {
                 std::cout << written << "-vs-" << out_aligned_symbol_size <<
                                     " Could not get the whole repair symbol!\n";
@@ -225,9 +228,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     // encoding done. now "encoded" is the vector with the trnasmitted data.
     // let's decode it
 
-    using Decoder_type = RaptorQ::Decoder<
-                                typename std::vector<in_dec_align>::iterator,
-                                typename std::vector<out_dec_align>::iterator>;
+    using Decoder_type = RaptorQ::Decoder<in_dec_align*, out_dec_align*>;
     Decoder_type dec (block, symbol_size, Decoder_type::Report::COMPLETE);
 
 
@@ -244,8 +245,8 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
         received.push_back (static_cast<out_dec_align> (0));
 
     for (size_t i = 0; i < encoded.size(); ++i) {
-        auto it = encoded[i].second.begin();
-        auto err = dec.add_symbol (it, encoded[i].second.end(),
+        out_enc_align *from = encoded[i].second.begin().base();
+        auto err = dec.add_symbol (from, encoded[i].second.end().base(),
                                                             encoded[i].first);
         if (err != RaptorQ::Error::NONE && err != RaptorQ::Error::NOT_NEEDED) {
             std::cout << "error adding?\n";
@@ -263,12 +264,12 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
         return false;
     }
 
-    auto re_it = received.begin();
+    out_dec_align *from = received.begin().base();
     // decode all blocks
     // you can actually call ".decode(...)" as many times
     // as you want. It will only start decoding once
     // it has enough data.
-    auto decoded = dec.decode_bytes (re_it, received.end(), 0, 0);
+    auto decoded = dec.decode_bytes (from, received.end().base(), 0, 0);
 
     // NOTE: decoded.first might be > mysize.
     // This can happen since "misize" might not fit the whole
@@ -325,7 +326,7 @@ int main (void)
     rand.close ();
     rnd.seed (seed);
 
-    RaptorQ__v1::local_cache_size (5000000);
+    RaptorQ::local_cache_size (5000000);
 
     // encode and decoder
     for (size_t i = 0; i < 1000; ++i) {
@@ -334,6 +335,7 @@ int main (void)
                                 rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
         if (!ret)
             return -1;
+#if defined (TEST_HDR_ONLY)
         std::cout << "08-08-16\n";
         ret = decode<uint8_t, uint8_t, uint16_t> (
                                 rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
@@ -394,11 +396,13 @@ int main (void)
                                 rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
         if (!ret)
             return -1;
+#endif
         std::cout << "16-16-16\n";
         ret = decode<uint16_t, uint16_t, uint16_t> (
                                 rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
         if (!ret)
             return -1;
+#if defined (TEST_HDR_ONLY)
         std::cout << "16-16-32\n";
         ret = decode<uint16_t, uint16_t, uint32_t> (
                                 rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
@@ -459,6 +463,7 @@ int main (void)
                                 rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
         if (!ret)
             return -1;
+#endif
         std::cout << "32-32-32\n";
         ret = decode<uint32_t, uint32_t, uint32_t> (
                                 rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);

@@ -85,17 +85,18 @@ public:
     size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t id);
 
 private:
-    Impl::Encoder_void *_encoder;
+    Impl::Encoder_void _encoder;
 };
 
 template <typename In_It, typename Fwd_It>
 class RAPTORQ_API Decoder
 {
 public:
+    using Report = Dec_Report;
 
     ~Decoder();
     Decoder (const Block_Size symbols, const size_t symbol_size,
-                                                        const Dec_Report type);
+                                                            const Report type);
     Decoder (const Decoder&) = delete;
     Decoder& operator= (const Decoder&) = delete;
     Decoder (Decoder &&) = default;
@@ -132,7 +133,7 @@ public:
     Decoder_written decode_bytes (Fwd_It &start, const Fwd_It end,
                                     const size_t from_byte, const size_t skip);
 private:
-    Impl::Decoder_void *_decoder;
+    Impl::Decoder_void _decoder;
 };
 
 
@@ -144,92 +145,60 @@ private:
 template <>
 inline Encoder<uint8_t*, uint8_t*>::Encoder (const Block_Size symbols,
                                                     const size_t symbol_size)
-{
-    _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_8,
-                                                        symbols, symbol_size);
-}
+    : _encoder (RaptorQ_type::RQ_ENC_8, symbols, symbol_size)
+    {}
 
 template <>
 inline Encoder<uint16_t*, uint16_t*>::Encoder (const Block_Size symbols,
                                                     const size_t symbol_size)
-{
-    _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_16,
-                                                        symbols, symbol_size);
-}
+    : _encoder (RaptorQ_type::RQ_ENC_16, symbols, symbol_size)
+    {}
 
 template <>
 inline Encoder<uint32_t*, uint32_t*>::Encoder (const Block_Size symbols,
                                                     const size_t symbol_size)
-{
-    _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_32,
-                                                        symbols, symbol_size);
-}
+    : _encoder (RaptorQ_type::RQ_ENC_32, symbols, symbol_size)
+    {}
 
 template <>
 inline Encoder<uint64_t, uint64_t*>::Encoder (const Block_Size symbols,
                                                     const size_t symbol_size)
-{
-    _encoder =  new Impl::Encoder_void (RaptorQ_type::RQ_ENC_64,
-                                                        symbols, symbol_size);
-}
+    : _encoder (RaptorQ_type::RQ_ENC_64, symbols, symbol_size)
+    {}
 
 template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::~Encoder()
-    { delete _encoder; }
+    {}
 
 template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::operator bool() const
-{
-    if (_encoder == nullptr)
-        return false;
-    return static_cast<bool> (*_encoder);
-}
+    { return static_cast<bool> (*_encoder); }
 
 template <typename Rnd_It, typename Fwd_It>
 uint16_t Encoder<Rnd_It, Fwd_It>::symbols() const
-{
-    if (_encoder == nullptr)
-        return 0;
-    return _encoder->symbols();
-}
+    { return _encoder.symbols(); }
 
 template <typename Rnd_It, typename Fwd_It>
 size_t Encoder<Rnd_It, Fwd_It>::symbol_size() const
-{
-    if (_encoder == nullptr)
-        return 0;
-    return _encoder->symbol_size();
-}
+    { return _encoder.symbol_size(); }
 
 template <typename Rnd_It, typename Fwd_It>
 uint32_t Encoder<Rnd_It, Fwd_It>::max_repair() const
-{
-    if (_encoder == nullptr)
-        return 0;
-    return _encoder->max_repair();
-}
+    { return _encoder.max_repair(); }
 
 template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
                                         Encoder<Rnd_It, Fwd_It>::begin_source()
 {
-    if (_encoder == nullptr) {
-        return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (
-                                                                    nullptr, 0);
-    }
     return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (
-                                                                _encoder, 0);
+                                                                &_encoder, 0);
 }
 
 template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
                                         Encoder<Rnd_It, Fwd_It>::end_source ()
 {
-    if (_encoder == nullptr) {
-        return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (
-                                                                    nullptr, 0);
-    }
-    return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (_encoder,
+    return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (&_encoder,
                                                                     symbols());
 }
 
@@ -237,11 +206,7 @@ template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
                                         Encoder<Rnd_It, Fwd_It>::begin_repair()
 {
-    if (_encoder == nullptr) {
-        return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (
-                                                                    nullptr, 0);
-    }
-    return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (_encoder,
+    return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (&_encoder,
                                                                     symbols());
 }
 
@@ -249,105 +214,59 @@ template <typename Rnd_It, typename Fwd_It>
 RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It>
                     Encoder<Rnd_It, Fwd_It>::end_repair (const uint32_t repair)
 {
-    if (_encoder == nullptr) {
-        return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (
-                                                                    nullptr, 0);
-    }
-    return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (_encoder,
+    return RaptorQ__v1::It::Encoder::Symbol_Iterator<Rnd_It, Fwd_It> (&_encoder,
                                                             symbols() + repair);
 }
 
 template <typename Rnd_It, typename Fwd_It>
 bool Encoder<Rnd_It, Fwd_It>::has_data() const
-{
-    if (_encoder == nullptr)
-        return false;
-    return _encoder->has_data();
-}
+    { return _encoder.has_data(); }
 
 template <typename Rnd_It, typename Fwd_It>
 size_t Encoder<Rnd_It, Fwd_It>::set_data (const Rnd_It &from, const Rnd_It &to)
 {
-    if (_encoder == nullptr)
-        return 0;
     const void *_from = reinterpret_cast<const void*> (from);
     const void *_to = reinterpret_cast<const void*> (to);
-    return _encoder->set_data (_from, _to);
+    return _encoder.set_data (_from, _to);
 }
 
 template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::clear_data()
-{
-    if (_encoder == nullptr)
-        return;
-    _encoder->clear_data();
-}
+    { _encoder.clear_data(); }
 
 template <typename Rnd_It, typename Fwd_It>
 bool Encoder<Rnd_It, Fwd_It>::ready() const
-{
-    if (_encoder == nullptr)
-        return false;
-    _encoder->ready();
-}
+    { _encoder.ready(); }
 
 template <typename Rnd_It, typename Fwd_It>
 void Encoder<Rnd_It, Fwd_It>::stop()
-{
-    if (_encoder == nullptr)
-        return;
-    _encoder->stop();
-}
+    { _encoder.stop(); }
 
 template <typename Rnd_It, typename Fwd_It>
 bool Encoder<Rnd_It, Fwd_It>::precompute_sync()
-{
-    if (_encoder == nullptr)
-        return false;
-    return _encoder->precompute_sync();
-}
+    { return _encoder.precompute_sync(); }
 
 template <typename Rnd_It, typename Fwd_It>
 bool Encoder<Rnd_It, Fwd_It>::compute_sync()
-{
-    if (_encoder == nullptr)
-        return false;
-    return _encoder->compute_sync();
-}
+    { return _encoder.compute_sync(); }
 
 #if __cplusplus >= 201103L
 template <typename Rnd_It, typename Fwd_It>
 std::shared_future<Error> Encoder<Rnd_It, Fwd_It>::precompute()
-{
-    if (_encoder == nullptr) {
-        std::promise<Error> p;
-        p.set_value (Error::INITIALIZATION);
-        return p.get_future();
-    }
-    return _encoder->precompute();
-}
+    { return _encoder.precompute(); }
 
 template <typename Rnd_It, typename Fwd_It>
 std::shared_future<Error> Encoder<Rnd_It, Fwd_It>::compute()
-{
-    if (_encoder == nullptr) {
-        std::promise<Error> p;
-        p.set_value (Error::INITIALIZATION);
-        return p.get_future();
-    }
-    return _encoder->compute();
-}
+    { return _encoder.compute(); }
 #endif
 
 template <typename Rnd_It, typename Fwd_It>
 size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
                                                             const uint32_t id)
 {
-    if (_encoder == nullptr)
-        return 0;
     void **_from = reinterpret_cast<void**> (&output);
     void *_to = reinterpret_cast<void*> (end);
-    auto ret = _encoder->encode (_from, _to, id);
+    auto ret = _encoder.encode (_from, _to, id);
     output = *reinterpret_cast<Fwd_It*> (_from);
     return ret;
 }
@@ -361,75 +280,52 @@ template <>
 inline Decoder<uint8_t*, uint8_t*>::Decoder (const Block_Size symbols,
                                                     const size_t symbol_size,
                                                     const Dec_Report type)
-{
-    _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_8,
-                                                    symbols, symbol_size, type);
-}
+    : _decoder (RaptorQ_type::RQ_DEC_8, symbols, symbol_size, type)
+    {}
 
 template <>
 inline Decoder<uint16_t*, uint16_t*>::Decoder (const Block_Size symbols,
                                                      const size_t symbol_size,
                                                      const Dec_Report type)
-{
-    _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_16,
-                                                    symbols, symbol_size, type);
-}
+    :_decoder (RaptorQ_type::RQ_DEC_16, symbols, symbol_size, type)
+    {}
 
 template <>
 inline Decoder<uint32_t*, uint32_t*>::Decoder (const Block_Size symbols,
                                                      const size_t symbol_size,
                                                      const Dec_Report type)
-{
-    _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_32,
-                                                    symbols, symbol_size, type);
-}
+    :_decoder (RaptorQ_type::RQ_DEC_32, symbols, symbol_size, type)
+    {}
 
 template <>
 inline Decoder<uint64_t*, uint64_t*>::Decoder (const Block_Size symbols,
                                                      const size_t symbol_size,
                                                      const Dec_Report type)
-{
-    _decoder = new Impl::Decoder_void (RaptorQ_type::RQ_DEC_64,
-                                                    symbols, symbol_size, type);
-}
+    :_decoder (RaptorQ_type::RQ_DEC_64, symbols, symbol_size, type)
+    {}
 
 template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::~Decoder()
-    { delete _decoder; }
+    {}
 
 
 template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::operator bool() const
-{
-    if (_decoder == nullptr)
-        return 0;
-    return static_cast<bool> (*_decoder);
-}
+    { return static_cast<bool> (*_decoder); }
 
 template <typename In_It, typename Fwd_It>
 uint16_t Decoder<In_It, Fwd_It>::symbols() const
-{
-    if (_decoder == nullptr)
-        return 0;
-    return _decoder->symbols();
-}
+    { return _decoder.symbols(); }
 
 template <typename In_It, typename Fwd_It>
 size_t Decoder<In_It, Fwd_It>::symbol_size() const
-{
-    if (_decoder == nullptr)
-        return 0;
-    return _decoder->symbol_size();
-}
+    { return _decoder.symbol_size(); }
 
 template <typename In_It, typename Fwd_It>
 RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
                                                 Decoder<In_It, Fwd_It>::begin()
 {
-    if (_decoder == nullptr)
-        return RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> (
-                                                                    nullptr, 0);
-    return RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> (_decoder,
+    return RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> (&_decoder,
                                                                             0);
 }
 
@@ -437,30 +333,21 @@ template <typename In_It, typename Fwd_It>
 RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It>
                                                 Decoder<In_It, Fwd_It>::end()
 {
-    if (_decoder == nullptr)
-        return RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> (
-                                                                    nullptr, 0);
     return RaptorQ__v1::It::Decoder::Symbol_Iterator<In_It, Fwd_It> (
-                                                        _decoder, symbols());
+                                                        &_decoder, symbols());
 }
 
 template <typename In_It, typename Fwd_It>
 uint16_t Decoder<In_It, Fwd_It>::needed_symbols() const
-{
-    if (_decoder == nullptr)
-        return 0;
-    return _decoder->needed_symbols();
-}
+    { return _decoder.needed_symbols(); }
 
 template <typename In_It, typename Fwd_It>
 Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
                                                             const uint32_t esi)
 {
-    if (_decoder == nullptr)
-        return Error::INITIALIZATION;
     void **_from = reinterpret_cast<void**> (&from);
     void *_to = reinterpret_cast<void*> (to);
-    auto ret = _decoder->add_symbol (_from, _to, esi);
+    auto ret = _decoder.add_symbol (_from, _to, esi);
     from = *reinterpret_cast<In_It*> (_from);
     return ret;
 }
@@ -468,97 +355,53 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
 template <typename In_It, typename Fwd_It>
 std::vector<bool> Decoder<In_It, Fwd_It>::end_of_input (
                                                     const Fill_With_Zeros fill)
-{
-    if (_decoder != nullptr)
-        return _decoder->end_of_input (fill);
-    return std::vector<bool>();
-}
+    { return _decoder.end_of_input (fill); }
 
 template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::set_max_concurrency (const uint16_t max_threads)
-{
-    if (_decoder != nullptr)
-        return _decoder->set_max_concurrency (max_threads);
-}
+    { return _decoder.set_max_concurrency (max_threads); }
 
 template <typename In_It, typename Fwd_It>
 Decoder_Result Decoder<In_It, Fwd_It>::decode_once()
-{
-    if (_decoder == nullptr)
-        return Decoder_Result::NEED_DATA;
-    return _decoder->decode_once();
-}
+    { return _decoder.decode_once(); }
 
 template <typename In_It, typename Fwd_It>
 Decoder_wait_res Decoder<In_It, Fwd_It>::poll()
-{
-    if (_decoder == nullptr)
-        return {Error::INITIALIZATION, 0};
-    return _decoder->poll();
-}
+    { return _decoder.poll(); }
 
 template <typename In_It, typename Fwd_It>
 Decoder_wait_res Decoder<In_It, Fwd_It>::wait_sync()
-{
-    if (_decoder == nullptr) {
-        return {Error::INITIALIZATION, 0};
-    }
-    return _decoder->wait_sync();
-}
+    { return _decoder.wait_sync(); }
 
 #if __cplusplus >= 201103L || _MSC_VER > 1900
 template <typename In_It, typename Fwd_It>
 std::future<struct Decoder_wait_res> Decoder<In_It, Fwd_It>::wait()
-{
-    if (_decoder == nullptr) {
-        std::promise<struct Decoder_wait_res> p;
-        p.set_value ({Error::INITIALIZATION, 0});
-        return p.get_future();
-    }
-    return _decoder->wait();
-}
+    { return _decoder.wait(); }
 #endif
 
 template <typename In_It, typename Fwd_It>
 bool Decoder<In_It, Fwd_It>::can_decode() const
-{
-    if (_decoder == nullptr)
-        return false;
-    return _decoder->can_decode();
-}
+    { return _decoder.can_decode(); }
 
 template <typename In_It, typename Fwd_It>
 bool Decoder<In_It, Fwd_It>::ready() const
-{
-    if (_decoder == nullptr)
-        return false;
-    return _decoder->ready();
-}
+    { return _decoder.ready(); }
 
 template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::stop()
-{
-    if (_decoder != nullptr)
-        _decoder->stop();
-}
+    { _decoder.stop(); }
 
 template <typename In_It, typename Fwd_It>
 void Decoder<In_It, Fwd_It>::clear_data()
-{
-    if (_decoder == nullptr)
-        return;
-    _decoder->clear_data();
-}
+    { _decoder.clear_data(); }
 
 template <typename In_It, typename Fwd_It>
 Error Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
                                                             const uint16_t esi)
 {
-    if (_decoder == nullptr || end < start)
-        return Error::INITIALIZATION;
     void **_from = reinterpret_cast<void**> (&start);
     void *_to = reinterpret_cast<void*> (end);
-    auto ret = _decoder->decode_symbol (_from, _to, esi);
+    auto ret = _decoder.decode_symbol (_from, _to, esi);
     start = *reinterpret_cast<Fwd_It*> (_from);
     return ret;
 }
@@ -569,11 +412,9 @@ Decoder_written Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
                                                         const size_t from_byte,
                                                         const size_t skip)
 {
-    if (_decoder == nullptr)
-        return {0, skip};
     void **_from = reinterpret_cast<void**> (&start);
     void *_to = reinterpret_cast<void*> (end);
-    auto ret = _decoder->decode_bytes (_from, _to, from_byte, skip);
+    auto ret = _decoder.decode_bytes (_from, _to, from_byte, skip);
     start = *reinterpret_cast<Fwd_It*> (_from);
     return ret;
 }

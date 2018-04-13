@@ -78,7 +78,14 @@ public:
     {
         if (_enc == nullptr)
             return 0;
+        #ifdef RQ_HEADER_ONLY
         return _enc->encode (start, end, _esi);
+        #else
+        void **_from = reinterpret_cast<void**> (&start);
+        void *_to = reinterpret_cast<void*> (end);
+        return _enc->encode (_from, _to, _esi);
+        start = *reinterpret_cast<Fwd_It*> (_from);
+        #endif
     }
     uint32_t id() const
         { return _esi; }
@@ -145,7 +152,15 @@ public:
     {
         if (_dec == nullptr)
             return Error::INITIALIZATION;
-        return _dec->decode_symbol (start, end, _esi);
+
+        #ifdef RQ_HEADER_ONLY
+        return _dec->encode (start, end, _esi);
+        #else
+        void **_from = reinterpret_cast<void**> (&start);
+        void *_to = reinterpret_cast<void*> (end);
+        return _dec->decode_symbol (_from, _to, _esi);
+        start = *reinterpret_cast<Fwd_It*> (_from);
+        #endif
     }
     uint16_t id() const
         { return _esi; }

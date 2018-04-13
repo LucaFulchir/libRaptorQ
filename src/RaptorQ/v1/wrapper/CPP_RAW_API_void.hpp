@@ -88,8 +88,9 @@ private:
 class RAPTORQ_API Decoder_void
 {
 public:
+    using Report = Dec_Report;
     Decoder_void (const RaptorQ_type type, const Block_Size symbols,
-                        const size_t symbol_size, const Dec_Report computation);
+                            const size_t symbol_size, const Report computation);
     ~Decoder_void();
     Decoder_void() = delete;
     Decoder_void (const Decoder_void&) = delete;
