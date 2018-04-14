@@ -267,7 +267,8 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
     void **_from = reinterpret_cast<void**> (&output);
     void *_to = reinterpret_cast<void*> (end);
     auto ret = _encoder.encode (_from, _to, id);
-    output = *reinterpret_cast<Fwd_It*> (_from);
+    Fwd_It *tmp = reinterpret_cast<Fwd_It*> (_from);
+    output = *tmp;
     return ret;
 }
 
@@ -348,7 +349,8 @@ Error Decoder<In_It, Fwd_It>::add_symbol (In_It &from, const In_It to,
     void **_from = reinterpret_cast<void**> (&from);
     void *_to = reinterpret_cast<void*> (to);
     auto ret = _decoder.add_symbol (_from, _to, esi);
-    from = *reinterpret_cast<In_It*> (_from);
+    In_It *tmp = reinterpret_cast<In_It*> (_from);
+    from = *tmp;
     return ret;
 }
 
@@ -402,7 +404,8 @@ Error Decoder<In_It, Fwd_It>::decode_symbol (Fwd_It &start, const Fwd_It end,
     void **_from = reinterpret_cast<void**> (&start);
     void *_to = reinterpret_cast<void*> (end);
     auto ret = _decoder.decode_symbol (_from, _to, esi);
-    start = *reinterpret_cast<Fwd_It*> (_from);
+    Fwd_It *tmp = reinterpret_cast<Fwd_It*> (_from);
+    start = *tmp;
     return ret;
 }
 
@@ -415,7 +418,8 @@ Decoder_written Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start,
     void **_from = reinterpret_cast<void**> (&start);
     void *_to = reinterpret_cast<void*> (end);
     auto ret = _decoder.decode_bytes (_from, _to, from_byte, skip);
-    start = *reinterpret_cast<Fwd_It*> (_from);
+    Fwd_It *tmp = reinterpret_cast<Fwd_It*> (_from);
+    start = *tmp;
     return ret;
 }
 

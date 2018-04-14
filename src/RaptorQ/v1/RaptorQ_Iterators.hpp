@@ -84,7 +84,8 @@ public:
         void **_from = reinterpret_cast<void**> (&start);
         void *_to = reinterpret_cast<void*> (end);
         return _enc->encode (_from, _to, _esi);
-        start = *reinterpret_cast<Fwd_It*> (_from);
+        Fwd_It *tmp = reinterpret_cast<Fwd_It*> (_from);
+        start = *tmp;
         #endif
     }
     uint32_t id() const
@@ -159,7 +160,8 @@ public:
         void **_from = reinterpret_cast<void**> (&start);
         void *_to = reinterpret_cast<void*> (end);
         return _dec->decode_symbol (_from, _to, _esi);
-        start = *reinterpret_cast<Fwd_It*> (_from);
+        Fwd_It *tmp = reinterpret_cast<Fwd_It*> (_from);
+        start = *tmp;
         #endif
     }
     uint16_t id() const
