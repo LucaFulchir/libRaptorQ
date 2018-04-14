@@ -521,9 +521,18 @@ endif()
 add_executable(test_cpp_rfc EXCLUDE_FROM_ALL test/test_cpp_rfc.cpp ${HEADERS_ONLY} ${HEADERS})
 target_compile_options(
     test_cpp_rfc PRIVATE
-    ${CXX_COMPILER_FLAGS}
+    ${CXX_COMPILER_FLAGS} "-DTEST_HDR_ONLY"
 )
 target_link_libraries(test_cpp_rfc ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
+
+# CPP interface - RFC interface (linked version)
+add_executable(test_cpp_rfc_linked EXCLUDE_FROM_ALL test/test_cpp_rfc.cpp ${HEADERS_ONLY} ${HEADERS})
+target_compile_options(
+    test_cpp_rfc_linked PRIVATE
+    ${CXX_COMPILER_FLAGS}
+)
+add_dependencies(test_cpp_rfc_linked RaptorQ)
+target_link_libraries(test_cpp_rfc_linked RaptorQ ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
 # CPP interface - RAW interface (header only)
 add_executable(test_cpp_raw EXCLUDE_FROM_ALL test/test_cpp_raw.cpp ${HEADERS_ONLY} ${HEADERS})
@@ -569,7 +578,7 @@ target_compile_options(
 )
 target_link_libraries(example_cpp_raw ${RQ_UBSAN} ${STDLIB} ${CMAKE_THREAD_LIBS_INIT} ${RQ_LZ4_DEP})
 
-add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_raw libRaptorQ-test example_cpp_raw)
+add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_rfc_linked test_cpp_raw test_cpp_raw_linked libRaptorQ-test example_cpp_raw)
 
 
 

@@ -18,7 +18,11 @@
  * along with libRaptorQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../src/RaptorQ/RFC6330_v1_hdr.hpp"
+#if defined (TEST_HDR_ONLY)
+    #include "../src/RaptorQ/RFC6330_v1_hdr.hpp"
+#else
+    #include "../src/RaptorQ/RFC6330_v1.hpp"
+#endif
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -67,11 +71,13 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
                 std::ceil(static_cast<float> (mysize) / sizeof(in_enc_align))));
     in_enc_align tmp = 0;
     uint8_t shift = 0;
-    uint8_t insert = 0;
+    uint8_t data_counter;
+    data_counter = 0;
     for (uint32_t i = 0; i < mysize; ++i) {
-        tmp += static_cast<in_enc_align> (insert) << shift * 8;
-        ++insert;
-        //tmp += static_cast<in_enc_align> (i) << shift * 8;
+        // insert predicatable data: for debugging
+        //tmp += static_cast<in_enc_align> (insert++) << shift * 8;
+        // insert random data
+        tmp += static_cast<in_enc_align> (distr (rnd)) << shift * 8;
         ++shift;
         if (shift >= sizeof(in_enc_align)) {
             myvec.push_back (tmp);
@@ -99,12 +105,11 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     std::cout << "Subsymbol: " << subsymbol << " Symbol: " << symbol_size<<"\n";
     size_t aligned_symbol_size = static_cast<size_t> (
         std::ceil(static_cast<float> (symbol_size) / sizeof(out_enc_align)));
-    auto enc_it = myvec.begin();
+    auto enc_it = myvec.begin().base();
 
-    std::uniform_int_distribution<uint32_t> mem_distr (100, 200000);
-    RFC6330::Encoder<typename std::vector<in_enc_align>::iterator,
-                            typename std::vector<out_enc_align>::iterator> enc (
-                enc_it, myvec.end(), subsymbol, symbol_size, mem_distr(rnd));
+    std::uniform_int_distribution<uint32_t> mem_distr (10, 20000);
+    RFC6330::Encoder<in_enc_align*, out_enc_align*> enc (
+            enc_it, myvec.end().base(), subsymbol, symbol_size, mem_distr(rnd));
     std::cout << "Size: " << mysize << " Blocks: " <<
                                     static_cast<int32_t>(enc.blocks()) << "\n";
     if (!enc) {
@@ -143,9 +148,9 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
             std::vector<out_enc_align> source_sym;
             source_sym.reserve (aligned_symbol_size);
             source_sym.insert (source_sym.begin(), aligned_symbol_size, 0);
-            auto it = source_sym.begin();
+            auto it = source_sym.begin().base();
             // save the symbol
-            auto written = (*sym_it) (it, source_sym.end());
+            auto written = (*sym_it) (it, source_sym.end().base());
             if (written != aligned_symbol_size) {
                 std::cout << written << "-vs-" << aligned_symbol_size <<
                                     " Could not get the whole source symbol!\n";
@@ -169,9 +174,9 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
             std::vector<out_enc_align> repair_sym;
             repair_sym.reserve (aligned_symbol_size);
             repair_sym.insert (repair_sym.begin(), aligned_symbol_size, 0);
-            auto it = repair_sym.begin();
+            auto it = repair_sym.begin().base();
             // save the repair symbol
-            auto written = (*sym_it) (it, repair_sym.end());
+            auto written = (*sym_it) (it, repair_sym.end().base());
             if (written != aligned_symbol_size) {
                 std::cout << written << "-vs-" << aligned_symbol_size <<
                                     " Could not get the whole repair symbol!\n";
@@ -193,8 +198,7 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     // encoding done. now "encoded" is the vector with the trnasmitted data.
     // let's decode it
 
-    RFC6330::Decoder<typename std::vector<in_dec_align>::iterator,
-                            typename std::vector<out_dec_align>::iterator>
+    RFC6330::Decoder<in_dec_align*, out_dec_align*>
                                                 dec (oti_common, oti_scheme);
     if (!dec) {
         std::cout << "Could not initialize decoder\n";
@@ -216,8 +220,8 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
     received.resize (out_size, 0);
 
     for (size_t i = 0; i < encoded.size(); ++i) {
-        auto it = encoded[i].second.begin();
-        auto err = dec.add_symbol (it, encoded[i].second.end(),
+        auto it = encoded[i].second.begin().base();
+        auto err = dec.add_symbol (it, encoded[i].second.end().base(),
                                                             encoded[i].first);
         if (err != RFC6330::Error::NONE && err != RFC6330::Error::NOT_NEEDED) {
             std::cout << "error adding?\n";
@@ -229,12 +233,12 @@ bool decode (const uint32_t mysize, std::mt19937_64 &rnd, float drop_prob,
 
     async_dec.wait();
 
-    auto re_it = received.begin();
+    auto re_it = received.begin().base();
     // decode all blocks
     // you can actually call ".decode(...)" as many times
     // as you want. It will only start decoding once
     // it has enough data.
-    auto decoded = dec.decode_bytes (re_it, received.end(), 0);
+    auto decoded = dec.decode_bytes (re_it, received.end().base(), 0);
 
     assert (mysize == dec.bytes());
     // "decoded" can be more than mysize if the alignments are different
@@ -299,6 +303,7 @@ int main (void)
                                 rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
         if (!ret)
             return -1;
+#if defined (TEST_HDR_ONLY)
         std::cout << "08-08-16\n";
         ret = decode<uint8_t, uint8_t, uint16_t> (
                                 rnd_size (rnd, sizeof(uint8_t)), rnd, 20.0, 4);
@@ -359,11 +364,13 @@ int main (void)
                                 rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
         if (!ret)
             return -1;
+#endif
         std::cout << "16-16-16\n";
         ret = decode<uint16_t, uint16_t, uint16_t> (
                                 rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
         if (!ret)
             return -1;
+#if defined (TEST_HDR_ONLY)
         std::cout << "16-16-32\n";
         ret = decode<uint16_t, uint16_t, uint32_t> (
                                 rnd_size (rnd, sizeof(uint16_t)), rnd, 20.0, 4);
@@ -424,6 +431,7 @@ int main (void)
                                 rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);
         if (!ret)
             return -1;
+#endif
         std::cout << "32-32-32\n";
         ret = decode<uint32_t, uint32_t, uint32_t> (
                                 rnd_size (rnd, sizeof(uint32_t)), rnd, 20.0, 4);

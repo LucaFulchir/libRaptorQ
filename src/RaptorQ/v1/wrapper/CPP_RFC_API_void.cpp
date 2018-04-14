@@ -354,7 +354,7 @@ size_t Encoder_void::encode (void** output, const void* end, const uint32_t esi,
     return ret;
 }
 
-size_t Encoder_void::encode (void** output, const void* end, const uint32_t &id)
+size_t Encoder_void::encode (void** output, const void* end, const uint32_t id)
 {
     const cast_enc _enc (_encoder);
     uint8_t *p_8;

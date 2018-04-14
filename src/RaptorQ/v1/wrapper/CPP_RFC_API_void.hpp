@@ -79,7 +79,7 @@ public:
     size_t precompute_max_memory ();
     size_t encode (void** output, const void* end, const uint32_t esi,
                                                             const uint8_t sbn);
-    size_t encode (void** output, const void* end, const uint32_t &id);
+    size_t encode (void** output, const void* end, const uint32_t id);
     void free (const uint8_t sbn);
     uint8_t blocks() const;
     uint32_t block_size (const uint8_t sbn) const;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Luca Fulchir<luca@fulchir.it>, All rights reserved.
+ * Copyright (c) 2015-2018, Luca Fulchir<luca@fulchir.it>, All rights reserved.
  *
  * This file is part of "libRaptorQ".
  *
@@ -21,7 +21,7 @@
 #pragma once
 
 #include "RaptorQ/v1/common.hpp"
+#include "RaptorQ/v1/caches.hpp"
 #include "RaptorQ/v1/wrapper/CPP_RFC_API.hpp"
 #include "RaptorQ/v1/wrapper/CPP_RFC_API_void.hpp"
 #include "RaptorQ/v1/Thread_Pool.hpp"
-

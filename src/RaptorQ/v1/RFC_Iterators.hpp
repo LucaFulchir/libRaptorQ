@@ -73,8 +73,18 @@ public:
     {
         if (_enc == nullptr)
             return 0;
+        #ifdef RQ_HEADER_ONLY
         return _enc->encode (start, end,
                             RaptorQ__v1::Impl::Endian::h_to_b<uint32_t> (_id));
+        #else
+        void **_from = reinterpret_cast<void**> (&start);
+        void *_to = reinterpret_cast<void*> (end);
+        uint64_t res = _enc->encode (_from, _to,
+                            RaptorQ__v1::Impl::Endian::h_to_b<uint32_t> (_id));
+        Fwd_It *tmp = reinterpret_cast<Fwd_It*> (_from);
+        start = *tmp;
+        return res;
+        #endif
     }
     uint32_t id() const
         { return RaptorQ__v1::Impl::Endian::h_to_b<uint32_t> (_id); }
@@ -264,10 +274,18 @@ public:
 
     uint64_t operator() (In_It &start, const In_It end)
     {
-        if (_dec == nullptr || esi (_id) > _dec->symbols (block (_id)))
+        if (_dec == nullptr || esi() >= _dec->symbols (block()))
             return 0;
-        return _dec->decode_symbol (start, end,
-                                static_cast<uint16_t> (esi (_id)), block (_id));
+        #ifdef RQ_HEADER_ONLY
+        return _dec->decode_symbol (start, end, esi(), block());
+        #else
+        void **_from = reinterpret_cast<void**> (&start);
+        void *_to = reinterpret_cast<void*> (end);
+        uint64_t res = _dec->decode_symbol (_from, _to, esi(), block());
+        Fwd_It *tmp = reinterpret_cast<Fwd_It*> (_from);
+        start = *tmp;
+        return res;
+        #endif
     }
     uint32_t id() const
         { return RaptorQ__v1::Impl::Endian::h_to_b<uint32_t> (_id); }

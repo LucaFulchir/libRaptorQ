@@ -172,7 +172,7 @@ Encoder<Rnd_It, Fwd_It>::~Encoder()
 
 template <typename Rnd_It, typename Fwd_It>
 Encoder<Rnd_It, Fwd_It>::operator bool() const
-    { return static_cast<bool> (*_encoder); }
+    { return static_cast<bool> (_encoder); }
 
 template <typename Rnd_It, typename Fwd_It>
 uint16_t Encoder<Rnd_It, Fwd_It>::symbols() const
@@ -312,7 +312,7 @@ Decoder<In_It, Fwd_It>::~Decoder()
 
 template <typename In_It, typename Fwd_It>
 Decoder<In_It, Fwd_It>::operator bool() const
-    { return static_cast<bool> (*_decoder); }
+    { return static_cast<bool> (_decoder); }
 
 template <typename In_It, typename Fwd_It>
 uint16_t Decoder<In_It, Fwd_It>::symbols() const

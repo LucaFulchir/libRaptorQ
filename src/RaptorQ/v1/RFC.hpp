@@ -141,8 +141,8 @@ public:
     size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t esi,
                                                             const uint8_t sbn);
     // id: 8-bit sbn + 24 bit esi
-    size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t &id);
-    size_t encode_packet (Fwd_It &output, const Fwd_It end, const uint32_t &id);
+    size_t encode (Fwd_It &output, const Fwd_It end, const uint32_t id);
+    size_t encode_packet (Fwd_It &output, const Fwd_It end, const uint32_t id);
 
     void free (const uint8_t sbn);
     uint8_t blocks() const;
@@ -685,7 +685,7 @@ std::pair<Error, uint8_t> Encoder<Rnd_It, Fwd_It>::get_report (
 
 template <typename Rnd_It, typename Fwd_It>
 size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
-                                                            const uint32_t &id)
+                                                            const uint32_t id)
 {
     const uint32_t host_id = RaptorQ__v1::Impl::Endian::b_to_h<uint32_t> (id);
     constexpr uint32_t mask = ~(static_cast<uint32_t>(0xFF) << 24);
@@ -740,7 +740,7 @@ size_t Encoder<Rnd_It, Fwd_It>::encode (Fwd_It &output, const Fwd_It end,
 
 template <typename Rnd_It, typename Fwd_It>
 size_t Encoder<Rnd_It, Fwd_It>::encode_packet (Fwd_It &output, const Fwd_It end,
-                                                            const uint32_t &id)
+                                                            const uint32_t id)
 {
     // RFC packet, section 4.4.2 page 11
 
@@ -1697,21 +1697,25 @@ uint32_t Decoder<In_It, Fwd_It>::block_size (const uint8_t sbn) const
     if (!operator bool())
         return 0;
 
-    size_t ret = 0;
+    uint32_t ret = 0;
     if (sbn < part.num (0)) {
         ret = part.size (0) * _symbol_size;
     } else if (sbn - part.num (0) < part.num (1)) {
         ret = part.size (1) * _symbol_size;
     }
-    if (ret != 0 && sbn == (part.num (0) + part.num (1) - 1)) {
+    if (ret != 0 && (sbn + 1) == (part.num (0) + part.num (1))) {
         // the size of the data (_size) is different from the sum of the size of
         // all blocks. Get the real size, so we do not write more.
         // we obviously need to consider this only for the last block.
-        size_t left = ret;
-        left -= part.num (0) * part.size (0) * _symbol_size;
-        if (part.num (1) > 1)
-            left -= (part.num (1) - 1) * part.size (1) * _symbol_size;
-        ret = static_cast<uint32_t> (left);
+        size_t size_without_last;
+        if (sbn < part.num (0)) {
+            size_without_last = (part.num (0) - 1) * part.size (0) *
+                                                                _symbol_size;
+        } else {
+            size_without_last = part.num (0) * part.size (0) * _symbol_size +
+                            (part.num (1) - 1) * part.size (1) * _symbol_size;
+        }
+        ret = static_cast<uint32_t> (_size - size_without_last);
     }
     return ret;
 }
