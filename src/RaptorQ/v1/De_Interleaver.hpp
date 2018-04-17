@@ -62,6 +62,8 @@ size_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
                                                     const uint8_t skip,
                                                     const uint16_t from_esi)
 {
+    if (start == end)
+        return 0;
     // return number of BYTES written
     size_t written = 0;
     int32_t byte = 0;
@@ -78,21 +80,21 @@ size_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
     using T = typename std::iterator_traits<Fwd_It>::value_type;
     T element = static_cast<T> (0);
     if (skip != 0) {
+        assert (skip < sizeof(T) && "De_Interleaver: skip too big");
         uint8_t *p = reinterpret_cast<uint8_t *> (&*start);
         for (size_t keep = 0; keep < skip; ++keep) {
             element += static_cast<T> (*(p++)) << keep * 8;
         }
     }
-    while (start != end && sub_blk < (_sub_blocks.num(0) + _sub_blocks.num(1))){
-        if ((written + offset_al) >= max_bytes)
-            break;
+    while ((start != end && sub_blk < (_sub_blocks.num(0) + _sub_blocks.num(1)))
+                            && (written + offset_al) < (max_bytes + skip)) {
         element += static_cast<T> (static_cast<uint8_t>((*_symbols)(esi, byte)))
                                                             << offset_al * 8;
         ++offset_al;
         if (offset_al == sizeof(T)) {
             *start = element;
             ++start;
-            written += offset_al;
+            written += sizeof(T);
             element = static_cast<T> (0);
             offset_al = 0;
         }
@@ -115,6 +117,7 @@ size_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
             }
         }
     }
+    assert(!(start == end && offset_al != 0) && "De_Interleaver: can't write");
     if (start != end && offset_al != 0) {
         // we have more stuff in "element", but not enough to fill
         // the iterator. Do not overwrite additional data of the iterator.
@@ -125,8 +128,8 @@ size_t De_Interleaver<Fwd_It>::operator() (Fwd_It &start, const Fwd_It end,
         ++start;
         written += offset_al;
     }
-    if (written > 0)
-        written -= skip;
+    written -= skip;
+    assert (written <= max_bytes && "De_Interleaver: too much writing");
     return written;
 }
 

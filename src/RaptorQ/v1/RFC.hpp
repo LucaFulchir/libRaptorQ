@@ -1548,8 +1548,6 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
                     sizeof(typename std::iterator_traits<Fwd_It>::value_type);
         if (bytes_written == 0)
             return written;
-        //new_skip = block_size (sbn) %
-        //          sizeof(typename std::iterator_traits<Fwd_It>::value_type);
         // if we ended decoding in the middle of a Fwd_It, do not advance
         // start too much, or we will end up having additional zeros.
         if (new_skip == 0) {
@@ -1557,14 +1555,8 @@ uint64_t Decoder<In_It, Fwd_It>::decode_bytes (Fwd_It &start, const Fwd_It end,
         } else {
             uint64_t it_written = bytes_and_skip /
                     sizeof(typename std::iterator_traits<Fwd_It>::value_type);
-            // RaptorQ handles at most 881GB per rfc, so
-            // casting uint64 to int64 is safe
             // we can not do "--start" since it's a forward iterator
-            #pragma clang diagnostic push
-            #pragma clang diagnostic ignored "-Wshorten-64-to-32"
-            #pragma clang diagnostic ignored "-Wsign-conversion"
-            start += std::max (static_cast<uint64_t>(0), it_written - 1);
-            #pragma clang diagnostic pop
+            start += it_written;
         }
     }
     return written;
@@ -1700,7 +1692,7 @@ uint32_t Decoder<In_It, Fwd_It>::block_size (const uint8_t sbn) const
     uint32_t ret = 0;
     if (sbn < part.num (0)) {
         ret = part.size (0) * _symbol_size;
-    } else if (sbn - part.num (0) < part.num (1)) {
+    } else if ((sbn - part.num (0)) < part.num (1)) {
         ret = part.size (1) * _symbol_size;
     }
     if (ret != 0 && (sbn + 1) == (part.num (0) + part.num (1))) {
