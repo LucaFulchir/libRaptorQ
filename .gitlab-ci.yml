@@ -5,12 +5,12 @@ stages:
 
 job1:
   stage: makedoc
-  script: mkdir build; cd build; cmake -DCMAKE_BUILD_TYPE=Release ../; make docs; cp doc/libRaptorQ-RFC6330.pdf ~/
+  script: mkdir build; cd build; cmake -DCMAKE_BUILD_TYPE=Release ../; make docs; cp doc/libRaptorQ-RFC6330.pdf ~/; cp doc/libRaptorQ-RaptorQ.pdf ~/
   
 
 job2:
   stage: deploydoc
-  script: git diff-tree --no-commit-id --name-only -r HEAD | grep ^doc/ || exit 0; cd /var/lib/gitlab-runner/libRaptorQ.wiki; git pull; cp ~/libRaptorQ-RFC6330.pdf .; git add libRaptorQ-RFC6330.pdf; git commit -m '(gitlab-runner) updated pdf'; git push;
+  script: git diff-tree --no-commit-id --name-only -r HEAD | grep ^doc/ || exit 0; cd /var/lib/gitlab-runner/libRaptorQ.wiki; git pull; cp ~/libRaptorQ-RFC6330.pdf .; cp ~/libRaptorQ-RaptorQ.pdf .; git add libRaptorQ-RFC6330.pdf; git add libRaptorQ-RaptorQ.pdf; git commit -m '(gitlab-runner) updated pdf'; git push;
 
 job3:
   stage: build
