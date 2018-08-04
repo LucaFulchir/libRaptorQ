@@ -111,23 +111,26 @@ You can get the tarballs from the main website here:\\
 
 Or you can check out the repository (warning: development in progress):
 
-\begin{verbatim}
-$ git clone https://github.com/LucaFulchir/libRaptorQ.git
-\end{verbatim}
+\begin{lstlisting}[language=bash,breaklines=true]
+$ git clone --recurse-submodules \
+		https://fenrirproject.org/Luker/libRaptorQ.git
+\end{lstlisting}
 
-You can also get it from our main server:
+You can also get it from github:
 
-\begin{verbatim}
-$ git clone https://fenrirproject.org/Luker/libRaptorQ.git
-\end{verbatim}
+\begin{lstlisting}[language=bash,breaklines=true]
+$ git clone --recurse-submodules \
+		https://github.com/LucaFulchir/libRaptorQ.git
+\end{lstlisting}
 
 \index{GPG}\marginlabel{GPG verification:}
 Once you have cloned it, it's always a good thing to check the repository gpg
 signatures, so you can import my key with:
 
-\begin{verbatim}
-$ gpg --keyserver pgp.mit.edu --recv-key 7393DAD255BEB5751DBDA04AB11CD823BA278C85
-\end{verbatim}
+\begin{lstlisting}[language=bash,breaklines=true]
+$ gpg --keyserver pgp.mit.edu --recv-key \
+				7393DAD255BEB5751DBDA04AB11CD823BA278C85
+\end{lstlisting}
 
 
 Now you have the source, and the key, it's enough to check the signature of the
@@ -307,6 +310,8 @@ You can also use the library as a header-only include, by including \textbf{Rapt
 Since the libRaptorQ library now has two very different usages, everything was split into two namespaces: \textbf{RFC6330} and \textbf{RaptorQ}. The names should be explanatory: the first namespace (that we cover in this document) is for the RFC interface, while the second namespace is for the low-level interface.
 
 Since we will cover only the \textbf{RFC6330} namespace here, remember that everything we talk about is in this namespace.
+
+Both the RFC6330 and the RaptorQ namespace are versioned so you can keep using old APIs while we change stuff. just add \textbf{\texttt{\_\_v1}} to select the first version of the API. E.g: \textbf{\texttt{RFC6330\_\_v1}}
 
 \newpage
 

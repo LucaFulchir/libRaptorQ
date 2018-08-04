@@ -112,23 +112,26 @@ You can get the tarballs from the main website here:\\
 
 Or you can check out the repository (warning: development in progress):
 
-\begin{verbatim}
-$ git clone https://fenrirproject.org/Luker/libRaptorQ.git
-\end{verbatim}
+\begin{lstlisting}[language=bash,breaklines=true]
+$ git clone --recurse-submodules \
+		https://fenrirproject.org/Luker/libRaptorQ.git
+\end{lstlisting}
 
 You can also get it from github:
 
-\begin{verbatim}
-$ git clone https://github.com/LucaFulchir/libRaptorQ.git
-\end{verbatim}
+\begin{lstlisting}[language=bash,breaklines=true]
+$ git clone --recurse-submodules \
+		https://github.com/LucaFulchir/libRaptorQ.git
+\end{lstlisting}
 
 \index{GPG}\marginlabel{GPG verification:}
 Once you have cloned it, it's always a good thing to check the repository gpg
 signatures, so you can import my key with:
 
-\begin{verbatim}
-$ gpg --keyserver pgp.mit.edu --recv-key 7393DAD255BEB5751DBDA04AB11CD823BA278C85
-\end{verbatim}
+\begin{lstlisting}[language=bash,breaklines=true]
+$ gpg --keyserver pgp.mit.edu --recv-key \
+				7393DAD255BEB5751DBDA04AB11CD823BA278C85
+\end{lstlisting}
 
 
 Now you have the source, and the key, it's enough to check the signature of the
@@ -276,12 +279,12 @@ To understand how to properly use and tune libRaptorQ, you first need to underst
 constraints are.
 
 \index{Sequencing}\marginlabel{Input sequencing:}
-The RC6330 needs to have the whole input you want to send before it can start working.\\
+The RC6330 API needs to have the whole input you want to send before it can start working.\\
 This means that You should buffer the data you are sending, and then when you have a block big enough you pass it to libRaptorQ, which will start generating symbols.
 
 Contrary to the RFC6330, the RAW api is about a single block of data. You will have to divide your input in multiple blocks by hand, and decide by yourself how to send the encoded symbols. This will increase your flexibility, at the expense of not being conformant to RFC6330.
-Note that a RaptorQ block does not need to be completely filled since the block is automatically padded with zeros, but you need to somehow tell the receiver how much data you have in that block so that it can know where the padding starts. RFC6330 does this with the \texttt{OTI} parameters
-
+Note that a RaptorQ block does not need to be completely filled since the block is automatically padded with zeros, but you need to somehow tell the receiver how much data you have in that block so that it can know where the padding starts. RFC6330 does this with the \texttt{OTI} parameters. \textbf{with the RAW API you will have to do it by yourself}.
+-
 
 \index{Sequencing!Sizes}\marginlabel{Sizes:} Each block can have up to \textit{$56.403$ symbols}, and each
 symbol can have up to \textit{size\_t bytes} long ($2^{32}$ on 32 bit machines, $2^{
@@ -293,7 +296,7 @@ symbol can have up to \textit{size\_t bytes} long ($2^{32}$ on 32 bit machines, 
 Contrary to the RFC6330 the RAW api does not include any kind of interleaving
 
 \marginlabel{Memory and Time:}
-Memory and time requirements are to be considered, though, as RaptorQ needs to run a cubic algorithm on matrix of size $K*K$, where $K$ is the number of symbols in each block.\\
+Memory and time requirements are to be considered since RaptorQ needs to run a cubic algorithm on matrix of size $K*K$, where $K$ is the number of symbols in each block.\\
 The algorithm needs to keep in memory two of these matrices, although most of the work is done on only one.\\
 This is actually a lot. More benchmarks and optimizations will come later, for now remember that with 10 symbols it takes something like 0.4ms on a core i7 2.4GHZ, 280ms with 1000 symbols, and up to an hour with 27.000 symbols. YMMV.
 
@@ -308,6 +311,8 @@ You can also use the library as a header-only include, by including \textbf{Rapt
 Since the libRaptorQ library now has two very different usages, everything was split into two namespaces: \textbf{RFC6330} and \textbf{RaptorQ}. The names should be explanatory: the first namespace is for the RFC interface, while the second namespace is for the low-level interface.
 
 Since we will cover only the \textbf{RaptorQ} namespace here, remember that everything we talk about is in this namespace.
+
+Both the RFC6330 and the RaptorQ namespace are versioned so you can keep using old APIs while we change stuff. just add \textbf{\texttt{\_\_v1}} to select the first version of the API. E.g: \textbf{\texttt{RaptorQ\_\_v1}}
 
 \newpage
 
@@ -469,508 +474,121 @@ Write the symbol into the start-end iterators provided by the user. Afterwards t
 \subsubsection{The Decoder}
 \index{Decoder!C++}
 
-The decoder is a bit simpler than the encoder.
-
 There are two constructors for the Decoder:
 
 \begin{lstlisting}[language=C++]
  std::vector<uint32_t> input, output;
  using T_it = typename std::vector<uint32_t>::iterator;
- RaptorQ::Decoder<T_it, T_it> dec (
-                 const OTI_Common_Data common,
-                 const OTI_Scheme_Specific_Data scheme)
-                              
- RaptorQ::Decoder<T_it, T_it> dec (uint64_t size,
-                                  uint16_t symbol_size,
-                                  uint16_t sub_blocks,
-                                  uint8_t blocks)
+
+ RaptorQ__v1::Decoder<T_it, T_it> dec (
+ 							const Block_Size symbols,
+ 							const size_t symbol_size,
+							const Report type);
+
 \end{lstlisting}
 
-Which should be pretty self-explanatory, once you understand how the encoder works:
-you can either get the \texttt{OTI} parameters from the Encoder or you can provide the raw values by yourself (only if you know what you are doing)
+The only parameter that is not self-explanatory is the Report type: it regulates when the decoder will tell you that there is available data and will let you extract it.\\
+The possible values are:
 
-The remaining methods are:
+\begin{itemize}
+	\item \textbf{Report::PARTIAL\_FROM\_BEGINNING} report the data as it become available, but the data will be sequential
+	\item \textbf{Report::PARTIAL\_ANY} report any symbol as it becomes available. Could be out-of-order, and you can get symbols before the decoding starts.
+	\item \textbf{Report::COMPLETE} wait until the whole block has been decoded.
+\end{itemize}
+
+
+The decoding methods are:
+
 \begin{description}
-\item[begin()] \textbf{return: Block\_Iterator<In\_It, Fwd\_It>}\\
-This returns an iterator to the blocks in which the RFC divided the input data.
-\item[end()] \textbf{return: const Block\_Iterator<In\_It, Fwd\_It>}\\
-This returns an iterator to the end of the blocks in which the RFC divided the input data.
-\item[operator bool()] \textbf{return: bool}\\
-check if the Decoder was initialized properly
+\item[symbols()]\textbf{return: uint16\_t}\\
+The number of symbols in this block
+\item[symbol\_size()]\textbf{return: size\_t}\\
+The bytes in each symbol
+\item[can\_decode()]\textbf{return: bool}\\
+Whether we have enough data to start decoding or not
+\item[ready()]\textbf{return: bool}\\
+Whether everything has been decoded or not.
+\item[needed\_symbols()]\textbf{uint16\_t}\\
+How many more symbols we need before we try to decode again. If this is 0, you can decode.
+\item[clear\_data()]\textbf{return: void}\\
+clear all data, without deallocating memory so that things might be slightly faster next time.
+\item[stop()]\textbf{return: void}\\
+Stop any decoding done in the background.
 
-\item[compute] \textbf{Input: const Compute flags}\\
-\textbf{return: std::future<std::pair<Error, uint8\_t> >}\\
-Only enabled if you use C++11. Start the computation as soon as enough data is available.\\
-Compute flags:
-\begin{lstlisting}[language=C++]
-enum class Compute : uint8_t {
-NONE 
-// report every time there is more data, but only
-// if that data starts at the beginning.
-PARTIAL_FROM_BEGINNING
-PARTIAL_ANY
-COMPLETE // only when all the data is available
-NO_BACKGROUND // only return after the computation is finished
-NO_POOL // do not use the thread pool
-NO_RETRY // do not retry if we failed, even if there is more data
-};
-\end{lstlisting}
+\item[begin()] \textbf{return: Symbol\_Iterator<In\_It, Fwd\_It>}\\
+This returns an iterator to the symbols in this block.
+\item[end()] \textbf{return: const Symbol\_Iterator<In\_It, Fwd\_It>}\\
+This returns an iterator to the end of the symbols in this block
 
+\item[add\_symbols] \textbf{Input: In\_it \&from}\\
+.\ \ \ \ \ \ \ \ \ \ \textbf{const In\_it \&to}\\
+.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t esi}\\
+\textbf{return: RaptorQ\_\_v1::Error}\\
+Add one symbol to this block. If the symbol is less than \texttt{symbol\_size()} the symbol will be padded with zeros
 \item[end\_of\_input] \textbf{Input: const Fill\_With\_Zeros fill}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t block}\\
 \textbf{return: std::vector<bool>}\\
 Tell the decoder that we know that there will be no more data for this block.
 The first parameter is an \texttt{enum}, either \textbf{Fill\_With\_Zeros::YES}  or \textbf{Fill\_With\_Zeros::NO}
 If you choose \texttt{YES} then the repair symbols will be discarded, the missing symbols will be filled with zeros
 and for output you will get the bitmask for which byte was received (true) or was filled with zeros (false).\\
-If you choose \textbf{Fill\_With\_Zeros::NO} you will get \textit{an empty vector}
-\item[end\_of\_input] \textbf{Input: const Fill\_With\_Zeros fill}\\
-\textbf{return: std::vector<bool>}\\
-Same as before, but we know that there will be no more inputs for any block.
+If you choose \textbf{Fill\_With\_Zeros::NO} you will get \textit{an empty vector}, and the decoding will end with error if it was waiting for more input.
 
 
-\item[decode\_symbol]\textbf{Input: Fwd\_It \&start}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const Fwd\_It end}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint16\_t esi}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}
-\textbf{return: uint64\_t}\\
-Decode a single symbol. you need to provide the block number and symbol identifier.
+\item[set\_max\_concurrency] \textbf{Input: const uint16\_t max\_threads}\\
+\textbf{return: void}\\
+The decoder can try to decode the same block multiple times, while more repair symbols arrive.
+Unless you really need it, leave the default, which is $1$, so no decoding concurrency or the same block.
+
+\item[decode\_once()] \textbf{return: RaptorQ\_\_v1::Decoder\_Result}\\
+Try to decode the block, only return once the decoding is finished, do not try again even if more repair symbols arrived.
+
+\item[poll()] \textbf{return: RaptorQ\_\_v1::Decoder\_wait\_res}\\
+\begin{lstlisting}[language=c++]
+struct Decoder_wait_res {
+	Error error;
+	uint16_t symbol;
+};
+\end{lstlisting}
+In general, the \texttt{error} can be \textbf{Error::WORKING}, \texttt{Error::NEED\_DATA}, \texttt{Error::NONE}. The last one signals that the block (or symbol, see later) has been decoded.
+The \texttt{symbol} parameter changes depending on the \textbf{RaptorQ\_\_v1::Report} type that you set when you constructed the decoder:
+\begin{itemize}
+	\item \textbf{Report::PARTIAL\_FROM\_BEGINNING}: \texttt{symbols} will be the number of symbols available, but counting only the sequential ones starting from the beginning
+	\item \textbf{Report::PARTIAL\_ANY}: \texttt{symbols} will be the first symbol available (if \texttt{error} == \texttt{Error::NONE}). If the block has been decoded \texttt{symbols} == \texttt{decoder.symbols()}
+	\item \textbf{Report::COMPLETE} \texttt{symbols} is not used. 
+\end{itemize}
+
+
+\item[wait\_sync()] \textbf{return: RaptorQ\_\_v1::Decoder\_wait\_res}\\
+Start the decoding, and keep trying or waiting for new data to arrive until either we successfully decode the block or \texttt{stop()} is called. Also stops waiting for data after \texttt{end\_of\_input} is called (but will keep retrying if there already is enough).\\
+The result is the same as above
+
+\item[wait()] \textbf{return: std::future<RaptorQ\_\_v1::Decoder\_wait\_res>}\\
+Same as before, but returns a future immediately. This call is enabled only if you are compiling with C++11 or later
+
+\item[decode\_symbol()] \textbf{Input: Fwd\_It \&start}\\
+.\ \ \ \ \ \ \ \ \ \ \ \textbf{const Fwd\_It end}\\
+.\ \ \ \ \ \ \ \ \ \ \ \textbf{const uint16\_t esi} \\
+\textbf{return: RaptorQ\_\_v1::Error}\\
+Decode a single symbol. If $end-start$ is less then the symbol size, then you will get a partial symbol.
+\textbf{return: RaptorQ\_\_v1::Error}\\
 
 \item[decode\_bytes] \textbf{Input: Fwd\_It \&start}\\
 .\ \ \ \ \ \ \ \ \ \ \textbf{const Fwd\_It end}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t skip}\\
-\textbf{return: uint64\_t}\\
-Decode everything. returns the number of bytes written. You can start writing the output \texttt{skip} bytes after the first iterator in case the parameters you have used do not align (set to $0$ for everyone else).
-\item[decode\_bytes] \textbf{Input: Fwd\_It \&start}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const Fwd\_It end}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t skip}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}\\
-\textbf{return: uint64\_t}\\
-Same as before, but you can specify a \textbf{Single Block Number} instead of the whole output
-\newpage
-\item[decode\_aligned]\textbf{Input: Fwd\_It \&start}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const Fwd\_It end}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t skip}\\
-\textbf{return: aligned\_res}\\
-Same as \texttt{decode\_bytes}, but yu can use this if for some weir reason the data does not align with the type of the output
-\begin{lstlisting}[language=C++]
-struct aligned_res
-{
-uint64_t written; // iterators written
-uint8_t offset; // bytes written in the last
-				// iterator if it was not full
+.\ \ \ \ \ \ \ \ \ \ \textbf{const size\_t from\_byte}\\
+.\ \ \ \ \ \ \ \ \ \ \textbf{const size\_t skip}\\
+\textbf{return: Decoder\_written} \\
+Decode a specific range of the block. The \texttt{skip} parameter is the offset (in bytes) to skip from the \texttt{size} iterator. This is done to allow to work with iterators whose data is bigger than 1 byte. Although we recommend to work with uint8\_t data.\\
+Returns the number of bytes written, offset of the data in the last iterator (0 if it is aligned to the iterator)
+\begin{lstlisting}[language=c++]
+struct RAPTORQ_API Decoder_written {
+	size_t written;
+	size_t offset;
 };
 \end{lstlisting}
-\item[decode\_block\_aligned]\textbf{Input: Fwd\_It \&start}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const Fwd\_It end}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t skip}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}\\
-\textbf{return: aligned\_res}\\
-Same as before, but now you can choose the block
 
-
-\item[add\_symbol]\textbf{Input: In\_It \&start}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const In\_It end}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t esi}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}\\
-\textbf{return: RFC6330::Error}\\
-Add one symbol, while explicitly specifying the symbol id and the block id.
-
-\item[add\_symbol]\textbf{Input: In\_It \&start}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const In\_It end}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t id}\\
-\textbf{return: RFC6330::Error}\\
-Same as before, but extract the block id and the symbol id from the \textit{id} parameter
-
-\item[blocks\_ready()]\textbf{return: uint8\_t}\\
-return the number of the blocks that are ready for output
-\item[is\_ready()]\textbf{return: bool}\\
-Whether everything has been decoded or not.
-\item[is\_block\_ready]\textbf{Input:const uint8\_t block}\\
-\textbf{return: bool}\\
-Test if the specified block has been decoded or not
-
-
-\item[free]\textbf{Input: const uint8\_t sbn}\\
-\textbf{return: void}\\
-You might have stopped using a block, but the memory is still there. Free it.
-
-\item[bytes()] \textbf{return: uint64\_t}\\
-The total bytes of the output
-\item[blocks()] \textbf{return: uint8\_t}\\
-The number of blocks.
-
-\item[block\_size()] \textbf{Input: const uint8\_t sbn}\\
-\textbf{return: uint32\_t}\\
-The block size, in bytes. Each block can have different symbols and thus different size.
-
-\item[symbol\_size()] \textbf{return: uint16\_t} The size of a symbol.
-
-\item[symbols] \textbf{Input:uint8\_t sbn}\\
-\textbf{return: uint16\_t}\\
-The number of symbols in a specific block. different blocks can have different symbols.
-\end{description}
-\newpage
-
-\subsection{C interface}\index{Interface!C}
-The C interface looks a lot like the C++ one.\\
-You need to include the \textbf{RaptorQ/RFC6330.h} header, and link the \textit{libRaptorQ} library.\\
-\marginlabel{Static linking}\index{Static Linking}
-If you are working with the static version of libRaptorQ remember to link the C++ standard library used when
-compiling the library (\textit{libstdc++} for gcc or maybe \textit{libc++} for clang), your threding library (usually \textit{libpthread}), and the C math library (\textit{libm}).\\
-
-\marginlabel{\textbf{API versioning}} To better support future changes in the API and to help you with future changes,
-there are only 2 API calls in this library:
-\begin{description}
-\item[RFC6330\_api] \textbf{Input: uint32\_t version}\\
-\textbf{return: struct RFC6330\_base\_api*}\\
-This will give you a pointer to a struct containing pointers to the calls you will use.
-The struct will change depending on which API you request (currently only number $1$ is supported).
-Since this pointer works for every api, you have to cast it to the struct you expect, or you will not see
-the pointers to the function calls. Then you can use that pointer to access of the functions, like:
-\begin{lstlisting}[language=C]
-struct RFC6330_v1 *rfc = (struct RFC6330_v1*)
-									RFC6330_api (1);
-rfc->set_compression (RQ_COMPRESS_LZ4);
-\end{lstlisting}
-\item[RFC6330\_free\_api] \textbf{Input:struct RFC6330\_base\_api **api}\\
-\textbf{return: void}\\
-As the name implies, this frees the given structure.
-\end{description}
-
-Again, we only support API version 1 at the moment.
-
-\index{Cache!C}
-\subsubsection{Cache settings}
-As for the C++11 interface, you can get and set the local memory cache.
-
-\begin{description}
-\item[supported\_compressions] \textbf{return: RFC6330\_Compress}\\
-return the bitmask of all supported compressions. currently either \texttt{RQ\_COMPRESS\_NONE} or \texttt{RQ\_COMPRESS\_LZ4}
-
-\item[get\_compression] \textbf{return: RFC6330\_Compress}\\
-Which compression are we currently using?
-
-\item[set\_compression] \textbf{Input: const RFC6330\_Compress compression}\\
-\textbf{return: bool}\\
-Set a compression method or another.
-
-\item[local\_cache\_size] \textbf{Input: const size\_t bytes}\\
-\textbf{return: size\_t}\\
-Set the maximum amount of cache usable. Default: $0$
-\item[get\_local\_cache\_size] \textbf{return: size\_t}\\
-get the amount of cache configured
-\end{description}
-
-\subsubsection{C Constructors}
-The first thing you need is to allocate the encoder or the decoder.
-
-The C interface is just a wrapper around the C++ code, so you still have to specify the same things as before.
-A quick glance at the constructors should give you all the information you need:
-
-\begin{lstlisting}[language=C]
-typedef enum { RQ_NONE, RQ_ENC_8, RQ_ENC_16,
-               RQ_ENC_32, RQ_ENC_64, RQ_DEC_8,
-               RQ_DEC_16, RQ_DEC_32, RQ_DEC_64}
-              							RFC6330_type;
-\end{lstlisting}
-
-\begin{description}
-\item[Encoder] \textbf{Input:const RFC6330\_type type}\\
-.\ \ \ \ \ \ \ \ \ \textbf{void *data\_from}\\
-.\ \ \ \ \ \ \ \ \ \textbf{const uint64\_t size}\\
-.\ \ \ \ \ \ \ \ \ \textbf{const uint16\_t min\_subsymbol\_size}\\
-.\ \ \ \ \ \ \ \ \ \textbf{const uint16\_t symbol\_size}\\
-.\ \ \ \ \ \ \ \ \ \textbf{const size\_t max\_sub\_block}\\
-\textbf{return: RFC6330\_ptr*}\\
-Allocate an encoder. The encoder will work with uint8\_t, uint16\_t, uint32\_t or uint64\_t depending on which \texttt{RFC6330\_type} you choose. The best bet is usually to work with uint8\_t
-
-\item[Decoder] \textbf{Input:const RFC6330\_type type}\\
-.\ \ \textbf{const RFC6330\_OTI\_Common\_Data common}\\
-.\ \ \textbf{const RFC6330\_OTI\_Scheme\_Specific\_Data scheme}\\
-\textbf{return: RFC6330\_ptr*}\\
-The \texttt{type} parameter works the same as in the encoder. The other two are parameters you get from the encoder.
-
-\item[Decoder\_raw] \textbf{Input: RFC6330\_type type}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint64\_t size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint16\_t symbol\_size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint16\_t sub\_blocks}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t blocks}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t alignment}\\
-\textbf{return: struct RFC6330\_ptr*}\\
-Same as before, but here you can specify the parameters by hand.
-
-\item[initialized]\textbf{Input: const struct RFC6330\_ptr *ptr}\\
-\textbf{return: bool}\\
-check if the encoder or decoder was initialized properly.
 
 \end{description}
 
-\newpage
-\subsubsection{Common functions for (de/en)coding}
-
-These functions are used by both the encoder and the decoder, and will be helpful in tracking how much memory
-you will need to allocate, or in general in managing the encoder and decoder.
-
-The \textbf{ptr} must be a valid encoder or decoder.
-The names for now are self-explanatory. Blocks can have different symbols, so the size of a block and the number of symbols in a block
-depend on which block we are talking about.
-
-\marginlabel{\textbf{symbols, blocks, memory}}\\
-\begin{description}
-\item[set\_thread\_pool] \textbf{Input: const size\_t threads}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint16\_t max\_block\_concurrency}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const RFC6330\_Work exit\_type}\\
-\textbf{return: bool}\\
-Set the size of the thread pool for concurrent work. Since the decoder can fail, but also retry again if there is more data available,
-you can also specify how many times libRaptorQ will try to decode the same block concurrently. $1$ is a safe option.\\
-The last parameter, \texttt{RFC6330\_Work} specify what to do when you are downsizing the thread pool and some threads are still working. The possible values are \texttt{RQ\_WORK\_KEEP\_WORKING} and \texttt{RQ\_WORK\_ABORT\_COMPUTATION}.
-\item[blocks] \textbf{Input: const struct RFC6330\_ptr *ptr}\\
-\textbf{return: uint8\_t}\\
-The number of blocks in this RFC6330 instance
-\item[symbols]\textbf{Input: const struct RFC6330\_ptr *ptr}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}\\
-\textbf{return: uint16\_t}\\
-The number of symbols in the specified block
-\item[extended\_symbols]\textbf{Input: const struct RFC6330\_ptr *ptr}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}\\
-\textbf{return: uint16\_t}\\
-The the \textbf{real, internal} number of symbols in the specified block. You probably \textit{do not want this} unless you are trying to understand more about the RaptorQ algorithm or you are benchmarking
-
-\item[symbol\_size]\textbf{Input:const struct RFC6330\_ptr *ptr}\\
-\textbf{return: size\_t}\\
-The size of each symbol
-\item[free\_block]\textbf{Input: struct RFC6330\_ptr **ptr}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}\\
-\textbf{return: void}\\
-Free the allocated space for a single block
-\item[free]\textbf{Input: struct RFC6330\_ptr **ptr}\\
-\textbf{return: void}\\
-Free the specified decoder or decoder and all its blocks.
-\end{description}
-
-
-\marginlabel{Computation}\label{computation}\\
-\begin{description}
-\item[compute] \textbf{Input: const struct RFC6330\_ptr *ptr}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const RFC6330\_Compute flags}\\
-\textbf{return: RFC6330\_future*}\\
-Start the computation as described in the flags. Returns a wrapper to the C++11 futures. You can wait or poll the state of the future in different ways (see right below)\\
-\begin{lstlisting}[language=C]
-typedef enum {
-RQ_COMPUTE_NONE 
-// report every time there is more data, but only
-// if that data starts at the beginning.
-RQ_COMPUTE_PARTIAL_FROM_BEGINNING
-RQ_COMPUTE_PARTIAL_ANY
-RQ_COMPUTE_COMPLETE // only when all the data
-					// is available
-RQ_COMPUTE_NO_BACKGROUND // only return after
-					 // the computation is finished
-RQ_COMPUTE_NO_POOL // do not use the thread pool
-RQ_COMPUTE_NO_RETRY // do not retry if we failed,
-					// even if there is more data
-} RFC6330_Compute;
-\end{lstlisting}
-\item[future\_state] \textbf{Input: const struct RFC6330\_future *f}\\
-\textbf{return: RFC6330\_Error}\\
-poll the state of the future. possible results:
-\begin{lstlisting}[language=C]
-RQ_ERR_WRONG_INPUT // null pointer?
-RQ_ERR_NOT_NEEDED  // you have already run
-				   // future_get() on this future
-RQ_ERR_WORKING	   // still working on it
-RQ_ERR_NONE		   // ready to run future_get()
-\end{lstlisting}
-\newpage
-\item[future\_wait\_for] \textbf{Input: const struct RFC6330\_future *f}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint64\_t time}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const RFC6330\_Unit\_Time unit}\\
-\textbf{return: RFC6330\_Error}\\
-Wait for a future to become ready for X amount of time. the unit is specified in the
-last parameter:
-\begin{lstlisting}[language=C]
-typedef enum {
-RQ_TIME_NANOSEC,
-RQ_TIME_MICROSEC,
-RQ_TIME_MILLISEC,
-RQ_TIME_SEC,
-RQ_TIME_MIN,
-RQ_TIME_HOUR
-} RFC6330_Unit_Time;
-\end{lstlisting}
-\item[future\_wait] \textbf{Input: const struct RFC6330\_future *f}\\
-\textbf{return: void}\\
-Same as before, but wait indefinitely
-\item[future\_get] \textbf{Input: struct RFC6330\_future *future}\\
-\textbf{return: struct RFC6330\_Result}\\
-Returns the state of the future. If the future is not ready it will wait indefinitely.
-\begin{lstlisting}[language=C]
-struct RAPTORQ_API RFC6330_Result {
-    RFC6330_Error error;
-    uint8_t sbn;
-};
-\end{lstlisting}
-The sbn changes meaning depending to be consistent with the flags you passed to the \texttt{compute()} call.
-\item[future\_free] \textbf{Input: struct RFC6330\_future **f}\\
-\textbf{return: void}\\
-Free the memory allocated for the future.
-\end{description}
-
-\newpage
-\subsubsection{\textbf{Encoding}}
-\index{Encoder!C}
-Now we will look at the calls specific to the encoder (that is: calls that need an encoder as the first parameter, and don't make sense in a decoder)
-
-\marginlabel{OTI Data}\\
-First, we need to tell the receiver all the parameters that the encoder is using, and for that two functions are provided:
-\begin{lstlisting}[language=C]
-typedef uint64_t RaptorQ_OTI_Common_Data;
-typedef uint32_t RaptorQ_OTI_Scheme_Specific_Data;
-\end{lstlisting}
-\begin{description}
-\item[OTI\_Common]\textbf{Input: struct RaptorQ\_ptr *enc}\\
-\textbf{return: RFC6330\_OTI\_Common\_Data}\\
-Get the OTI\_Common
-\item[OTI\_Scheme\_Specific]\textbf{Input: struct RaptorQ\_ptr *enc}\\
-\textbf{return: RFC6330\_OTI\_Scheme\_Specific\_Data}\\
-Get the OTI\_Scheme\_Specific
-\end{description}
-
-\marginlabel{Encoding}
-
-\begin{description}
-\item[max\_repair]\textbf{Input: const struct RFC6330\_ptr *enc}\\
-.\ \ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}\\
-\textbf{return: uint32\_t}\\
-return the max number of repair packets that block can have. This is around $2^{24}$, so you probably always want to be much, much lower than this. The total number of symbols (source+repair) is limited in the RFC, and since the bigger blocks have more source symbols, the max number of repair symbols has to be lower in bigger blocks. Again, this is always in the ballpark of $2^{24}$, you probably don't want to use this many repair symbols.
-\item[precompute\_max\_memory]\textbf{Input: const struct RFC6330\_ptr *enc}\\
-\textbf{return: size\_t}\\
-Get an estimate of how much memory (bytes) will cost the encoding of a single block. Not 100\% accurate, but close enough.
-\item[encode\_id]\textbf{Input: const struct RFC6330\_ptr *enc}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{void **data}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const size\_t size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t id}\\
-\textbf{return: size\_t}\\
-Get one encoded symbol, and store it in \texttt{**data}, which holds a pointer to "\texttt{size}" elements of type uint8\_t, uint16\_t, uint32\_t or uint64\_t depending on how the encoder was initialized. See \texttt{RFC6330\_type} in the encoder initialization. Returns the number of elements written.\\
-If you request repair symbols before the computation is finished, the call will block until the data is available. This calls works for both source and repair symbols, just increase the id until you finish the source symbols
-\item[encode]\textbf{Input: const struct RFC6330\_ptr *enc}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{void **data}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const size\_t size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t esi}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}\\
-\textbf{return: size\_t}\\
-Same as before, but you can specify the symbol and block explicitly.
-\item[id]\textbf{Input: const uint32\_t esi}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}\\
-\textbf{return: uint32\_t}\\
-combine the esi and the block number to form an id.
-\end{description}
-
-
-\newpage
-\subsubsection{\textbf{Decoding}}
-As for the encoder, there are functions which are specific for a decoder. Let's look at them
-
-\marginlabel{General status calls}
-\begin{description}
-\item[bytes]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-\textbf{return: uint64\_t}\\
-Return the number of bytes that this decoder should output on complete, successful decoding.
-\item[blocks\_ready]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-\textbf{return: uint8\_t}\\
-Return the number of blocks ready to be returned. Useful if you don't want to wait for the whole data.\\
-The number of blocks reported can mean either the number of sequential blocks ready, or the number
-of blocks regardless of order, depending on how the \texttt{compute} function was called (see "\texttt{Computation}" on \ref{computation}) 
-\item[is\_ready]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-\textbf{return: bool}\\
-Test if the whole encoder is ready and all data decoded.
-\item[is\_block\_ready]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-\.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t block}\\
-\textbf{return: bool}\\
-Test if a single block is ready and its data decoded.
-\end{description}
-
-\index{Decoder!C}\marginlabel{Decoding calls}
-\begin{description}
-\item[end\_of\_input]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-.\ \ \ \ \ \ \ \ \ \ 
-\textbf{const RFC6330\_Fill\_With\_Zeros fill}\\
-\textbf{return: struct RFC6330\_Byte\_Tracker}\\
-Tell the decoder that there will be no more input for any block.
-The second parameter is an enum, it can be either \textbf{RQ\_NO\_FILL} or \textbf{RQ\_FILL\_WITH\_ZEROS}.\\
-If you use \texttt{RQ\_NO\_FILL} the structure returned will be empty, and the decoder will return error if there are not enough repair symbols.\\
-If you use \texttt{RQ\_FILL\_WITH\_ZEROS} the decoder will immediately stop decoding and all missing symbols will be filled with zeros. The returned structure will contain a bitmask so you know if each byte comes from the network (true) or it is one of the filled ones (false)
-\item[end\_of\_block\_input]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-.\ \ \ \ \ \ \ \ \ \ 
-\textbf{const RFC6330\_Fill\_With\_Zeros fill}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t block}\\
-\textbf{return: struct RFC6330\_Byte\_Tracker}\\
-Same as before, but for a single block instead of the whole data.
-\item[add\_symbol\_id]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const void **data}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uin32\_t id}\\
-\textbf{return: RFC6330\_Error}\\
-Add a symbol to the decoder. The \texttt{void **data} will be cast to the correct type as specified in the decoder construction (RQ\_DEC\_8, RQ\_DEC\_16 etc..). Afterwards data will point \textbf{after} the symbol.
-\item[add\_symbol\_id]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const void **data}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uin32\_t esi}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uin8\_t sbn}\\
-\textbf{return: RFC6330\_Error}\\
-Same as with \texttt{add\_symbol\_id}, but now you can specify the esi and the block number manually
-\item[decode\_aligned]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const void **data}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t skip}\\
-\textbf{return: RFC6330\_Dec\_Result}\\
-Decode everything as asked by the \texttt{compute()} call (see "\texttt{Computation}" on \ref{computation}).\\
-The \texttt{void **data} will be cast to the correct type as specified in the decoder construction (\texttt{RQ\_DEC\_8}, \texttt{RQ\_DEC\_16} etc..). Afterwards data will point \textbf{after} the decoded data. You can skip "skip" bytes at the beginning of **data if the pointer
-is not aligned with your data.
-\begin{lstlisting}[language=C]
-struct RAPTORQ_API RFC6330_Dec_Result {
-	uint64_t written;
-	uint8_t offset;
-};
-\end{lstlisting}
-The result is the number of written \textbf{elements} (size depending on \texttt{RQ\_DEC\_8}, \texttt{RQ\_DEC\_16} etc).\\
-The \texttt{offset} parameter is the amount of bytes written in the last element if the alignment used in the encoder does not fit the
-alignment used in the decoder. Usually you keep those synchronized, so it should be zero (element fully written)
-\newpage
-\item[decode\_block\_aligned]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const void **data}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t skip}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t block}\\
-\textbf{return: RFC6330\_Dec\_Result}\\
-Same as before, but now you can decode a single block.
-
-\item[decode\_symbol]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const void **data}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t skip}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t esi}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t sbn}\\
-\textbf{return: uint64\_t}\\
-As you can expect, decode a single symbol. The \texttt{void **data} will be cast to the correct type as specified in the decoder construction (\texttt{RQ\_DEC\_8}, \texttt{RQ\_DEC\_16} etc..). Afterwards data will point \textbf{after} the decoded data.\\
-Returns the number of bytes written
-\item[decode\_bytes]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const void **data}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t skip}\\
-\textbf{return: uint64\_t}\\
-Decode everything as asked by the \texttt{compute()} call (see "\texttt{Computation}" on \ref{computation}).\\
-The \texttt{void **data} will be cast to the correct type as specified in the decoder construction (\texttt{RQ\_DEC\_8}, \texttt{RQ\_DEC\_16} etc..). Afterwards data will point \textbf{after} the decoded data. You can skip "skip" bytes at the beginning of **data if the pointer is not aligned with your data.\\
-Returns the number of written bytes.
-\item[decode\_block\_bytes]\textbf{Input: const struct RFC6330\_ptr *dec}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const void **data}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint32\_t size}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t skip}\\
-.\ \ \ \ \ \ \ \ \ \ \textbf{const uint8\_t block}\\
-\textbf{return: uint64\_t}\\
-Same as before, but now decode a single block
-\end{description}
 
 
 

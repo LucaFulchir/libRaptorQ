@@ -555,7 +555,7 @@ Decoder<In_It, Fwd_It>::Decoder (const Block_Size symbols,
     for (idx = 0; idx < 2 * _symbols; ++idx)
         symbols_tracker[idx] = false;
     work = RaptorQ__v1::Work_State::KEEP_WORKING;
-    _max_threads = 2;
+    _max_threads = 1;
 }
 
 template <typename Rnd_It, typename Fwd_It>
