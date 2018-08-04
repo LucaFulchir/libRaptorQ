@@ -23,7 +23,7 @@ enable_language(CXX)
 enable_language(C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake; ${CMAKE_MODULE_PATH})
-set(RQ_VERSION 1.0.0-beta1)
+set(RQ_VERSION 1.0.0-rc1)
 set(RQ_ABI 1)
 message(STATUS "libRaptorQ version ${RQ_VERSION}")
 add_definitions(-DRQ_VERSION="${RQ_VERSION}")

@@ -81,7 +81,7 @@
     static char RaptorQ_version[] = RQ_VERSION;
 #else
     // let's see if I remember to update this...
-    static char RaptorQ_version[] = "1.0.0-beta1";
+    static char RaptorQ_version[] = "1.0.0-rc1";
 #endif
 #define RQ_UNUSED(x)    ((void)x)
 #pragma GCC diagnostic pop
