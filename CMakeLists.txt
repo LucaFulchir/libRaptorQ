@@ -232,7 +232,7 @@ SET(SOURCES
             src/RaptorQ/v1/wrapper/CPP_caches.cpp
             )
 
-SET(HEADERS
+SET(HEADERS_V1
             src/RaptorQ/v1/block_sizes.hpp
             src/RaptorQ/v1/caches.hpp
             src/RaptorQ/v1/caches.ipp
@@ -254,20 +254,36 @@ SET(HEADERS
             src/RaptorQ/v1/RaptorQ_Iterators.hpp
             src/RaptorQ/v1/RFC.hpp
             src/RaptorQ/v1/RFC_Iterators.hpp
-            src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
             src/RaptorQ/v1/table2.hpp
             src/RaptorQ/v1/Thread_Pool.hpp
+            )
+
+SET(HEADERS_V1_SC
+            src/RaptorQ/v1/Shared_Computation/Decaying_LF.hpp
+            )
+
+if (USE_LZ4 MATCHES "ON")
+    SET (HEADERS_V1_SC ${HEADERS_V1_SC}
+            src/RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp)
+endif()
+
+SET(HEADERS_V1_UTIL
             src/RaptorQ/v1/util/Bitmask.hpp
             src/RaptorQ/v1/util/div.hpp
             src/RaptorQ/v1/util/endianess.hpp
             src/RaptorQ/v1/util/Graph.hpp
             )
 
-SET(HEADERS_LINKED
+SET(HEADERS ${HEADERS_V1} ${HEADERS_V1_SC} ${HEADERS_V1_UTIL})
+
+SET(HEADERS_LINKED_BASE
             src/RaptorQ/RaptorQ.h
             src/RaptorQ/RaptorQ_v1.hpp
             src/RaptorQ/RFC6330.h
             src/RaptorQ/RFC6330_v1.hpp
+            )
+
+SET(HEADERS_LINKED_V1_WRAPPER
             src/RaptorQ/v1/wrapper/C_common.h
             src/RaptorQ/v1/wrapper/C_RAW_API.h
             src/RaptorQ/v1/wrapper/C_RFC_API.h
@@ -277,20 +293,19 @@ SET(HEADERS_LINKED
             src/RaptorQ/v1/wrapper/CPP_RAW_API_void.hpp
             )
 
-SET(HEADERS_ONLY
+SET(HEADERS_LINKED ${HEADERS_LINKED_BASE} ${HEADERS_LINKED_V1_WRAPPER})
+
+SET(HEADERS_ONLY_BASE
             src/RaptorQ/RaptorQ_v1_hdr.hpp
             src/RaptorQ/RFC6330_v1_hdr.hpp
             )
+
+SET(HEADERS_ONLY ${HEADERS_ONLY_BASE})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows")
     # windows-only placeholder
 else()
     # linux-only placeholder
-endif()
-
-if (USE_LZ4 MATCHES "ON")
-    SET (HEADERS ${HEADERS}
-            src/RaptorQ/v1/Shared_Computation/LZ4_Wrapper.hpp)
 endif()
 
 include(cmake/compiler_flags.cmake)
@@ -584,7 +599,11 @@ add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_rfc_linked test_
 
 add_custom_target(everything DEPENDS make_static_deterministic examples docs CLI_tools)
 
-install(FILES ${HEADERS} ${HEADERS_ONLY} ${HEADERS_LINKED} DESTINATION include/RaptorQ/)
+install(FILES ${HEADERS_ONLY_BASE} ${HEADERS_LINKED_BASE} DESTINATION include/RaptorQ/)
+install(FILES ${HEADERS_V1} DESTINATION include/RaptorQ/v1/)
+install(FILES ${HEADERS_V1_SC} DESTINATION include/RaptorQ/v1/Shared_Computation/)
+install(FILES ${HEADERS_LINKED_V1_WRAPPER} DESTINATION include/RaptorQ/v1/wrapper/)
+install(FILES ${HEADERS_V1_UTIL} DESTINATION include/RaptorQ/v1/util/)
 install(TARGETS RaptorQ RaptorQ_Static
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib COMPONENT libraries)
