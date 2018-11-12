@@ -584,7 +584,14 @@ add_custom_target(examples DEPENDS test_c test_cpp_rfc test_cpp_rfc_linked test_
 
 add_custom_target(everything DEPENDS make_static_deterministic examples docs CLI_tools)
 
-install(FILES ${HEADERS} ${HEADERS_ONLY} ${HEADERS_LINKED} DESTINATION include/RaptorQ/)
+
+foreach (hdr ${HEADERS} ${HEADERS_ONLY} ${HEADERS_LINKED})
+    get_filename_component (full_dir_of_file ${hdr} PATH)
+    # remove the initial "src/":
+    string (SUBSTRING ${full_dir_of_file} 4 -1 dir_of_file)
+    install (FILES ${hdr} DESTINATION "include/${dir_of_file}")
+endforeach()
+
 install(TARGETS RaptorQ RaptorQ_Static
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib COMPONENT libraries)
