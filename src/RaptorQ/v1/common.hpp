@@ -97,7 +97,7 @@
 #include <cstdint>
 #include <type_traits>
 //windows does not have ssize_t
-typedef std::conditional<sizeof(size_t) == 4, int32_t, int64_t>::type ssize_t;
+typedef std::make_signed<size_t>::type ssize_t;
 #endif
 
 static const uint64_t RFC6330_max_data = 946270874880;  // ~881 GB
