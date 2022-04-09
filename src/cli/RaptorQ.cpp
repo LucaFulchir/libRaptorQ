@@ -30,7 +30,7 @@
 #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
 #pragma clang diagnostic ignored "-Wcast-qual"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#include "../external/optionparser-1.4/optionparser.h"
+#include "optionparser.h"
 #pragma clang diagnostic pop
 #pragma GCC diagnostic pop
 #include "RaptorQ/RaptorQ_v1_hdr.hpp"

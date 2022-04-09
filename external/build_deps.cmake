@@ -58,7 +58,7 @@ if(RQ_BUILD_LZ4)
         SOVERSION "${RQ_LZ4_VERSION_MAJOR}.${RQ_LZ4_VERSION_MINOR}")
     #set_property(TARGET lz4_static PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
     ADD_DEFINITIONS("-DLZ4_VERSION=\"${RQ_LZ4_VERSION_PATCH}\"")
-    INCLUDE_DIRECTORIES (${RQ_LZ4_DIR})
+    INCLUDE_DIRECTORIES (SYSTEM PUBLIC ${RQ_LZ4_DIR})
 
     # NOTE: will be used like "-Wl..flag,flag,flag" . no spaces, and keep the comma
     set(RQ_LZ4_EXCLUDE_SYM ",--exclude-libs lib${RQ_LZ4_LIBNAME}.a")
