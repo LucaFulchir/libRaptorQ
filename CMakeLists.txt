@@ -360,9 +360,9 @@ CMakeFiles/RaptorQ_Static_Profiling.dir/src/RaptorQ/v1/API_Wrapper_C.cpp.gcda)
         ${PROFILE_GET}
     )
     if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
-        target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB} m ${CMAKE_THREAD_LIBS_INIT})
+        target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB} m ${CMAKE_THREAD_LIBS_INIT} ${RQ_UBSAN})
     else()
-        target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB}   ${CMAKE_THREAD_LIBS_INIT})
+        target_link_libraries(test_c_profiled RaptorQ_Static_Profiling ${STDLIB}   ${CMAKE_THREAD_LIBS_INIT} ${RQ_UBSAN})
     endif()
     set_target_properties(test_c_profiled PROPERTIES LINK_FLAGS ${PROFILE_GET})
 
@@ -463,7 +463,7 @@ if(DYNAMIC_LIB MATCHES "ON")
 
     add_library(RaptorQ SHARED ${SOURCES} ${HEADERS} ${HEADERS_LINKED})
     add_dependencies(RaptorQ LZ4)
-    target_link_libraries(RaptorQ ${RQ_LZ4_DEP})
+    target_link_libraries(RaptorQ ${RQ_LZ4_DEP} ${RQ_UBSAN})
     target_compile_options(
         RaptorQ PRIVATE
         ${CXX_COMPILER_FLAGS}
