@@ -89,8 +89,9 @@ inline Parameters::Parameters (const uint16_t symbols)
     P = L - W;
     U = P - H;
     B = W - S;
-    P1 = P + 1;         // first prime number bigger than P. turns out its
-                        // always between 1 and 14 more numbers.
+    P1 = P;             // RFC 6330, pg 22, P1 denotes the smallest prime
+                        // number greater than or equal to P. Turns out its
+                        // always between 0 and 14 more numbers.
     while (!is_prime (P1))  // so this while will be really quick anyway
         ++P1;
 }
