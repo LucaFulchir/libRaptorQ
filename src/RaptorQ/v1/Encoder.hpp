@@ -238,7 +238,6 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed (
     if (precode_on == nullptr) {
         precode_on = std::unique_ptr<Precode_Matrix<Save_Computation::ON>> (
                 new Precode_Matrix<Save_Computation::ON>(Parameters(_symbols)));
-        precode_on->gen(0);
     }
     if (_type == Save_Computation::ON) {
         const uint16_t size = precode_on->_params.L;
@@ -256,6 +255,7 @@ DenseMtx Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::get_precomputed (
         }
         // else not found, generate one.
     }
+    precode_on->gen(0);    
 
     uint16_t S_H;
     uint16_t K_S_H;
@@ -485,8 +485,8 @@ std::pair<uint16_t, uint16_t> Raw_Encoder<Rnd_It, Fwd_It, Interleaved>::
             precode_off =std::unique_ptr<Precode_Matrix<Save_Computation::OFF>>(
                                     new Precode_Matrix<Save_Computation::OFF> (
                                                         Parameters(_symbols)));
-            precode_off->gen(0);
         }
+        precode_off->gen(0);        
         S_H = precode_off->_params.S + precode_off->_params.H;
         K_S_H = precode_off->_params.K_padded + S_H;
     }
