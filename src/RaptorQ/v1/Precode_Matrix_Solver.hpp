@@ -244,7 +244,7 @@ std::tuple<bool, uint16_t, uint16_t>
         for (uint16_t col = 0; col < V_tmp.cols(); ++col)
             original_degree += static_cast<uint8_t> (V_tmp (row, col));
         bool is_hdpc = (row >= _params.S && row < (_params.S + _params.H));
-        tracking.emplace_back (is_hdpc, original_degree);;
+        tracking.emplace_back (is_hdpc, original_degree);
     }
 
     while (i + u < _params.L) {

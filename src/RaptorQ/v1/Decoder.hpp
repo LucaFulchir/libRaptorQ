@@ -176,6 +176,7 @@ void Raw_Decoder<In_It>::clear_data()
     concurrent = 0;
     can_retry = false;
     end_of_input = false;
+    keep_working= true;
     mask = Bitmask (_symbols);
     received_repair.clear();
 }
