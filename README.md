@@ -7,10 +7,10 @@
 [Homepage](https://www.fenrirproject.org/Luker/libRaptorQ/wikis/home)
 
 
-stable  release: **v0.1.10**  
+old release: **v0.1.10**  
 > Note: v0.1.10 is not compatible with prefivous versions, which were not RFC compliant!
 
-current release: **v1.0.0-rc1**  
+current release: **v1.0.0-rc2**  (use this in new projects)
 
 RaptorQ is a **Forward Error Correction** algorithm designed to deliver your data
 efficiently and without retransmissions for lost packets.
